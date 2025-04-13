@@ -17,7 +17,7 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
 engine = create_async_engine(DATABASE_URL, echo=True, future=True, echo_pool=True)
-SessionLocal = sessionmaker(bind=engine, class_=AsyncSession)
+SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
 
 
@@ -31,6 +31,7 @@ class CustomUser(Base):
     full_name = Column(String, nullable=True)
     birth_date = Column(DateTime, nullable=True)
     registration_date = Column(DateTime, default=datetime.utcnow)
+    qr_code = Column(String, nullable=True)
 
 
 async def create_db():
