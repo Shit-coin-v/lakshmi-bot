@@ -1,0 +1,86 @@
+from django.db import models
+from django.utils import timezone
+
+
+class StoreType(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    percent = models.DecimalField(max_digits=5, decimal_places=2)
+
+    class Meta:
+        verbose_name = 'Тип магазина'
+        verbose_name_plural = 'Тип магазинов'
+        db_table = 'store_types'
+
+    def __str__(self):
+        return self.name
+
+
+class Store(models.Model):
+    name = models.CharField(max_length=200)
+    type = models.ForeignKey(StoreType, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Магазин'
+        verbose_name_plural = 'Магазины'
+        db_table = 'stores'
+
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+    product_code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=200)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.CharField(max_length=100)
+    stock = models.IntegerField(default=0)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    is_promotional = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Продукт'
+        verbose_name_plural = 'Продукты'
+        db_table = 'products'
+
+    def __str__(self):
+        return self.name
+
+
+class CustomUser(models.Model):
+    telegram_id = models.BigIntegerField(unique=True)
+    first_name = models.CharField(max_length=100, null=True, blank=True)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
+    full_name = models.CharField(max_length=200, null=True, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    registration_date = models.DateTimeField(default=timezone.now)
+    qr_code = models.CharField(max_length=500, null=True, blank=True)
+    bonuses = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+        db_table = 'customers'
+
+    def __str__(self):
+        return self.full_name or f"User {self.telegram_id}"
+
+
+class Transaction(models.Model):
+    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
+    quantity = models.IntegerField(default=1)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    purchase_date = models.DateField(default=timezone.now)
+    purchase_time = models.TimeField(default=timezone.now)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    is_promotional = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Транзакция'
+        verbose_name_plural = 'Транзакции'
+        db_table = 'transactions'
+
+    def __str__(self):
+        return f"Transaction #{self.id}"
