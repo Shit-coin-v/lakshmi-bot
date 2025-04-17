@@ -6,8 +6,18 @@ os.makedirs(QR_CODES_DIR, exist_ok=True)
 
 
 def generate_qr_code(telegram_id: int) -> str:
-    data = f"https://t.me/retail33412_bot?start={telegram_id}"
-    img = qrcode.make(data)
-    path = f"{QR_CODES_DIR}/{telegram_id}.png"
-    img.save(path)
-    return path
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(str(telegram_id))
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    filename = f"qr_{telegram_id}.png"
+    filepath = os.path.join(QR_CODES_DIR, filename)
+    img.save(filepath)
+
+    return filepath

@@ -64,11 +64,16 @@ async def show_qr_code_handler(callback: CallbackQuery):
         user_service = UserRegistration(session)
         user = await user_service.get_user_by_id(callback.from_user.id)
 
-        if user and user.qr_code and os.path.exists(user.qr_code):
-            photo = FSInputFile(user.qr_code)
-            await callback.message.answer_photo(photo)
-        else:
-            await callback.message.answer("QR-код не найден.")
+        if not user:
+            await callback.message.answer("Пользователь не найден")
+            return await callback.answer()
+
+        if not user.qr_code or not os.path.exists(user.qr_code):
+            await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
+            return await callback.answer()
+
+        photo = FSInputFile(user.qr_code)
+        await callback.message.answer_photo(photo)
 
     await callback.answer()
 

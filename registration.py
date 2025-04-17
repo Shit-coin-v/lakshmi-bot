@@ -15,10 +15,7 @@ class UserRegistration:
         result = await self.session.execute(
             select(CustomUser).where(CustomUser.telegram_id == telegram_id)
         )
-        user = result.scalar_one_or_none()
-        if user:
-            user.qr_code = generate_qr_code(user.telegram_id)
-        return user
+        return result.scalar_one_or_none()
 
     async def create_user(
         self,
