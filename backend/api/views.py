@@ -4,13 +4,29 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .serializers import PurchaseSerializer
-# from .utils import apply_purchase_bonus
 from main.models import CustomUser, Store, Product, Transaction
 
 logger = logging.getLogger(__name__)
 
 
 class PurchaseView(APIView):
+    """
+    {
+        "telegram_id": 373604254,
+        "product_code": "ABC123",
+        "product_name": "Молоко",
+        "category": "Молочные продукты",
+        "quantity": 2,
+        "price": 90.00,
+        "total": 180.00,
+        "purchase_date": "2025-03-25",
+        "purchase_time": "18:12:00",
+        "store_id": 1,
+        "is_promotional": false,
+        "bonus_earned": 2.00,
+        "total_bonuses": 9.40
+    }
+    """
 
     @staticmethod
     def post(request):

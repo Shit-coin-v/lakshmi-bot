@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, date, time
+from datetime import datetime, date
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker

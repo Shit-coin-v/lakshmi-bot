@@ -58,8 +58,8 @@ async def command_start_handler(message: Message, state: FSMContext):
             await state.set_state(Registration.waiting_for_fio)
 
 
-@dp.callback_query(lambda c: c.data == "show_qr")
-async def show_qr_code_handler(callback: CallbackQuery):
+@dp.callback_query(lambda c: c.data in ["show_qr", "show_bonuses"])
+async def callback_handler(callback: CallbackQuery):
     async with SessionLocal() as session:
         user_service = UserRegistration(session)
         user = await user_service.get_user_by_id(callback.from_user.id)
@@ -68,12 +68,16 @@ async def show_qr_code_handler(callback: CallbackQuery):
             await callback.message.answer("Пользователь не найден")
             return await callback.answer()
 
-        if not user.qr_code or not os.path.exists(user.qr_code):
-            await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
-            return await callback.answer()
+        if callback.data == "show_qr":
+            if not user.qr_code or not os.path.exists(user.qr_code):
+                await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
+                return await callback.answer()
 
-        photo = FSInputFile(user.qr_code)
-        await callback.message.answer_photo(photo)
+            photo = FSInputFile(user.qr_code)
+            await callback.message.answer_photo(photo)
+
+        elif callback.data == "show_bonuses":
+            await callback.message.answer(f"Ваши бонусы: {user.bonuses}")
 
     await callback.answer()
 
