@@ -84,3 +84,17 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"Transaction #{self.id}"
+
+
+class BroadcastMessage(models.Model):
+    message_text = models.TextField("Текст сообщения", null=False)
+    created_at = models.DateTimeField("Дата создания", default=timezone.now)
+    is_sent = models.BooleanField("Отправлено", default=False)
+    send_to_all = models.BooleanField("Всем пользователям", default=True)
+    target_user_id = models.BigIntegerField("ID пользователя", null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Рассылка'
+        verbose_name_plural = 'Рассылки'
+        db_table = 'broadcast_messages'
+        ordering = ['-created_at']

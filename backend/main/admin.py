@@ -1,5 +1,13 @@
-from django.contrib import admin
+import asyncio
+import logging
+
+from django.contrib import admin, messages
+
 from .models import *
+from broadcast import send_broadcast_message
+
+
+logger = logging.getLogger(__name__)
 
 
 class StoreTypeAdmin(admin.ModelAdmin):
@@ -31,6 +39,41 @@ class TransactionAdmin(admin.ModelAdmin):
     list_filter = ('is_promotional', 'store')
     search_fields = ('customer__full_name', 'product__name')
     date_hierarchy = 'purchase_date'
+
+
+@admin.register(BroadcastMessage)
+class BroadcastMessageAdmin(admin.ModelAdmin):
+    list_display = ("id", "message_text", "created_at", "is_sent", "send_to_all", "target_user_id")
+    actions = ["send_broadcast"]
+
+    def send_broadcast(self, request, queryset):
+        success_count = 0
+        fail_count = 0
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            for message in queryset:
+                if not message.is_sent:
+                    try:
+                        loop.run_until_complete(send_broadcast_message(message))
+                        message.is_sent = True
+                        message.save()
+                        logger.info(f"✅ Успешно отправлено сообщение ID={message.id}")
+                        success_count += 1
+                    except Exception as e:
+                        logger.error(f"❌ Ошибка при отправке сообщения ID={message.id}: {e}")
+                        fail_count += 1
+        finally:
+            loop.close()
+
+        if success_count:
+            self.message_user(request, f"✅ Успешно отправлено: {success_count}", level=messages.SUCCESS)
+        if fail_count:
+            self.message_user(request, f"❌ Ошибок при отправке: {fail_count}", level=messages.ERROR)
+
+    send_broadcast.short_description = "Отправить выбранные рассылки"
 
 
 admin.site.register(StoreType, StoreTypeAdmin)
