@@ -1,10 +1,11 @@
 import logging
+from decimal import Decimal
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .serializers import PurchaseSerializer
-from main.models import CustomUser, Store, Product, Transaction
+from main.models import CustomUser, Store, Product, Transaction, StoreType
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,11 @@ class PurchaseView(APIView):
 
         # User
         try:
-            customer = CustomUser.objects.get(telegram_id=data['telegram_id'], )
+            customer = CustomUser.objects.select_related('referrer').get(
+                telegram_id=data['telegram_id']
+            )
         except CustomUser.DoesNotExist:
+            logger.error(f"User {data['telegram_id']} not found in Django DB")
             return Response({"error": "User not found"}, status=404)
 
         customer.bonuses = data['total_bonuses']
@@ -76,6 +80,25 @@ class PurchaseView(APIView):
             store=store,
             is_promotional=data['is_promotional']
         )
+
+        # //
+        # Начисление бонусов рефереру
+
+        if customer.referrer:
+            try:
+                referrer = customer.referrer
+                store_type = store.type
+                referral_percent = store_type.percent  # Процент из типа магазина
+                referral_bonus = data['total'] * (referral_percent / 100)
+                referrer.bonuses += referral_bonus
+                referrer.save(update_fields=['bonuses'])
+                logger.info(f"Реферер {referrer.telegram_id} получил {referral_bonus} бонусов")
+            except StoreType.DoesNotExist:
+                logger.error("Тип магазина не найден, бонусы не начислены")
+            except Exception as e:
+                logger.error(f"Ошибка начисления реферальных бонусов: {e}")
+
+            # //
 
         return Response({
             "message": "Successfully",

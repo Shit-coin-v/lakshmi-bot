@@ -48,17 +48,33 @@ async def command_start_handler(message: Message, state: FSMContext):
             else:
                 await message.answer(text)
         else:
+            # Обработка реферальной ссылки
+            command_args = message.text.split()
+            referrer_id = None
+            if len(command_args) > 1:
+                ref_arg = command_args[1]
+                if ref_arg.startswith('ref'):
+                    try:
+                        referrer_id = int(ref_arg[3:])
+                        # Проверка существования реферера
+                        referrer = await user_service.get_user_by_id(referrer_id)
+                        if not referrer:
+                            referrer_id = None
+                    except ValueError:
+                        referrer_id = None
+
             await state.update_data(
                 telegram_id=message.from_user.id,
                 first_name=message.from_user.first_name,
                 last_name=message.from_user.last_name,
                 full_name=message.from_user.full_name,
+                referrer_id=referrer_id
             )
             await message.answer("Добро пожаловать! Пожалуйста, введите ваше ФИО:")
             await state.set_state(Registration.waiting_for_fio)
 
 
-@dp.callback_query(lambda c: c.data in ["show_qr", "show_bonuses"])
+@dp.callback_query(lambda c: c.data in ["show_qr", "show_bonuses", "invite_friend"])
 async def callback_handler(callback: CallbackQuery):
     async with SessionLocal() as session:
         user_service = UserRegistration(session)
@@ -78,6 +94,12 @@ async def callback_handler(callback: CallbackQuery):
 
         elif callback.data == "show_bonuses":
             await callback.message.answer(f"Ваши бонусы: {user.bonuses}")
+
+        elif callback.data == "invite_friend":
+            bot_info = await bot.get_me()
+            bot_username = bot_info.username
+            ref_link = f"https://t.me/{bot_username}?start=ref{user.telegram_id}"
+            await callback.message.answer(f"🔗 Ваша реферальная ссылка:\n{ref_link}")
 
     await callback.answer()
 
@@ -107,7 +129,8 @@ async def process_birth_date(message: Message, state: FSMContext):
             first_name=data["first_name"],
             last_name=data["last_name"],
             full_name=data["full_name"],
-            birth_date=birth_date
+            birth_date=birth_date,
+            referrer_id=data.get("referrer_id")
         )
         qr_code_path = user.qr_code
 

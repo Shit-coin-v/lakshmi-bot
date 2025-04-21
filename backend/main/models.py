@@ -48,7 +48,7 @@ class Product(models.Model):
 
 
 class CustomUser(models.Model):
-    telegram_id = models.BigIntegerField(unique=True)
+    telegram_id = models.BigIntegerField(primary_key=True)  # Делаем telegram_id первичным ключом
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
@@ -56,6 +56,15 @@ class CustomUser(models.Model):
     registration_date = models.DateTimeField(default=timezone.now)
     qr_code = models.CharField(max_length=500, null=True, blank=True)
     bonuses = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    referrer = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="referrals",
+        db_column='referrer_id',
+        to_field='telegram_id'  # Указываем, что внешний ключ ссылается на telegram_id
+    )
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -67,7 +76,7 @@ class CustomUser(models.Model):
 
 
 class Transaction(models.Model):
-    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, to_field='telegram_id', db_column='customer_id')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.IntegerField(default=1)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)

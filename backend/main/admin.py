@@ -28,10 +28,41 @@ class ProductAdmin(admin.ModelAdmin):
     readonly_fields = ('updated_at',)
 
 
+class ReferralInline(admin.TabularInline):
+    model = CustomUser
+    fk_name = 'referrer'
+    fields = ['telegram_id', 'full_name', 'registration_date']
+    readonly_fields = ['telegram_id', 'full_name', 'registration_date']
+    extra = 0
+    can_delete = False
+    show_change_link = False
+    verbose_name = 'Реферал'
+    verbose_name_plural = 'Рефералы'
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'telegram_id', 'bonuses', 'qr_code', 'registration_date')
+    list_display = (
+        'full_name',
+        'telegram_id',
+        'bonuses',
+        'qr_code',
+        'referrer',
+        'get_referrals_count',
+        'registration_date'
+    )
     search_fields = ('full_name', 'telegram_id')
     readonly_fields = ('registration_date',)
+    inlines = [ReferralInline]
+
+    def get_referrals_count(self, obj):
+        return obj.referrals.count()
+    get_referrals_count.short_description = 'Кол-во рефералов'
 
 
 class TransactionAdmin(admin.ModelAdmin):
