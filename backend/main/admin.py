@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from django.contrib import admin, messages
+from django.db.models import Count
 
 from .models import *
 from broadcast import send_broadcast_message
@@ -60,8 +61,15 @@ class CustomUserAdmin(admin.ModelAdmin):
     readonly_fields = ('registration_date',)
     inlines = [ReferralInline]
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(referrals_count=Count('referrals'))
+        return queryset
+
     def get_referrals_count(self, obj):
-        return obj.referrals.count()
+        return obj.referrals_count
+
+    get_referrals_count.admin_order_field = 'referrals_count'
     get_referrals_count.short_description = 'Кол-во рефералов'
 
 

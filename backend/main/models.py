@@ -48,7 +48,7 @@ class Product(models.Model):
 
 
 class CustomUser(models.Model):
-    telegram_id = models.BigIntegerField(primary_key=True)  # Делаем telegram_id первичным ключом
+    telegram_id = models.BigIntegerField(unique=True)
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
@@ -76,7 +76,7 @@ class CustomUser(models.Model):
 
 
 class Transaction(models.Model):
-    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, to_field='telegram_id', db_column='customer_id')
+    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.IntegerField(default=1)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)

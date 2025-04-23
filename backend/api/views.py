@@ -40,11 +40,8 @@ class PurchaseView(APIView):
 
         # User
         try:
-            customer = CustomUser.objects.select_related('referrer').get(
-                telegram_id=data['telegram_id']
-            )
+            customer = CustomUser.objects.get(telegram_id=data['telegram_id'], )
         except CustomUser.DoesNotExist:
-            logger.error(f"User {data['telegram_id']} not found in Django DB")
             return Response({"error": "User not found"}, status=404)
 
         customer.bonuses = data['total_bonuses']
@@ -55,6 +52,9 @@ class PurchaseView(APIView):
             store = Store.objects.get(id=data['store_id'])
         except Store.DoesNotExist:
             return Response({"error": "Store not found"}, status=404)
+
+        # Checking the first purchase
+        is_first_purchase = not Transaction.objects.filter(customer=customer).exists()
 
         # Product
         product, _ = Product.objects.get_or_create(
@@ -83,22 +83,20 @@ class PurchaseView(APIView):
 
         # //
         # Начисление бонусов рефереру
-
-        if customer.referrer:
+        if customer.referrer and is_first_purchase:
             try:
                 referrer = customer.referrer
-                store_type = store.type
-                referral_percent = store_type.percent  # Процент из типа магазина
-                referral_bonus = data['total'] * (referral_percent / 100)
+                store_type = transaction.store.type
+                referral_bonus = transaction.total_amount * (store_type.percent / 100)
                 referrer.bonuses += referral_bonus
                 referrer.save(update_fields=['bonuses'])
-                logger.info(f"Реферер {referrer.telegram_id} получил {referral_bonus} бонусов")
-            except StoreType.DoesNotExist:
-                logger.error("Тип магазина не найден, бонусы не начислены")
+                logger.info(
+                    f"Начислено {referral_bonus} бонусов рефереру {referrer.telegram_id} "
+                    f"за покупку пользователя {customer.telegram_id}"
+                )
             except Exception as e:
-                logger.error(f"Ошибка начисления реферальных бонусов: {e}")
-
-            # //
+                logger.error(f"Ошибка при начислении реферальных бонусов: {e}")
+        # //
 
         return Response({
             "message": "Successfully",
