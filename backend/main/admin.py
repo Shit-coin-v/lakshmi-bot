@@ -94,16 +94,14 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
 
         try:
             for message in queryset:
-                if not message.is_sent:
-                    try:
-                        loop.run_until_complete(send_broadcast_message(message))
-                        message.is_sent = True
-                        message.save()
-                        logger.info(f"✅ Успешно отправлено сообщение ID={message.id}")
-                        success_count += 1
-                    except Exception as e:
-                        logger.error(f"❌ Ошибка при отправке сообщения ID={message.id}: {e}")
-                        fail_count += 1
+                try:
+                    loop.run_until_complete(send_broadcast_message(message))
+                    message.save()
+                    logger.info(f"✅ Успешно отправлено сообщение ID={message.id}")
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при отправке сообщения ID={message.id}: {e}")
+                    fail_count += 1
         finally:
             loop.close()
 

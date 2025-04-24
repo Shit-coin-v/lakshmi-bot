@@ -1,5 +1,4 @@
 import logging
-from decimal import Decimal
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class PurchaseView(APIView):
     """
+    Request:
     {
         "telegram_id": 373604254,
         "product_code": "ABC123",
@@ -81,26 +81,14 @@ class PurchaseView(APIView):
             is_promotional=data['is_promotional']
         )
 
-        # //
-        # Начисление бонусов рефереру
         if customer.referrer and is_first_purchase:
-            try:
-                referrer = customer.referrer
-                store_type = transaction.store.type
-                referral_bonus = transaction.total_amount * (store_type.percent / 100)
-                referrer.bonuses += referral_bonus
-                referrer.save(update_fields=['bonuses'])
-                logger.info(
-                    f"Начислено {referral_bonus} бонусов рефереру {referrer.telegram_id} "
-                    f"за покупку пользователя {customer.telegram_id}"
-                )
-            except Exception as e:
-                logger.error(f"Ошибка при начислении реферальных бонусов: {e}")
-        # //
+            is_first_purchase = True
 
         return Response({
             "message": "Successfully",
             "transaction_id": transaction.id,
             "bonus_earned": float(transaction.bonus_earned),
-            "total_bonuses": float(customer.bonuses)
+            "total_bonuses": float(customer.bonuses),
+            "is_first_purchase": is_first_purchase,
+            "referrer": customer.referrer.telegram_id if customer.referrer else None,
         }, status=201)
