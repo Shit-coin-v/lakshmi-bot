@@ -11,17 +11,6 @@ from broadcast import send_broadcast_message
 logger = logging.getLogger(__name__)
 
 
-class StoreTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'percent')
-    search_fields = ('name',)
-
-
-class StoreAdmin(admin.ModelAdmin):
-    list_display = ('name', 'type')
-    list_filter = ('type',)
-    search_fields = ('name',)
-
-
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'product_code', 'price', 'stock', 'is_promotional')
     list_filter = ('category', 'is_promotional')
@@ -55,7 +44,10 @@ class CustomUserAdmin(admin.ModelAdmin):
         'qr_code',
         'referrer',
         'get_referrals_count',
-        'registration_date'
+        'registration_date',
+        'last_purchase_date',
+        'total_spent',
+        'purchase_count'
     )
     search_fields = ('full_name', 'telegram_id')
     readonly_fields = ('registration_date',)
@@ -74,8 +66,8 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'total_amount', 'bonus_earned', 'purchase_date', 'store')
-    list_filter = ('is_promotional', 'store')
+    list_display = ('customer', 'total_amount', 'bonus_earned', 'purchase_date', 'store_id')
+    list_filter = ('is_promotional', 'store_id')
     search_fields = ('customer__full_name', 'product__name')
     date_hierarchy = 'purchase_date'
 
@@ -113,8 +105,6 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
     send_broadcast.short_description = "Отправить выбранные рассылки"
 
 
-admin.site.register(StoreType, StoreTypeAdmin)
-admin.site.register(Store, StoreAdmin)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Transaction, TransactionAdmin)

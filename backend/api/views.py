@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .serializers import PurchaseSerializer
-from main.models import CustomUser, Store, Product, Transaction, StoreType
+from main.models import CustomUser, Product, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +47,6 @@ class PurchaseView(APIView):
         customer.bonuses = data['total_bonuses']
         customer.save(update_fields=['bonuses'])
 
-        # Store
-        try:
-            store = Store.objects.get(id=data['store_id'])
-        except Store.DoesNotExist:
-            return Response({"error": "Store not found"}, status=404)
-
         # Checking the first purchase
         is_first_purchase = not Transaction.objects.filter(customer=customer).exists()
 
@@ -63,7 +57,7 @@ class PurchaseView(APIView):
                 'name': data['product_name'],
                 'category': data['category'],
                 'price': data['price'],
-                'store': store,
+                'store_id': data['store_id'],
                 'is_promotional': data['is_promotional'],
             }
         )
@@ -77,7 +71,7 @@ class PurchaseView(APIView):
             bonus_earned=data['bonus_earned'],
             purchase_date=data['purchase_date'],
             purchase_time=data['purchase_time'],
-            store=store,
+            store_id=data['store_id'],
             is_promotional=data['is_promotional']
         )
 

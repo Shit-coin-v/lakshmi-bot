@@ -36,6 +36,9 @@ class CustomUser(Base):
     bonuses = Column(Numeric(10, 2), default=0.0)
     referrer_id = Column(BigInteger, ForeignKey('customers.telegram_id'), nullable=True)
     referrals = relationship("CustomUser", backref="referrer", remote_side=[telegram_id])
+    last_purchase_date = Column(DateTime, nullable=True)
+    total_spent = Column(Numeric(10, 2), default=0.00)
+    purchase_count = Column(Integer, default=0)
 
     transactions = relationship("Transaction", back_populates="customer")
 
@@ -49,11 +52,9 @@ class Product(Base):
     price = Column(Numeric(10, 2), nullable=False)
     category = Column(String(100))
     stock = Column(Integer, default=0)
-    store_id = Column(Integer, ForeignKey('stores.id'))
+    store_id = Column(Integer, nullable=False)
     is_promotional = Column(Boolean, default=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    store = relationship("Store", back_populates="products")
 
 
 class Transaction(Base):
@@ -67,31 +68,11 @@ class Transaction(Base):
     bonus_earned = Column(Numeric(10, 2), default=0.0)
     purchase_date = Column(Date, default=date.today)
     purchase_time = Column(Time, default=lambda: datetime.now().time())
-    store_id = Column(Integer, ForeignKey('stores.id'), nullable=False)
+    store_id = Column(Integer, nullable=False)
     is_promotional = Column(Boolean, default=False)
 
     customer = relationship("CustomUser", back_populates="transactions")
     product = relationship("Product")
-    store = relationship("Store")
-
-
-class Store(Base):
-    __tablename__ = "stores"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(200), nullable=False)
-    type_id = Column(Integer, ForeignKey('store_types.id'))
-
-    products = relationship("Product", back_populates="store")
-    transactions = relationship("Transaction")
-
-
-class StoreType(Base):
-    __tablename__ = "store_types"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True)
-    percent = Column(Numeric(5, 2), nullable=False)
 
 
 class BroadcastMessage(Base):
