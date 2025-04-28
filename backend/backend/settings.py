@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'django_object_actions',
-
+    'django_celery_beat',
     'main',
     'api',
 ]
@@ -90,7 +90,7 @@ TIME_ZONE = "Europe/Moscow"
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 STATIC_URL = 'static/'

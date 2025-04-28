@@ -1,15 +1,20 @@
 import logging
+import requests
+from datetime import datetime
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
 
 from .serializers import PurchaseSerializer
 from main.models import CustomUser, Product, Transaction
+import config
+
 
 logger = logging.getLogger(__name__)
 
 
-class PurchaseView(APIView):
+class PurchaseAPIView(APIView):
     """
     Request:
     {
@@ -45,7 +50,7 @@ class PurchaseView(APIView):
             return Response({"error": "User not found"}, status=404)
 
         customer.bonuses = data['total_bonuses']
-        customer.last_purchase_date = data['purchase_date']
+        customer.last_purchase_date = datetime.combine(data['purchase_date'], data['purchase_time'])
         customer.total_spent += data['total']
         customer.purchase_count += 1
         customer.save(update_fields=['bonuses', 'last_purchase_date', 'total_spent', 'purchase_count'])
@@ -82,10 +87,50 @@ class PurchaseView(APIView):
             is_first_purchase = True
 
         return Response({
-            "message": "Successfully",
+            "msg": "Successfully",
             "transaction_id": transaction.id,
             "bonus_earned": float(transaction.bonus_earned),
             "total_bonuses": float(customer.bonuses),
             "is_first_purchase": is_first_purchase,
             "referrer": customer.referrer.telegram_id if customer.referrer else None,
         }, status=201)
+
+
+class SendMessageAPIView(APIView):
+    """
+    Request:
+    {
+        "telegram_id": 12345678: int,
+        "text": "Text": str
+    }
+    """
+
+    @staticmethod
+    def post(request):
+        telegram_id = request.data.get('telegram_id')
+        text = request.data.get('text')
+
+        if not telegram_id or not text:
+            return Response({'err': 'telegram_id and text are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = CustomUser.objects.get(telegram_id=telegram_id)
+        except CustomUser.DoesNotExist:
+            return Response({'err': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not user.telegram_id:
+            return Response({'err': 'User does not have a Telegram ID.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        telegram_url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
+        payload = {
+            'chat_id': user.telegram_id,
+            'text': text,
+            'parse_mode': 'HTML',
+        }
+
+        response = requests.post(telegram_url, json=payload)
+
+        if response.status_code == 200:
+            return Response({'msg': 'Message sent successfully.'})
+        else:
+            return Response({'err': 'Failed to send message to Telegram.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

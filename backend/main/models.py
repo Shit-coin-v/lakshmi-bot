@@ -51,10 +51,6 @@ class CustomUser(models.Model):
     def __str__(self):
         return self.full_name or f"User {self.telegram_id}"
 
-    @classmethod
-    async def fetch_all(cls):
-        return list(cls.objects.all())
-
 
 class Transaction(models.Model):
     customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE)

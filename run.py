@@ -10,14 +10,14 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from sqlalchemy import select
 
 from dotenv import load_dotenv
 
 import config
-from database.models import SessionLocal
-from database.models import create_db
 from registration import UserRegistration
 from keyboards import get_qr_code_button
+from database.models import SessionLocal, create_db, BotActivity, CustomUser
 
 load_dotenv()
 
@@ -32,11 +32,30 @@ class Registration(StatesGroup):
     waiting_for_birth_date = State()
 
 
+async def save_bot_activity(session, telegram_id: int, action: str):
+    """Сохраняет активность пользователя"""
+    user = await session.execute(
+        select(CustomUser).where(CustomUser.telegram_id == telegram_id)
+    )
+    user = user.scalar_one_or_none()
+
+    if user:
+        activity = BotActivity(
+            customer_id=user.id,
+            action=action,
+            timestamp=datetime.utcnow()
+        )
+        session.add(activity)
+        await session.commit()
+
+
 @dp.message(CommandStart())
 async def command_start_handler(message: Message, state: FSMContext):
     async with SessionLocal() as session:
         user_service = UserRegistration(session)
         user = await user_service.get_user_by_id(message.from_user.id)
+
+        await save_bot_activity(session, telegram_id=message.from_user.id, action="start")
 
         if user:
             text = f"Привет, {user.full_name}!"
@@ -83,6 +102,8 @@ async def callback_handler(callback: CallbackQuery):
         if not user:
             await callback.message.answer("Пользователь не найден")
             return await callback.answer()
+
+        await save_bot_activity(session, telegram_id=callback.from_user.id, action=callback.data)
 
         if callback.data == "show_qr":
             if not user.qr_code or not os.path.exists(user.qr_code):

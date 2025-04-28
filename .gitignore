@@ -2,3 +2,6 @@
 /.env
 /media/
 /qr_codes/
+/backend/celerybeat-schedule.bak
+/backend/celerybeat-schedule.dat
+/backend/celerybeat-schedule.dir
