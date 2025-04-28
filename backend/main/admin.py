@@ -7,7 +7,6 @@ from django.db.models import Count
 from .models import *
 from broadcast import send_broadcast_message
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -100,9 +99,14 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
         if success_count:
             self.message_user(request, f"✅ Успешно отправлено: {success_count}", level=messages.SUCCESS)
         if fail_count:
-            self.message_user(request, f"❌ Ошибок при отправке: {fail_count}", level=messages.ERROR)
+            self.message_user(request, f"❌ Ошибок при отправке: {fail_count} Повторите попытку", level=messages.ERROR)
 
     send_broadcast.short_description = "Отправить выбранные рассылки"
+
+
+@admin.register(BotActivity)
+class BotActivityAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'action', 'timestamp')
 
 
 admin.site.register(Product, ProductAdmin)

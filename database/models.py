@@ -17,7 +17,15 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 
 DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
-engine = create_async_engine(DATABASE_URL, echo=True, future=True, echo_pool=True)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession, )
 Base = declarative_base()
 
@@ -41,6 +49,7 @@ class CustomUser(Base):
     purchase_count = Column(Integer, default=0)
 
     transactions = relationship("Transaction", back_populates="customer")
+    bot_activities = relationship("BotActivity", back_populates="customer")
 
 
 class Product(Base):
@@ -84,6 +93,17 @@ class BroadcastMessage(Base):
     is_sent = Column(Boolean, default=False)
     send_to_all = Column(Boolean, default=True)
     target_user_id = Column(BigInteger, nullable=True)
+
+
+class BotActivity(Base):
+    __tablename__ = "bot_activities"
+
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey('customers.id'))
+    action = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    customer = relationship("CustomUser", back_populates="bot_activities")
 
 
 async def create_db():

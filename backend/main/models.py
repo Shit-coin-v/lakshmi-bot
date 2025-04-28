@@ -39,7 +39,7 @@ class CustomUser(models.Model):
         db_column='referrer_id',
         to_field='telegram_id'  # Указываем, что внешний ключ ссылается на telegram_id
     )
-    last_purchase_date = models.DateField(null=True, blank=True)
+    last_purchase_date = models.DateTimeField(null=True, blank=True)
     total_spent = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     purchase_count = models.PositiveIntegerField(default=0)
 
@@ -50,6 +50,10 @@ class CustomUser(models.Model):
 
     def __str__(self):
         return self.full_name or f"User {self.telegram_id}"
+
+    @classmethod
+    async def fetch_all(cls):
+        return list(cls.objects.all())
 
 
 class Transaction(models.Model):
@@ -84,3 +88,17 @@ class BroadcastMessage(models.Model):
         verbose_name_plural = 'Рассылки'
         db_table = 'broadcast_messages'
         ordering = ['-created_at']
+
+
+class BotActivity(models.Model):
+    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='bot_activities')
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = 'История'
+        verbose_name_plural = 'Истории'
+        db_table = 'bot_activities'
+
+    def __str__(self):
+        return f"{self.customer}: {self.action} at {self.timestamp}"

@@ -45,7 +45,10 @@ class PurchaseView(APIView):
             return Response({"error": "User not found"}, status=404)
 
         customer.bonuses = data['total_bonuses']
-        customer.save(update_fields=['bonuses'])
+        customer.last_purchase_date = data['purchase_date']
+        customer.total_spent += data['total']
+        customer.purchase_count += 1
+        customer.save(update_fields=['bonuses', 'last_purchase_date', 'total_spent', 'purchase_count'])
 
         # Checking the first purchase
         is_first_purchase = not Transaction.objects.filter(customer=customer).exists()
