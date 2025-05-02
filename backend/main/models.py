@@ -75,9 +75,13 @@ class Transaction(models.Model):
 class BroadcastMessage(models.Model):
     message_text = models.TextField("Текст сообщения", null=False)
     created_at = models.DateTimeField("Дата создания", default=timezone.now)
-    is_sent = models.BooleanField("Отправлено", default=False)
     send_to_all = models.BooleanField("Всем пользователям", default=True)
-    target_user_id = models.BigIntegerField("ID пользователя", null=True, blank=True)
+    target_user_ids = models.TextField(
+        "ID пользователей (через запятую)",
+        null=True,
+        blank=True,
+        help_text="Пример: 123456789, 987654321"
+    )
 
     class Meta:
         verbose_name = 'Рассылка'

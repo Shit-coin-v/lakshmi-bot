@@ -73,35 +73,34 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(BroadcastMessage)
 class BroadcastMessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "message_text", "created_at", "is_sent", "send_to_all", "target_user_id")
+    list_display = ("id", "truncated_message", "created_at", "send_to_all", "target_user_ids")
     actions = ["send_broadcast"]
+    fields = ('message_text', 'send_to_all', 'target_user_ids')
+
+    def truncated_message(self, obj):
+        return obj.message_text[:50] + "..." if len(obj.message_text) > 50 else obj.message_text
+
+    truncated_message.short_description = "Текст сообщения"
 
     def send_broadcast(self, request, queryset):
-        success_count = 0
-        fail_count = 0
-
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        try:
-            for message in queryset:
-                try:
-                    loop.run_until_complete(send_broadcast_message(message))
-                    message.save()
-                    logger.info(f"✅ Успешно отправлено сообщение ID={message.id}")
-                    success_count += 1
-                except Exception as e:
-                    logger.error(f"❌ Ошибка при отправке сообщения ID={message.id}: {e}")
-                    fail_count += 1
-        finally:
-            loop.close()
+        success = errors = 0
+        for msg in queryset:
+            try:
+                loop.run_until_complete(send_broadcast_message(msg))
+                success += 1
+            except Exception as e:
+                errors += 1
+                logger.error(f"Ошибка рассылки {msg.id}: {str(e)}")
 
-        if success_count:
-            self.message_user(request, f"✅ Успешно отправлено: {success_count}", level=messages.SUCCESS)
-        if fail_count:
-            self.message_user(request, f"❌ Ошибок при отправке: {fail_count} Повторите попытку", level=messages.ERROR)
+        if success:
+            self.message_user(request, f"Успешно отправлено: {success}", messages.SUCCESS)
+        if errors:
+            self.message_user(request, f"Ошибок: {errors}", messages.ERROR)
 
-    send_broadcast.short_description = "Отправить выбранные рассылки"
+    send_broadcast.short_description = "▶ Отправить выбранные рассылки"
 
 
 @admin.register(BotActivity)

@@ -90,9 +90,8 @@ class BroadcastMessage(Base):
     id = Column(Integer, primary_key=True)
     message_text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    is_sent = Column(Boolean, default=False)
     send_to_all = Column(Boolean, default=True)
-    target_user_id = Column(BigInteger, nullable=True)
+    target_user_ids = Column(String, nullable=True)
 
 
 class BotActivity(Base):

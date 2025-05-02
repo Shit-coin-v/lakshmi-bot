@@ -2,6 +2,8 @@ import logging
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from sqlalchemy import select
+
 from database.models import SessionLocal, CustomUser, engine
 from aiogram.client.default import DefaultBotProperties
 
@@ -15,14 +17,38 @@ logger = logging.getLogger(__name__)
 async def send_broadcast_message(message_obj):
     async with bot:
         async with SessionLocal() as session:
-            users = await session.execute(CustomUser.__table__.select())
-            users = users.fetchall()
+            if message_obj.send_to_all:
+                # Отправка всем пользователям
+                users = await session.execute(select(CustomUser))
+                users = users.scalars().all()
+            else:
+                # Получаем список ID из target_user_ids
+                target_ids = message_obj.target_user_ids
+                if not target_ids:
+                    logger.warning("❌ Не указаны целевые пользователи")
+                    return
 
-            for user in users:
-                user_id = user.telegram_id
                 try:
-                    await bot.send_message(user_id, message_obj.message_text)
-                    await engine.dispose()
-                    logger.info(f"✅ Сообщение отправлено пользователю {user_id}")
+                    user_ids = [int(id.strip()) for id in target_ids.split(',')]
+                except ValueError as e:
+                    logger.error(f"❌ Ошибка парсинга ID: {e}")
+                    return
+
+                # Выбираем пользователей с указанными ID
+                users = await session.execute(
+                    select(CustomUser).where(CustomUser.telegram_id.in_(user_ids)))
+                users = users.scalars().all()
+
+            # Отправляем сообщения
+            success, errors = 0, 0
+            for user in users:
+                try:
+                    await bot.send_message(user.telegram_id, message_obj.message_text)
+                    success += 1
+                    logger.info(f"✅ Отправлено {user.telegram_id}")
                 except Exception as e:
-                    logger.warning(f"❌ Ошибка при отправке пользователю {user_id}: {e}")
+                    errors += 1
+                    logger.error(f"❌ Ошибка {user.telegram_id}: {str(e)}")
+
+            logger.info(f"Итог: Успешно — {success}, Ошибок — {errors}")
+            await engine.dispose()
