@@ -4,7 +4,7 @@ import requests
 from datetime import date
 
 from main.models import CustomUser
-import config
+from src import config
 
 BASE_URL = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
 

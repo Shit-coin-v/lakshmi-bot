@@ -5,7 +5,7 @@ from django.contrib import admin, messages
 from django.db.models import Count
 
 from .models import *
-from broadcast import send_broadcast_message
+from src.broadcast import send_broadcast_message
 
 logger = logging.getLogger(__name__)
 

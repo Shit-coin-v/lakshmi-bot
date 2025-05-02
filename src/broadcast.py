@@ -2,13 +2,11 @@ import logging
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from sqlalchemy import select
 
-from database.models import SessionLocal, CustomUser, engine
-from aiogram.client.default import DefaultBotProperties
-
-
-import config
+from src.database.models import SessionLocal, CustomUser, engine
+import src.config as config
 
 bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 logger = logging.getLogger(__name__)
@@ -18,11 +16,9 @@ async def send_broadcast_message(message_obj):
     async with bot:
         async with SessionLocal() as session:
             if message_obj.send_to_all:
-                # Отправка всем пользователям
                 users = await session.execute(select(CustomUser))
                 users = users.scalars().all()
             else:
-                # Получаем список ID из target_user_ids
                 target_ids = message_obj.target_user_ids
                 if not target_ids:
                     logger.warning("❌ Не указаны целевые пользователи")
@@ -34,12 +30,10 @@ async def send_broadcast_message(message_obj):
                     logger.error(f"❌ Ошибка парсинга ID: {e}")
                     return
 
-                # Выбираем пользователей с указанными ID
                 users = await session.execute(
                     select(CustomUser).where(CustomUser.telegram_id.in_(user_ids)))
                 users = users.scalars().all()
 
-            # Отправляем сообщения
             success, errors = 0, 0
             for user in users:
                 try:

@@ -9,11 +9,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 
-SECRET_KEY = 'django-insecure-o7#roq_ytvglly)&)zj&81(-@$=-^7q8+3znk6_&d6^4e0!lwl'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = True
+DEBUG = eval(os.getenv('DEBUG'))
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -97,8 +97,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-TELEGRAM_BOT_TOKEN = '7658768438:AAGfwwmu76rAdhm_w5ge8wxUMG3k__ldsT8'
+TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

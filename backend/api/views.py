@@ -8,8 +8,7 @@ from rest_framework import status
 
 from .serializers import PurchaseSerializer
 from main.models import CustomUser, Product, Transaction
-import config
-
+from src import config
 
 logger = logging.getLogger(__name__)
 
