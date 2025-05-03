@@ -3,8 +3,8 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from src.database.models import CustomUser
-from src.qr_code import generate_qr_code
+from database.models import CustomUser
+from qr_code import generate_qr_code
 
 
 class UserRegistration:

@@ -1,0 +1,83 @@
+services:
+
+  db:
+    image: postgres:17
+    env_file: .env
+    restart: always
+    container_name: db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - db_backups:/var/lib/postgresql/backups
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U lakshmi -d lakshmi" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  app:
+    build: .
+    env_file: .env
+    depends_on:
+      - db
+    restart: always
+    container_name: app
+    volumes:
+      - static:/app/collected_static
+      - media:/app/media
+
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    restart: always
+    depends_on:
+      - app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: celery -A backend.backend worker --loglevel=info
+
+
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    restart: always
+    depends_on:
+      - celery_worker
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: celery -A backend.backend beat --loglevel=info
+
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  nginx:
+    build: ./nginx/
+    depends_on:
+      - db
+      - app
+    restart: always
+    ports:
+      - "8000:80"
+    volumes:
+      - static:/var/html/static
+      - media:/var/www/media
+
+
+volumes:
+  static:
+  media:
+  pg_data:
+  db_backups:
