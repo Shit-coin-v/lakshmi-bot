@@ -72,8 +72,8 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - static:/var/html/static
-      - media:/var/www/media
+      - static:/app/collected_static
+      - media:/app/media
 
 
 volumes:
