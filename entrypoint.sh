@@ -1,13 +1,12 @@
 #!/bin/env
 
 echo "Collect static files..."
-cd backend
-python manage.py collectstatic --noinput
+python backend/manage.py collectstatic --noinput
+
+gunicorn --bind 0.0.0.0:8000 backend.backend.wsgi:application --access-logfile - --error-logfile - &
 
 # Запуск Telegram бота
-cd ../src
+cd src
 python run.py
 
-gunicorn --bind 0.0.0.0:8000 backend.backend.wsgi:application --access-logfile - --error-logfile -
-
-exec "$@"
+wait
