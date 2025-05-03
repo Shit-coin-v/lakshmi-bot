@@ -1,12 +1,16 @@
-from celery import shared_task
-import requests
-
+import os
 from datetime import date
 
-from main.models import CustomUser
-from src import config
+from celery import shared_task
+import requests
+from dotenv import load_dotenv
 
-BASE_URL = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
+from main.models import CustomUser
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
 
 @shared_task
