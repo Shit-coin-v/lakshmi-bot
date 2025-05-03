@@ -6,7 +6,7 @@ from aiogram.client.default import DefaultBotProperties
 from sqlalchemy import select
 
 from src.database.models import SessionLocal, CustomUser, engine
-import src.config as config
+import config
 
 bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 logger = logging.getLogger(__name__)
