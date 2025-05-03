@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from sqlalchemy import select
 from dotenv import load_dotenv
 
-from database.models import SessionLocal, CustomUser, engine
+from src.database.models import SessionLocal, CustomUser, engine
 
 load_dotenv()
 
