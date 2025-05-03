@@ -1,14 +1,18 @@
+import os
 import logging
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from sqlalchemy import select
+from dotenv import load_dotenv
 
-from src.database.models import SessionLocal, CustomUser, engine
-import config
+from database.models import SessionLocal, CustomUser, engine
 
-bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 logger = logging.getLogger(__name__)
 
 
