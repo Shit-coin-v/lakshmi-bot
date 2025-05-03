@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -25,8 +25,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_object_actions',
     'django_celery_beat',
-    'main',
-    'api',
+    'main.apps.MainConfig',
+    'api.apps.ApiConfig',
 ]
 
 MIDDLEWARE = [
