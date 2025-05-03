@@ -23,7 +23,7 @@ services:
     restart: always
     container_name: app
     volumes:
-      - static:/app/collected_static
+      - static:/app/backend/collected_static
       - media:/app/media
 
   celery_worker:
@@ -72,7 +72,7 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - static:/app/collected_static
+      - static:/app/backend/collected_static
       - media:/app/media
 
 
