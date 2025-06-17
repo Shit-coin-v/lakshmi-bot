@@ -62,12 +62,9 @@ services:
       - db
     restart: always
     container_name: app
-    ports:
-      - "8001:8000"
     volumes:
       - static:/app/backend/collected_static
       - media:/app/media
-
 
   celery_worker:
     build: .
