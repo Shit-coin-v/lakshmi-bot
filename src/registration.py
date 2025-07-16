@@ -25,6 +25,7 @@ class UserRegistration:
             full_name: str,
             birth_date: datetime,
             referrer_id: int | None = None,
+            personal_data_consent: bool = False
     ) -> CustomUser:
         qr_code = generate_qr_code(telegram_id)
 
@@ -36,6 +37,7 @@ class UserRegistration:
             birth_date=birth_date,
             qr_code=qr_code,
             referrer_id=referrer_id,
+            personal_data_consent=personal_data_consent
         )
         self.session.add(user)
         await self.session.commit()

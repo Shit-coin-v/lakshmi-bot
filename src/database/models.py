@@ -47,6 +47,7 @@ class CustomUser(Base):
     last_purchase_date = Column(DateTime, nullable=True)
     total_spent = Column(Numeric(10, 2), default=0.00)
     purchase_count = Column(Integer, default=0)
+    personal_data_consent = Column(Boolean, default=False)
 
     transactions = relationship("Transaction", back_populates="customer")
     bot_activities = relationship("BotActivity", back_populates="customer")

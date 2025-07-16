@@ -10,3 +10,12 @@ def get_qr_code_button() -> InlineKeyboardMarkup:
         ]
     )
     return keyboard
+
+
+def get_consent_button() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Я согласен", callback_data="personal_data_agree")]
+        ]
+    )
+    return keyboard
