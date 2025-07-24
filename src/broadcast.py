@@ -12,7 +12,7 @@ from src.database.models import SessionLocal, CustomUser, engine
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token='7021373751:AAFzYF2sM8BNTUTbLv7hbTGNBO23PHmqIUg', default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token='7730296602:AAEKA5njTkND1U5NqVFprwCmLlJcbmuDbW4', default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 logger = logging.getLogger(__name__)
 
 
