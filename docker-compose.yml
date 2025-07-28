@@ -46,6 +46,8 @@ services:
     env_file: .env
     restart: always
     container_name: db
+    ports:
+      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - db_backups:/var/lib/postgresql/backups
