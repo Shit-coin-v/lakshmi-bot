@@ -22,11 +22,15 @@ class UserRegistration:
             telegram_id: int,
             first_name: str,
             last_name: str,
-            full_name: str,
-            birth_date: datetime,
+            full_name: str | None = None,
+            birth_date: datetime | None = None,
             referrer_id: int | None = None,
             personal_data_consent: bool = False
     ) -> CustomUser:
+        if not full_name:
+            parts = [part for part in [first_name, last_name] if part]
+            full_name = " ".join(parts) if parts else None
+
         qr_code = generate_qr_code(telegram_id)
 
         user = CustomUser(
