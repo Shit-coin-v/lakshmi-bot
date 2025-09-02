@@ -42,7 +42,6 @@ class CustomUser(models.Model):
     last_purchase_date = models.DateTimeField(null=True, blank=True)
     total_spent = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     purchase_count = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(null=True, blank=True)  # ISO-8601 из 1С
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -63,22 +62,13 @@ class Transaction(models.Model):
     purchase_time = models.TimeField(default=timezone.now)
     store_id = models.IntegerField()
     is_promotional = models.BooleanField(default=False)
-    
-    # ТЗ (positions): price — цена за единицу
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
-    # ТЗ (datetime): единый штамп времени чека
-    purchased_at = models.DateTimeField(null=True, blank=True, db_index=True)  # из поля 'datetime' (ISO-8601)
 
-    # ТЗ (идемпотентность): idempotency_key на запрос чека
-    idempotency_key = models.UUIDField(null=True, blank=True, db_index=True)
+    # Новые поля для устойчивой интеграции с 1С
+    receipt_guid = models.UUIDField(null=True, blank=True, db_index=True)      # один и тот же GUID у всех позиций одного чека
+    fiscal_doc_number = models.CharField(max_length=64, null=True, blank=True) # номер фискального документа/связка с ККТ
 
-    # ТЗ (totals): итоговые поля чека (дублируются на строках по receipt_guid)
-    receipt_total_amount   = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    receipt_discount_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    receipt_bonus_spent    = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    receipt_bonus_earned   = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    
+
     class Meta:
         verbose_name = 'Транзакция'
         verbose_name_plural = 'Транзакции'

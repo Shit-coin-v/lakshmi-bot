@@ -42,7 +42,7 @@ MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
-ROOT_URLCONF = 'backend.backend.urls'
+ROOT_URLCONF = 'backend.urls'
 
 TEMPLATES = [
     {
@@ -87,6 +87,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://158.160.183.136",
+    "http://158.160.183.136:8000",
+]
+
 LANGUAGE_CODE = 'ru-ru'
 
 TIME_ZONE = "Europe/Moscow"
@@ -109,3 +114,4 @@ TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN')
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
