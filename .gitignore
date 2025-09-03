@@ -19,3 +19,4 @@ backend/venv/
 # Django runtime
 /media/
 staticfiles/
+!.env.example
