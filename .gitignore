@@ -20,3 +20,5 @@ backend/venv/
 /media/
 staticfiles/
 !.env.example
+
+*.swp
