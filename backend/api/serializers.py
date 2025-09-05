@@ -51,3 +51,13 @@ class ReceiptSerializer(serializers.Serializer):
     customer = ReceiptCustomerSerializer()
     positions = ReceiptPositionSerializer(many=True)
     totals = ReceiptTotalsSerializer()
+
+
+class ProductUpdateSerializer(serializers.Serializer):
+    product_code = serializers.CharField()
+    one_c_guid = serializers.CharField(required=False, allow_blank=True)
+    name = serializers.CharField()
+    price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    category = serializers.CharField()
+    is_promotional = serializers.BooleanField()
+    updated_at = serializers.DateTimeField()

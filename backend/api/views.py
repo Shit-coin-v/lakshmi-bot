@@ -26,7 +26,7 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 
 from .security import require_onec_auth
-from .serializers import ReceiptSerializer
+from .serializers import ReceiptSerializer, ProductUpdateSerializer
 from .models import ReceiptDedup, OneCClientMap
 
 import hmac, hashlib
@@ -417,7 +417,7 @@ def onec_customer_sync(request):
             try:
                 ref_tid = int(referrer_tid)
                 if ref_tid and ref_tid != telegram_id:
-                    ref_user = Customer.objects.filter(telegram_id=ref_tid).first()
+                    ref_user = CustomUser.objects.filter(telegram_id=ref_tid).first()
                     if (
                         ref_user
                         and hasattr(user, "referrer_id")
@@ -428,9 +428,7 @@ def onec_customer_sync(request):
                 # мягко игнорируем любые проблемы с парсингом/поиском реферала
                 pass
 
-        # зафиксируем GUID 1С и (опционально) created_at
-        user.one_c_guid = one_c_guid
-
+        # опционально сохраняем дату создания, если поле есть и пустое
         try:
             if hasattr(user, "created_at") and not user.created_at:
                 user.created_at = dt_aware if settings.USE_TZ else dt_naive
@@ -440,50 +438,19 @@ def onec_customer_sync(request):
         # сохраняем все изменения одной операцией
         user.save()
 
-        # ответ для интеграции
-        return JsonResponse({
-            "status": "ok",
-            "customer": {
-                "telegram_id": user.telegram_id,
-                "one_c_guid": user.one_c_guid,
-                "qr_code": user.qr_code,
-                "bonus_balance": float(user.bonuses or 0),
-                "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
-            }
-        })
-
-
-        # не трогаем авто-поля, но если хочешь положить дату создания в кастомное —
-        # пример (только если поле вообще существует у модели):
-        if hasattr(user, "registered_at") and not getattr(user, "registered_at", None):
-            try:
-                user.registered_at = dt_aware if settings.USE_TZ else dt_naive
-            except Exception:
-                pass
-
-        user.save()
-
         # карта соответствия 1С <-> клиент
-        # если модель есть — обновим/создадим связь; иначе положим one_c_guid в самого пользователя
-        if "OnecClientMap" in globals():
-            OnecClientMap.objects.update_or_create(
-                one_c_guid=one_c_guid, defaults={"customer": user}
-            )
-        else:
-            if hasattr(user, "one_c_guid"):
-                user.one_c_guid = one_c_guid
-                user.save(update_fields=["one_c_guid"])
+        OneCClientMap.objects.update_or_create(
+            one_c_guid=one_c_guid, defaults={"user": user}
+        )
 
         resp = {
             "status": "ok",
             "customer": {
                 "telegram_id": user.telegram_id,
                 "one_c_guid": one_c_guid,
-                "qr_code": getattr(user, "qr_code", None),
-                "bonus_balance": float(user.bonuses or Decimal("0")),
-                "referrer_telegram_id": getattr(
-                    getattr(user, "referrer", None), "telegram_id", None
-                ),
+                "qr_code": user.qr_code,
+                "bonus_balance": float(user.bonuses or 0),
+                "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
             },
         }
         return JsonResponse(resp, status=200)
@@ -494,4 +461,51 @@ def onec_customer_sync(request):
             {"detail": "internal_error", "error": str(e), "type": e.__class__.__name__},
             status=500,
         )
+
+
+@csrf_exempt
+@require_POST
+@require_onec_auth
+def onec_product_sync(request):
+    """1С -> Бот: обновление номенклатуры"""
+    try:
+        try:
+            payload = json.loads((request.body or b"{}").decode("utf-8"))
+        except json.JSONDecodeError:
+            return JsonResponse({"detail": "invalid_json"}, status=400)
+
+        ser = ProductUpdateSerializer(data=payload)
+        if not ser.is_valid():
+            return JsonResponse({"detail": ser.errors}, status=400)
+        data = ser.validated_data
+
+        defaults = {
+            "one_c_guid": data.get("one_c_guid"),
+            "name": data["name"],
+            "price": data["price"],
+            "category": data["category"],
+            "is_promotional": data["is_promotional"],
+        }
+        if hasattr(Product, 'store_id'):
+            defaults.setdefault('store_id', 0)
+        product, created = Product.objects.update_or_create(
+            product_code=data["product_code"], defaults=defaults
+        )
+
+        resp = {
+            "status": "created" if created else "updated",
+            "product": {
+                "product_code": product.product_code,
+                "one_c_guid": product.one_c_guid,
+                "name": product.name,
+                "price": float(product.price),
+                "category": product.category,
+                "is_promotional": product.is_promotional,
+            },
+        }
+        return JsonResponse(resp, status=201 if created else 200)
+
+    except Exception as e:
+        logger.exception("onec_product_sync failed: %s", e)
+        return JsonResponse({"detail": "internal_error", "error": str(e)}, status=500)
 
