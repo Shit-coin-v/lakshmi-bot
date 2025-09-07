@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 
 import config
 from registration import UserRegistration
+from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
 from database.models import SessionLocal, create_db, BotActivity, CustomUser
 
@@ -112,6 +113,8 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
             referrer_id=data.get("referrer_id"),
             personal_data_consent=True,
         )
+
+        await send_customer_to_onec(session, user, data.get("referrer_id"))
 
     await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
     if user.qr_code and os.path.exists(user.qr_code):
