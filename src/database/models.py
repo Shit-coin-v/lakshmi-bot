@@ -42,6 +42,7 @@ class CustomUser(Base):
     registration_date = Column(DateTime, default=datetime.utcnow)
     qr_code = Column(String, nullable=True)
     bonuses = Column(Numeric(10, 2), default=0.0)
+    one_c_guid = Column(String, unique=True, nullable=True)
     referrer_id = Column(BigInteger, ForeignKey('customers.telegram_id'), nullable=True)
     referrals = relationship("CustomUser", backref="referrer", remote_side=[telegram_id])
     last_purchase_date = Column(DateTime, nullable=True)
