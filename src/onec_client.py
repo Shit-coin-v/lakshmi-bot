@@ -7,6 +7,7 @@ import uuid
 from datetime import timezone
 
 import config
+from database.models import upsert_onec_client_map
 
 async def send_customer_to_onec(session, user, referrer_id=None):
     if not config.ONEC_CUSTOMER_URL or not config.ONEC_API_KEY or not config.ONEC_API_SECRET:
@@ -37,10 +38,9 @@ async def send_customer_to_onec(session, user, referrer_id=None):
                     data = await resp.json()
                     guid = data.get("one_c_guid")
                     if guid:
-                        user.one_c_guid = guid
                         user.bonuses = data.get("bonus_balance", user.bonuses)
                         session.add(user)
-                        await session.commit()
+                        await upsert_onec_client_map(session, user.id, guid)
                 else:
                     logging.error("1C registration failed: %s", await resp.text())
     except Exception:

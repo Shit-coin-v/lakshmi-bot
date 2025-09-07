@@ -25,6 +25,7 @@ class ReceiptPositionSerializer(serializers.Serializer):
     price = serializers.DecimalField(max_digits=12, decimal_places=2)
     discount_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     is_promotional = serializers.BooleanField()
+    line_number = serializers.IntegerField()
 
 
 class ReceiptTotalsSerializer(serializers.Serializer):

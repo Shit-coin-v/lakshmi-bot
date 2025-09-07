@@ -27,7 +27,7 @@ class CustomUser(models.Model):
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
+    birth_date = models.DateTimeField(null=True, blank=True)
     registration_date = models.DateTimeField(default=timezone.now)
     qr_code = models.CharField(max_length=500, null=True, blank=True)
     bonuses = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
@@ -72,18 +72,23 @@ class Transaction(models.Model):
     purchased_at = models.DateTimeField(null=True, blank=True, db_index=True)  # из поля 'datetime' (ISO-8601)
 
     # ТЗ (идемпотентность): idempotency_key на запрос чека
-    idempotency_key = models.UUIDField(null=True, blank=True, db_index=True)
+    idempotency_key = models.UUIDField(unique=True, null=True, blank=True, db_index=True)
+    receipt_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    receipt_line = models.PositiveIntegerField(default=0)
 
     # ТЗ (totals): итоговые поля чека (дублируются на строках по receipt_guid)
     receipt_total_amount   = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     receipt_discount_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     receipt_bonus_spent    = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     receipt_bonus_earned   = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    
+
     class Meta:
         verbose_name = 'Транзакция'
         verbose_name_plural = 'Транзакции'
         db_table = 'transactions'
+        constraints = [
+            models.UniqueConstraint(fields=['receipt_guid', 'receipt_line'], name='uniq_receipt_line')
+        ]
 
     def __str__(self):
         return f"Transaction #{self.id}"
