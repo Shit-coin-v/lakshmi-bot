@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import config
 from database.models import CustomUser
+import onec_client
 from onec_client import send_customer_to_onec
 
 
@@ -58,11 +59,18 @@ def test_send_customer_to_onec(monkeypatch):
         registration_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
         bonuses=0
     )
+    user.id = 42
     session = DummySession()
+
+    async def fake_upsert(sess, user_id, guid):
+        called["upsert"] = (user_id, guid)
+        await sess.commit()
+
+    monkeypatch.setattr(onec_client, "upsert_onec_client_map", fake_upsert)
 
     asyncio.run(send_customer_to_onec(session, user, referrer_id=2))
 
-    assert user.one_c_guid == "GUID123"
+    assert called["upsert"] == (42, "GUID123")
     assert session.committed
     payload = json.loads(called["data"])
     assert payload["telegram_id"] == 1

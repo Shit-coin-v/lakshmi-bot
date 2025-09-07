@@ -3,7 +3,20 @@ from datetime import datetime, date
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, BigInteger, String, Integer, DateTime, Date, Time, Numeric, ForeignKey, Boolean, Text
+from sqlalchemy import (
+    Column,
+    BigInteger,
+    String,
+    Integer,
+    DateTime,
+    Date,
+    Time,
+    Numeric,
+    ForeignKey,
+    Boolean,
+    Text,
+    select,
+)
 from sqlalchemy.orm import relationship
 
 from dotenv import load_dotenv
@@ -42,7 +55,6 @@ class CustomUser(Base):
     registration_date = Column(DateTime, default=datetime.utcnow)
     qr_code = Column(String, nullable=True)
     bonuses = Column(Numeric(10, 2), default=0.0)
-    one_c_guid = Column(String, unique=True, nullable=True)
     referrer_id = Column(BigInteger, ForeignKey('customers.telegram_id'), nullable=True)
     referrals = relationship("CustomUser", backref="referrer", remote_side=[telegram_id])
     last_purchase_date = Column(DateTime, nullable=True)
@@ -105,6 +117,34 @@ class BotActivity(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     customer = relationship("CustomUser", back_populates="bot_activities")
+
+
+class OneCClientMap(Base):
+    __tablename__ = "api_onec_client_map"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
+    one_c_guid = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+async def get_onec_guid_by_user_id(session: AsyncSession, user_id: int):
+    result = await session.execute(
+        select(OneCClientMap.one_c_guid).where(OneCClientMap.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_onec_client_map(session: AsyncSession, user_id: int, onec_guid: str):
+    result = await session.execute(
+        select(OneCClientMap).where(OneCClientMap.user_id == user_id)
+    )
+    mapping = result.scalar_one_or_none()
+    if mapping:
+        mapping.one_c_guid = onec_guid
+    else:
+        session.add(OneCClientMap(user_id=user_id, one_c_guid=onec_guid))
+    await session.commit()
 
 
 async def create_db():

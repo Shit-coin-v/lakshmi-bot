@@ -27,7 +27,8 @@ from django.http import JsonResponse
 
 from .security import require_onec_auth
 from .serializers import ReceiptSerializer, ProductUpdateSerializer
-from .models import ReceiptDedup, OneCClientMap
+from .models import OneCClientMap
+from django.db import IntegrityError
 
 import hmac, hashlib
 from functools import wraps
@@ -172,9 +173,10 @@ def onec_health(request):
 @require_onec_auth
 def onec_receipt(request):
     """
-    Принимает чек (ISO-8601 datetime с TZ), идемпотентен по receipt_guid.
-    Создаёт позиционные транзакции, обновляет агрегаты клиента,
-    сохраняет ответ в таблицу идемпотентности (ReceiptDedup).
+    Принимает чек (ISO-8601 datetime с TZ).
+    Создаёт позиционные транзакции и обновляет агрегаты клиента.
+    Идемпотентность обеспечивается заголовком X-Idempotency-Key
+    и уникальностью пары receipt_guid + line_number.
     """
     try:
         # 0) Парсинг JSON из сырого тела (НЕ request.data)
@@ -189,12 +191,14 @@ def onec_receipt(request):
             return JsonResponse({"detail": ser.errors}, status=400)
         data = ser.validated_data
 
-        # 2) Идемпотентность по receipt_guid (+ сохраняем ответ)
+        # 2) Идемпотентность по X-Idempotency-Key
+        idem_key = request.headers.get("X-Idempotency-Key")
+        if not idem_key:
+            return JsonResponse({"detail": "missing idempotency key"}, status=400)
+        if Transaction.objects.filter(idempotency_key=idem_key).exists():
+            return JsonResponse({"status": "already processed"}, status=200)
+
         receipt_guid = data["receipt_guid"]
-        idem_key = request.headers.get("X-Idempotency-Key") or receipt_guid
-        existing = ReceiptDedup.objects.filter(receipt_guid=receipt_guid).first()
-        if existing:
-            return JsonResponse(existing.response_json, status=200)
 
         # 3) Время: у сериализатора datetime — aware (+TZ)
         dt_in = data["datetime"]
@@ -239,6 +243,7 @@ def onec_receipt(request):
 
         # 6) Позиции (атомарно)
         with db_tx.atomic():
+            first = True
             for p in positions:
                 code  = p["product_code"]
                 name  = p.get("name") or "UNKNOWN"
@@ -246,6 +251,7 @@ def onec_receipt(request):
                 price = D(p["price"])
                 disc  = D(p.get("discount_amount", 0))
                 is_promotional = bool(p.get("is_promotional", False))
+                line_number = p["line_number"]
 
                 pos_total = (price - disc) * qty
                 pos_bonus_earned = (bonus_earned * (pos_total / denom)).quantize(D("0.01"))
@@ -281,15 +287,25 @@ def onec_receipt(request):
                     trx_kwargs["store_id"] = data["store_id"]
                 if "is_promotional" in trx_fields:
                     trx_kwargs["is_promotional"] = is_promotional
+                if "receipt_guid" in trx_fields:
+                    trx_kwargs["receipt_guid"] = receipt_guid
+                if "receipt_line" in trx_fields:
+                    trx_kwargs["receipt_line"] = line_number
+                if first and "idempotency_key" in trx_fields:
+                    trx_kwargs["idempotency_key"] = idem_key
+                    first = False
 
-                Transaction.objects.create(**trx_kwargs)
-                created_count += 1
-                allocations.append({
-                    "product_code": code,
-                    "quantity": float(qty),
-                    "total_amount": float(pos_total),
-                    "bonus_earned": float(pos_bonus_earned),
-                })
+                try:
+                    Transaction.objects.create(**trx_kwargs)
+                    created_count += 1
+                    allocations.append({
+                        "product_code": code,
+                        "quantity": float(qty),
+                        "total_amount": float(pos_total),
+                        "bonus_earned": float(pos_bonus_earned),
+                    })
+                except IntegrityError:
+                    continue
 
             # 7) Агрегаты клиента
             user.total_spent = (user.total_spent or D("0")) + total_amount
@@ -298,7 +314,7 @@ def onec_receipt(request):
             user.bonuses = (user.bonuses or D("0")) - bonus_spent + bonus_earned
             user.save(update_fields=["total_spent", "purchase_count", "last_purchase_date", "bonuses"])
 
-        # 8) Ответ + сохранение для идемпотентности
+        # 8) Ответ
         resp = {
             "status": "ok",
             "receipt_guid": receipt_guid,
@@ -320,11 +336,6 @@ def onec_receipt(request):
             },
         }
 
-        ReceiptDedup.objects.create(
-            receipt_guid=receipt_guid,
-            idempotency_key=idem_key,
-            response_json=resp,
-        )
         return JsonResponse(resp, status=201)
 
     except Exception as e:
