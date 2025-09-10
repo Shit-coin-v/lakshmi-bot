@@ -1,3 +1,4 @@
+from datetime import timezone
 import json
 import logging
 import requests
@@ -315,6 +316,21 @@ def onec_receipt(request):
             user.save(update_fields=["total_spent", "purchase_count", "last_purchase_date", "bonuses"])
 
         # 8) Ответ
+        try:
+            guid_for_resp = one_c_guid
+            if not guid_for_resp:
+                m = OneCClientMap.objects.filter(user=user).first()
+                guid_for_resp = getattr(m, one_c_guid, None)
+        except Exception:
+            guid_for_resp = one_c_guid
+        
+        try:
+            guid_for_resp = one_c_guid
+            if not guid_for_resp:
+                m = OneCClientMap.objects.filter(user=user).first()
+                guid_for_resp = getattr(m, "one_c_guid", None)
+        except Exception:
+            guid_for_resp = one_c_guid
         resp = {
             "status": "ok",
             "receipt_guid": receipt_guid,
@@ -350,129 +366,132 @@ def onec_receipt(request):
 @require_onec_auth
 def onec_customer_sync(request):
     """
-    1С -> Бот: синхронизация клиента
+    1С <-> Бот: синхронизация клиента (оба направления)
 
     JSON:
     {
+      # если запрос из 1С — присылаем GUID (обязателен для 1С->бот)
       "one_c_guid": "CUST-1C-0001",
-      "telegram_id": 373604254,
-      "qr_code": "QR-373604254",
-      "bonus_balance": 25.5,
-      "created_at": "2025-09-01T12:00:00+09:00",
-      "referrer_telegram_id": 111222333   # опционально
+
+      "telegram_id": 373604254,            # обязателен всегда
+      "qr_code": "QR-373604254",           # обязателен всегда
+      "bonus_balance": 25.5,               # опционально
+      "created_at": "2025-09-01T12:00:00+09:00",        # одно из двух
+      "registration_date": "2025-09-01T12:00:00+09:00", # одно из двух
+      "referrer_telegram_id": 111222333    # опционально
     }
+
     Заголовки: X-Api-Key, X-Timestamp, X-Sign, (опц.) X-Idempotency-Key
     Подпись: sha256( HMAC(secret, f"{TS}." + RAW_BODY) )
     """
-    if request.method != "POST":
-        return JsonResponse({"detail": "Method not allowed"}, status=405)
+    # --- тело ---
+    raw = request.body or b""
+    if not raw:
+        return JsonResponse({"detail": "empty_body"}, status=400)
 
     try:
-        raw = request.body or b""
-        if not raw:
-            return JsonResponse({"detail": "empty_body"}, status=400)
+        data = json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "invalid_json"}, status=400)
 
+    # --- обязательные поля (GUID обязателен только для запроса со стороны 1С) ---
+    is_from_1c = bool(data.get("one_c_guid"))
+    required = ["telegram_id", "qr_code"]
+    if is_from_1c:
+        required.append("one_c_guid")
+
+    missing = [k for k in required if not data.get(k)]
+    if missing:
+        return JsonResponse({"detail": {k: ["Обязательное поле."] for k in missing}}, status=400)
+
+    # --- извлечение полей ---
+    one_c_guid = str(data.get("one_c_guid") or "")  # пустая строка, если не пришло
+    telegram_id = int(data["telegram_id"])
+    qr_code = str(data["qr_code"])
+    bonus_balance = data.get("bonus_balance", None)
+    referrer_tid = data.get("referrer_telegram_id")
+
+    # --- дата: принимаем created_at ИЛИ registration_date ---
+    try:
+        raw_dt = data.get("created_at") or data.get("registration_date")
+        if not raw_dt:
+            return JsonResponse({"detail": {"created_at": ["Обязательное поле."]}}, status=400)
+        dt = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
+    except Exception:
+        return JsonResponse({"detail": {"created_at": ["Неверный формат datetime"]}}, status=400)
+
+    # --- нормализация в UTC ---
+    if dj_tz.is_naive(dt):
+        dt_aware = dj_tz.make_aware(dt, timezone=timezone.utc)
+    else:
+        dt_aware = dt.astimezone(timezone.utc)
+    dt_naive = dj_tz.make_naive(dt_aware, timezone=timezone.utc)
+
+    # --- находим/создаём клиента по telegram_id ---
+    user, _ = CustomUser.objects.get_or_create(
+        telegram_id=telegram_id,
+        defaults={"qr_code": qr_code},
+    )
+
+    # обновим qr_code при необходимости
+    if qr_code and getattr(user, "qr_code", None) != qr_code:
+        user.qr_code = qr_code
+
+    # баланс (если прислали)
+    if bonus_balance is not None:
         try:
-            data = json.loads(raw.decode("utf-8"))
-        except json.JSONDecodeError:
-            return JsonResponse({"detail": "invalid_json"}, status=400)
-
-        # обязательные поля
-        required = ["one_c_guid", "telegram_id", "qr_code", "created_at"]
-        missing = [k for k in required if not data.get(k)]
-        if missing:
-            return JsonResponse(
-                {"detail": {k: ["Обязательное поле."] for k in missing}}, status=400
-            )
-
-        one_c_guid = str(data["one_c_guid"])
-        telegram_id = int(data["telegram_id"])
-        qr_code = str(data["qr_code"])
-        bonus_balance = data.get("bonus_balance", None)
-        referrer_tid = data.get("referrer_telegram_id")
-
-        # 1) парсинг ISO 8601
-        try:
-            dt = datetime.fromisoformat(str(data["created_at"]).replace("Z", "+00:00"))
+            user.bonuses = D(str(bonus_balance))
         except Exception:
-            return JsonResponse({"detail": {"created_at": ["Неверный формат datetime"]}}, status=400)
+            return JsonResponse({"detail": {"bonus_balance": ["Неверное число"]}}, status=400)
 
-        # 2) нормализация к UTC (как ты хотел)
-        if dj_tz.is_naive(dt):
-            dt_naive = dt
-            dt_aware = dj_tz.make_aware(dt_naive, timezone=timezone.utc)
-        else:
-            dt_aware = dt
-            dt_naive = dj_tz.make_naive(dt_aware, timezone=timezone.utc)
-
-        # находим/создаём клиента по telegram_id
-        user, _ = CustomUser.objects.get_or_create(
-            telegram_id=telegram_id, defaults={"qr_code": qr_code}
-        )
-
-        # обновим qr_code, если изменился
-        if qr_code and getattr(user, "qr_code", None) != qr_code:
-            user.qr_code = qr_code
-
-        # если передали баланс — положим как есть
-        if bonus_balance is not None:
-            try:
-                user.bonuses = D(str(bonus_balance))
-            except Exception:
-                return JsonResponse(
-                    {"detail": {"bonus_balance": ["Неверное число"]}}, status=400
-                )
-
-        # рефералка (если у модели есть поле referrer / referrer_id)
-        if referrer_tid:
-            try:
-                ref_tid = int(referrer_tid)
-                if ref_tid and ref_tid != telegram_id:
-                    ref_user = CustomUser.objects.filter(telegram_id=ref_tid).first()
-                    if (
-                        ref_user
-                        and hasattr(user, "referrer_id")
-                        and not getattr(user, "referrer_id")
-                    ):
-                        user.referrer = ref_user
-            except Exception:
-                # мягко игнорируем любые проблемы с парсингом/поиском реферала
-                pass
-
-        # опционально сохраняем дату создания, если поле есть и пустое
+    # рефералка (проставляем только если ещё не стоит и такой пользователь есть)
+    if referrer_tid:
         try:
-            if hasattr(user, "created_at") and not user.created_at:
-                user.created_at = dt_aware if settings.USE_TZ else dt_naive
+            ref_tid = int(referrer_tid)
+            if ref_tid and ref_tid != telegram_id and not getattr(user, "referrer_id", None):
+                ref_user = CustomUser.objects.filter(telegram_id=ref_tid).first()
+                if ref_user:
+                    user.referrer = ref_user
         except Exception:
-            pass
+            pass  # мягко игнорируем ошибки парсинга
 
-        # сохраняем все изменения одной операцией
-        user.save()
+    # сохранить дату создания, если поле есть и пустое
+    try:
+        if hasattr(user, "created_at") and not user.created_at:
+            user.created_at = dt_aware if settings.USE_TZ else dt_naive
+    except Exception:
+        pass
 
-        # карта соответствия 1С <-> клиент
+    # сохраняем изменения пользователя
+    user.save()
+
+    # --- маппинг 1С<->клиент: апдейтим только если GUID пришёл ---
+    if one_c_guid:
         OneCClientMap.objects.update_or_create(
-            one_c_guid=one_c_guid, defaults={"user": user}
+            one_c_guid=one_c_guid,
+            defaults={"user": user},
         )
 
-        resp = {
-            "status": "ok",
-            "customer": {
-                "telegram_id": user.telegram_id,
-                "one_c_guid": one_c_guid,
-                "qr_code": user.qr_code,
-                "bonus_balance": float(user.bonuses or 0),
-                "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
-            },
-        }
-        return JsonResponse(resp, status=200)
+    # подставим GUID в ответ (если не пришёл — попробуем взять из маппинга)
+    try:
+        guid_for_resp = one_c_guid or None
+        if not guid_for_resp:
+            m = OneCClientMap.objects.filter(user=user).first()
+            guid_for_resp = getattr(m, "one_c_guid", None)
+    except Exception:
+        guid_for_resp = one_c_guid or None
 
-    except Exception as e:
-        logger.exception("onec_customer_sync unhandled error")
-        return JsonResponse(
-            {"detail": "internal_error", "error": str(e), "type": e.__class__.__name__},
-            status=500,
-        )
-
+    resp = {
+        "status": "ok",
+        "customer": {
+            "telegram_id": user.telegram_id,
+            "one_c_guid": guid_for_resp,
+            "qr_code": user.qr_code,
+            "bonus_balance": float(user.bonuses or 0),
+            "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
+        },
+    }
+    return JsonResponse(resp, status=200)
 
 @csrf_exempt
 @require_POST
@@ -503,6 +522,21 @@ def onec_product_sync(request):
             product_code=data["product_code"], defaults=defaults
         )
 
+        try:
+            guid_for_resp = one_c_guid
+            if not guid_for_resp:
+                m = OneCClientMap.objects.filter(user=user).first()
+                guid_for_resp = getattr(m, one_c_guid, None)
+        except Exception:
+            guid_for_resp = one_c_guid
+        
+        try:
+            guid_for_resp = one_c_guid
+            if not guid_for_resp:
+                m = OneCClientMap.objects.filter(user=user).first()
+                guid_for_resp = getattr(m, "one_c_guid", None)
+        except Exception:
+            guid_for_resp = one_c_guid
         resp = {
             "status": "created" if created else "updated",
             "product": {

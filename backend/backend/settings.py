@@ -94,11 +94,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = "Europe/Moscow"
+TIME_ZONE = "Asia/Yakutsk"
 
 USE_I18N = True
 
-USE_TZ = False
+USE_TZ = True
 
 
 STATIC_URL = 'static/'

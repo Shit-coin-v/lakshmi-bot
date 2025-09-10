@@ -138,10 +138,10 @@ services:
       MB_JETTY_PORT: 3000
     volumes:
       - metabase-data:/metabase-data
-#    ports:
-#      - "3001:3000"
     depends_on:
       - db
+    ports:
+      - "3001:3000"
 
 volumes:
   static:
