@@ -38,36 +38,27 @@ def _ip_allowed(request):
         return False
 
 
-
 def require_onec_auth(view_func):
     """
-    HMAC-SHA256 по строке f"{ts}."+body; допускаем X-Sign в hex или base64/base64url.
-    Сравнение на уровне байт + нормализация входа (без non-ASCII).
+    Проверяет:
+      - IP по белому списку (если задан)
+      - заголовки X-Api-Key, X-Timestamp, X-Sign
+      - окно времени +/- MAX_SKEW
+      - HMAC-SHA256 по строке: f"{timestamp}." + raw_body
+      - сравнение в байтах; X-Sign допускает hex или base64/base64url
     """
     from functools import wraps
-    import time, hmac, hashlib, binascii, re, unicodedata
-    from django.http import JsonResponse
-    import logging
-    logger = logging.getLogger(__name__)
-
-    HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
-    INVISIBLES = {"\u00A0","\u200B","\u200C","\u200D","\uFEFF","\u2060"}
-
+    import time, hmac, hashlib, binascii, re
     def _bad(code, detail):
+        from django.http import JsonResponse
         return JsonResponse({"detail": detail}, status=code)
 
-    def _normalize_sign(s: str) -> str:
-        s = unicodedata.normalize("NFKC", s or "")
-        trans = {ord("А"):"A", ord("а"):"a", ord("Е"):"E", ord("е"):"e", ord("С"):"C", ord("с"):"c"}
-        s = s.translate(trans)
-        for ch in list(INVISIBLES):
-            s = s.replace(ch, "")
-        return s.strip()
+    HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         try:
-            from .security import API_KEY, HMAC_SECRET, MAX_SKEW, _ip_allowed
+            from .security import API_KEY, HMAC_SECRET, MAX_SKEW, _ip_allowed  # reuse существующих настроек
             if not API_KEY or not HMAC_SECRET:
                 return _bad(401, "Server auth not configured")
             if not _ip_allowed(request):
@@ -75,7 +66,8 @@ def require_onec_auth(view_func):
 
             api_key = request.META.get("HTTP_X_API_KEY")
             ts      = request.META.get("HTTP_X_TIMESTAMP")
-            sign_in = request.META.get("HTTP_X_SIGN", "")
+            sign_in = (request.META.get("HTTP_X_SIGN") or "").strip()
+
             if not api_key or not ts or not sign_in:
                 return _bad(401, "Missing auth headers")
             if api_key != API_KEY:
@@ -94,24 +86,25 @@ def require_onec_auth(view_func):
             raw_digest = hmac.new(HMAC_SECRET.encode("utf-8"), msg, hashlib.sha256).digest()
             expected_hex = binascii.hexlify(raw_digest)  # bytes lower-hex
 
-            s_in = _normalize_sign(str(sign_in))
-            if HEX64_RE.match(s_in):
-                ok = hmac.compare_digest(expected_hex, s_in.lower().encode("ascii"))
+            # Нормализация подписи: HEX или Base64/Base64URL
+            if HEX64_RE.match(sign_in):
+                ok = hmac.compare_digest(expected_hex, sign_in.lower().encode("ascii", "strict"))
             else:
-                s_b64 = s_in.replace("-", "+").replace("_", "/")
+                s_b64 = sign_in.replace("-", "+").replace("_", "/")
                 pad   = "=" * ((4 - len(s_b64) % 4) % 4)
                 try:
                     sign_raw = binascii.a2b_base64(s_b64 + pad)
-                except (binascii.Error, ValueError):
-                    logger.warning("X-Sign invalid b64: %r", s_in[:48])
+                except binascii.Error:
                     return _bad(401, "Bad signature encoding")
                 ok = hmac.compare_digest(raw_digest, sign_raw)
 
             if not ok:
                 return _bad(401, "Bad signature")
+
             return view_func(request, *args, **kwargs)
         except Exception as e:
-            logger.exception("require_onec_auth crashed: %s", e)
+            import logging
+            logging.getLogger(__name__).exception("require_onec_auth crashed: %s", e)
             return _bad(401, "Bad signature")
     return _wrapped
 

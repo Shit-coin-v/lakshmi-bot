@@ -1,44 +1,17 @@
-import os
-import hmac
-import time
-import hashlib, logging
-from functools import wraps
-from django.http import JsonResponse
-from django.utils.deprecation import MiddlewareMixin
+import re, pathlib
 
-logger = logging.getLogger(__name__)
+p = pathlib.Path("backend/api/security.py")
+s = p.read_text(encoding="utf-8")
 
-API_KEY = os.getenv("INTEGRATION_API_KEY", "")
-HMAC_SECRET = os.getenv("INTEGRATION_HMAC_SECRET", "")
-MAX_SKEW = int(os.getenv("HMAC_MAX_SKEW_SECONDS", "300"))
+# Гарантируем недостающие импорты
+need = []
+if "import binascii" not in s:   need.append("import binascii")
+if "import unicodedata" not in s: need.append("import unicodedata")
+if "import re" not in s:          need.append("import re")
+if need:
+    s = s.replace("import hmac, hashlib", "import hmac, hashlib\n" + "\n".join(need))
 
-def _client_ip(request):
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        return xff.split(",")[0].strip()
-    xri = request.META.get("HTTP_X_REAL_IP")
-    if xri:
-        return xri.strip()
-    return request.META.get("REMOTE_ADDR", "")
-
-def _bad(code, detail):
-    return JsonResponse({"detail": detail}, status=code)
-
-def _ip_allowed(request):
-    try:
-        allow = (os.getenv("ONEC_ALLOW_IPS") or "").split(",")
-        allow = [a.strip() for a in allow if a.strip()]
-        if not allow:
-            return True
-        real_ip = (request.META.get("HTTP_X_REAL_IP")
-                   or request.META.get("REMOTE_ADDR") or "")
-        return any(real_ip == a or real_ip.startswith(a.rstrip("*")) for a in allow)
-    except Exception as e:
-        logger.exception("ip check failed: %s", e)
-        return False
-
-
-
+new_func = '''
 def require_onec_auth(view_func):
     """
     HMAC-SHA256 по строке f"{ts}."+body; допускаем X-Sign в hex или base64/base64url.
@@ -51,7 +24,7 @@ def require_onec_auth(view_func):
     logger = logging.getLogger(__name__)
 
     HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
-    INVISIBLES = {"\u00A0","\u200B","\u200C","\u200D","\uFEFF","\u2060"}
+    INVISIBLES = {"\\u00A0","\\u200B","\\u200C","\\u200D","\\uFEFF","\\u2060"}
 
     def _bad(code, detail):
         return JsonResponse({"detail": detail}, status=code)
@@ -114,4 +87,14 @@ def require_onec_auth(view_func):
             logger.exception("require_onec_auth crashed: %s", e)
             return _bad(401, "Bad signature")
     return _wrapped
+'''
 
+# Точно заменяем старую функцию на новую (без подводных камней \u)
+pattern = re.compile(r'def\s+require_onec_auth\s*\([^)]*\):.*?^\s*return\s+_wrapped\s*\n\s*', re.S|re.M)
+if pattern.search(s):
+    s = pattern.sub(lambda m: new_func + "\n", s, count=1)
+else:
+    s += "\n" + new_func + "\n"
+
+p.write_text(s, encoding="utf-8")
+print("✅ Patched:", p)
