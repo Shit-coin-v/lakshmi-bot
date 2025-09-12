@@ -1,0 +1,164 @@
+import os
+import time
+import hmac
+import hashlib
+import binascii
+import logging
+import re
+import unicodedata
+import base64
+from functools import wraps
+from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
+
+# ---- настройки из окружения ----
+API_KEY = os.getenv("INTEGRATION_API_KEY", "")
+HMAC_SECRET = os.getenv("INTEGRATION_HMAC_SECRET", "")
+MAX_SKEW = int(os.getenv("HMAC_MAX_SKEW_SECONDS", "300"))
+
+# ---- утилиты ----
+def _client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    xri = request.META.get("HTTP_X_REAL_IP")
+    if xri:
+        return xri.strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+def _bad(code, detail):
+    return JsonResponse({"detail": detail}, status=code)
+
+def _ip_allowed(request):
+    try:
+        allow = (os.getenv("ONEC_ALLOW_IPS") or "").split(",")
+        allow = [a.strip() for a in allow if a.strip()]
+        if not allow:
+            return True
+        real_ip = (request.META.get("HTTP_X_REAL_IP")
+                   or request.META.get("REMOTE_ADDR") or "")
+        return any(real_ip == a or real_ip.startswith(a.rstrip("*")) for a in allow)
+    except Exception as e:
+        logger.exception("ip check failed: %s", e)
+        return False
+
+# ---- regex/константы на модульном уровне ----
+HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+INVISIBLES = {"\u00A0", "\u200B", "\u200C", "\u200D", "\uFEFF", "\u2060"}
+
+def _normalize_sign(s: str) -> str:
+    """Нормализуем заголовок подписи (убираем не-ASCII, невидимые, похожие кир/лат)"""
+    s = unicodedata.normalize("NFKC", s or "")
+    trans = {
+        ord("А"): "A", ord("а"): "a",
+        ord("Е"): "E", ord("е"): "e",
+        ord("С"): "C", ord("с"): "c",
+    }
+    s = s.translate(trans)
+    for ch in INVISIBLES:
+        s = s.replace(ch, "")
+    return s.strip()
+
+def require_onec_auth(view_func):
+    """
+    Проверка HMAC-SHA256 по строке f"{ts}."+body.
+    X-Sign допускается в hex (64) или base64/base64url.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        try:
+            body_bytes = body if isinstance(body, (bytes, bytearray)) else str(body).encode('utf-8','surrogatepass')
+logger.info("AUTH DEBUG | ts=%s body_len=%d body_sha256=%s", ts, len(body_bytes), hashlib.sha256(body_bytes).hexdigest())
+            logger.info("AUTH DEBUG | sign_raw=%r", sign_in[:80])
+            logger.info("AUTH DEBUG | expected_hex=%s", expected_hex.decode())
+            if not API_KEY or not HMAC_SECRET:
+                logger.error("AUTH ERROR | server auth not configured")
+                return _bad(401, "Server auth not configured")
+            if not _ip_allowed(request):
+                logger.warning("AUTH DENY  | ip not allowed ip=%s", _client_ip(request))
+                return _bad(403, "IP not allowed")
+
+            api_key = request.META.get("HTTP_X_API_KEY")
+            ts      = request.META.get("HTTP_X_TIMESTAMP")
+            sign_in = request.META.get("HTTP_X_SIGN", "")
+
+            # базовый лог входа (маскируем чувствительные части)
+            logger.debug(
+                "AUTH DEBUG | %s %s | ip=%s | X-Api-Key=%s | X-Timestamp=%s | X-Sign(len)=%s",
+                request.method,
+                request.path,
+                _client_ip(request),
+                (api_key[:6] + "****") if api_key else None,
+                ts,
+                len(sign_in) if sign_in else 0,
+            )
+
+            if not api_key or not ts or not sign_in:
+                logger.warning("AUTH ERROR | missing headers: api=%s ts=%s sign=%s",
+                               bool(api_key), bool(ts), bool(sign_in))
+                return _bad(401, "Missing auth headers")
+            if api_key != API_KEY:
+                logger.warning("AUTH ERROR | bad api key from ip=%s", _client_ip(request))
+                return _bad(401, "Bad API key")
+
+            try:
+                ts_int = int(str(ts))
+            except Exception:
+                logger.warning("AUTH ERROR | bad timestamp value=%r", ts)
+                return _bad(401, "Bad timestamp")
+
+            skew = abs(int(time.time()) - ts_int)
+            if skew > MAX_SKEW:
+                logger.warning("AUTH ERROR | stale timestamp delta=%ss (max=%s)", skew, MAX_SKEW)
+                return _bad(401, "Stale timestamp")
+
+            body = request.body or b""
+            # маленький превью тела в лог
+            body_preview = body[:128]
+            logger.debug("AUTH DEBUG | body_len=%d | body_preview=%r", len(body), body_preview)
+
+            # вычисляем ожидание
+            msg = f"{ts}.".encode("utf-8") + body
+            raw_digest = hmac.new(HMAC_SECRET.encode("utf-8"), msg, hashlib.sha256).digest()
+            expected_hex = binascii.hexlify(raw_digest).decode("ascii")
+            expected_b64 = base64.b64encode(raw_digest).decode("ascii")
+
+            s_in = _normalize_sign(str(sign_in))
+            mode = None
+            if HEX64_RE.match(s_in):
+                mode = "hex"
+                ok = hmac.compare_digest(expected_hex.encode("ascii"), s_in.lower().encode("ascii"))
+            else:
+                mode = "b64"
+                s_b64 = s_in.replace("-", "+").replace("_", "/")
+                pad   = "=" * ((4 - len(s_b64) % 4) % 4)
+                try:
+                    sign_raw = binascii.a2b_base64(s_b64 + pad)
+                except (binascii.Error, ValueError):
+                    logger.warning("AUTH ERROR | invalid base64 sign preview=%r", s_in[:48])
+                    return _bad(401, "Bad signature encoding")
+                ok = hmac.compare_digest(raw_digest, sign_raw)
+
+            logger.debug(
+                "AUTH DEBUG | compare mode=%s | expected_hex=%s | expected_b64=%s | ok=%s",
+                mode,
+                expected_hex[:16] + "…",
+                expected_b64[:16] + "…",
+                ok,
+            )
+
+            if not ok:
+                logger.warning("AUTH ERROR | bad signature mode=%s ip=%s", mode, _client_ip(request))
+                return _bad(401, "Bad signature")
+
+            logger.info("AUTH OK    | %s %s | ip=%s | mode=%s | body_len=%d",
+                        request.method, request.path, _client_ip(request), mode, len(body))
+            return view_func(request, *args, **kwargs)
+
+        except Exception as e:
+            logger.exception("require_onec_auth crashed: %s", e)
+            return _bad(401, "Bad signature")
+
+    return _wrapped
+
