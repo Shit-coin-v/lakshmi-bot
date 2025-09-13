@@ -333,13 +333,20 @@ def onec_receipt(request):
 
         # 8) Ответ
         try:
-            guid_for_resp = one_c_guid or None
+            guid_for_resp = one_c_guid
+            if not guid_for_resp:
+                m = OneCClientMap.objects.filter(user=user).first()
+                guid_for_resp = getattr(m, one_c_guid, None)
+        except Exception:
+            guid_for_resp = one_c_guid
+        
+        try:
+            guid_for_resp = one_c_guid
             if not guid_for_resp:
                 m = OneCClientMap.objects.filter(user=user).first()
                 guid_for_resp = getattr(m, "one_c_guid", None)
         except Exception:
-            guid_for_resp = one_c_guid or None
-        
+            guid_for_resp = one_c_guid
         resp = {
             "status": "ok",
             "receipt_guid": receipt_guid,
@@ -347,7 +354,7 @@ def onec_receipt(request):
             "allocations": allocations,
             "customer": {
                 "telegram_id": user.telegram_id,
-                "one_c_guid": guid_for_resp,
+                "one_c_guid": one_c_guid or None,
                 "bonus_balance": float(user.bonuses or D("0")),
                 "total_spent": float(user.total_spent or D("0")),
                 "purchase_count": user.purchase_count or 0,
@@ -360,11 +367,12 @@ def onec_receipt(request):
                 "bonus_earned": float(bonus_earned),
             },
         }
-        
+
         status_code = 201 if created_count > 0 else 200
-        if created_count == 0:
-            resp["status"] = "already exists"
-        return JsonResponse(resp, status=status_code)
+if created_count == 0:
+    resp["status"] = resp.get("status", "already exists")
+return JsonResponse(resp, status=status_code)
+
     except Exception as e:
         logger.exception("onec_receipt failed: %s", e)
         return JsonResponse(
