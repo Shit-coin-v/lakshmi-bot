@@ -380,33 +380,42 @@ def onec_customer_sync(request):
     1С <-> Бот: синхронизация/поиск клиента ТОЛЬКО по telegram_id.
 
     Режимы:
-      • READ-ONLY: прислан только telegram_id — возвращаем карточку без изменений.
-      • WRITE: если присланы bonus_balance / referrer_telegram_id / one_c_guid — создаём/обновляем.
-        Дата не обязательна; если нет — используем "сейчас".
+      • READ-ONLY lookup: прислан только telegram_id — возвращаем карточку и баланс без изменений.
+      • WRITE mode: если присланы bonus_balance / referrer_telegram_id / one_c_guid — создаём/обновляем.
+        Дата (created_at или registration_date) НЕ обязательна; если нет — возьмём "сейчас".
+
+    Заголовки: X-Api-Key, X-Timestamp, X-Sign, (опц.) X-Idempotency-Key
+    Подпись: sha256( HMAC(secret, f"{TS}." + RAW_BODY) )
     """
     raw = request.body or b""
     if not raw:
         return JsonResponse({"detail": "empty_body"}, status=400)
+
     try:
         data = json.loads(raw.decode("utf-8"))
     except json.JSONDecodeError:
         return JsonResponse({"detail": "invalid_json"}, status=400)
 
+    # --- обязательное поле ---
     if "telegram_id" not in data:
         return JsonResponse({"detail": {"telegram_id": ["Обязательное поле."]}}, status=400)
+
     try:
         telegram_id = int(data["telegram_id"])
     except Exception:
         return JsonResponse({"detail": {"telegram_id": ["Неверное значение"]}}, status=400)
 
-    one_c_guid    = str(data.get("one_c_guid") or "")
+    one_c_guid   = str(data.get("one_c_guid") or "")
     bonus_balance = data.get("bonus_balance", None)
     referrer_tid  = data.get("referrer_telegram_id")
 
+    # Признак записи
     write_mode = (bonus_balance is not None) or bool(referrer_tid) or bool(one_c_guid)
 
-    user, _ = CustomUser.objects.get_or_create(telegram_id=telegram_id)
+    # Ищем/создаём пользователя по telegram_id
+    user, _created = CustomUser.objects.get_or_create(telegram_id=telegram_id)
 
+    # Дата (опционально). Если не прислали — используем now().
     raw_dt = data.get("created_at") or data.get("registration_date")
     if raw_dt:
         try:
@@ -419,8 +428,10 @@ def onec_customer_sync(request):
             dt_aware = dt.astimezone(timezone.utc)
     else:
         dt_aware = datetime.now(timezone.utc)
+
     dt_naive = dj_tz.make_naive(dt_aware, timezone=timezone.utc)
 
+    # --- write-поля ---
     if bonus_balance is not None:
         try:
             user.bonuses = D(str(bonus_balance))
@@ -435,23 +446,27 @@ def onec_customer_sync(request):
                 if ref_user:
                     user.referrer = ref_user
         except Exception:
-            pass
+            pass  # мягко игнорируем ошибки парсинга
 
+    # created_at — однократно
     try:
         if hasattr(user, "created_at") and not user.created_at:
             user.created_at = dt_aware if settings.USE_TZ else dt_naive
     except Exception:
         pass
 
+    # Сохраняем, если был write
     if write_mode:
         user.save()
 
+    # Маппинг GUID 1С
     if one_c_guid:
         OneCClientMap.objects.update_or_create(
             one_c_guid=one_c_guid,
             defaults={"user": user},
         )
 
+    # Собираем GUID для ответа
     try:
         m = OneCClientMap.objects.filter(user=user).first()
         guid_for_resp = getattr(m, "one_c_guid", None) or (one_c_guid or None)

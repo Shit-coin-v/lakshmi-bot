@@ -376,14 +376,14 @@ def onec_receipt(request):
 @require_POST
 @require_onec_auth
 def onec_customer_sync(request):
-    """
+    \"\"\"
     1С <-> Бот: синхронизация/поиск клиента ТОЛЬКО по telegram_id.
 
     Режимы:
       • READ-ONLY: прислан только telegram_id — возвращаем карточку без изменений.
       • WRITE: если присланы bonus_balance / referrer_telegram_id / one_c_guid — создаём/обновляем.
         Дата не обязательна; если нет — используем "сейчас".
-    """
+    \"\"\"
     raw = request.body or b""
     if not raw:
         return JsonResponse({"detail": "empty_body"}, status=400)
@@ -468,8 +468,6 @@ def onec_customer_sync(request):
         },
     }
     return JsonResponse(resp, status=200)
-
-
 @csrf_exempt
 @require_POST
 @require_onec_auth
