@@ -11,9 +11,14 @@ from src.database.models import SessionLocal, CustomUser, engine
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token='7730296602:AAEKA5njTkND1U5NqVFprwCmLlJcbmuDbW4', default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 logger = logging.getLogger(__name__)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    logger.error("BOT_TOKEN не задан в переменных окружения. Рассылка остановлена.")
+    raise RuntimeError("BOT_TOKEN is required for broadcast")
+
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
 async def send_broadcast_message(message_obj):
