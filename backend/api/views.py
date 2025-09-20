@@ -311,14 +311,6 @@ def onec_receipt(request):
                             "bonus_earned": float(pos_bonus_earned),
                         })
                         first = False
-                    
-                    created_count += 1
-                    allocations.append({
-                        "product_code": code,
-                        "quantity": float(qty),
-                        "total_amount": float(pos_total),
-                        "bonus_earned": float(pos_bonus_earned),
-                    })
                 except IntegrityError:
                     continue
 
