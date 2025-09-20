@@ -10,3 +10,5 @@ DATABASES = {
 }
 
 USE_TZ = False
+APPEND_SLASH = False
+SECURE_SSL_REDIRECT = False
