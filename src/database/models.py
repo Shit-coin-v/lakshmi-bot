@@ -210,7 +210,7 @@ class OneCClientMap(Base):
     __tablename__ = "api_onec_client_map"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
     one_c_guid = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

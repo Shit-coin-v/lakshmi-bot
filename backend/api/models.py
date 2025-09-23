@@ -3,7 +3,11 @@ from main.models import CustomUser
 
 
 class OneCClientMap(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING)  # FK на customers.id
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="onec_client_maps",
+    )  # FK на customers.id
     one_c_guid = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True) 

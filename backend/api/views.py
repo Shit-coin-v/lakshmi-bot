@@ -382,23 +382,52 @@ def onec_customer_sync(request):
     except json.JSONDecodeError:
         return JsonResponse({"detail": "invalid_json"}, status=400)
 
-    if "telegram_id" not in data:
-        return JsonResponse({"detail": {"telegram_id": ["Обязательное поле."]}}, status=400)
+    telegram_raw = data.get("telegram_id")
+    qr_code = str(data.get("qr_code") or "").strip()
 
-    try:
-        telegram_id = int(data["telegram_id"])
-    except (TypeError, ValueError):
-        return JsonResponse({"detail": {"telegram_id": ["Неверное значение"]}}, status=400)
+    telegram_id: int | None
+    if telegram_raw in (None, "", False):
+        telegram_id = None
+    else:
+        try:
+            telegram_id = int(telegram_raw)
+        except (TypeError, ValueError):
+            return JsonResponse({"detail": {"telegram_id": ["Неверное значение"]}}, status=400)
+
+    if telegram_id is None and not qr_code:
+        return JsonResponse(
+            {"detail": {"telegram_id": ["Нужно указать telegram_id или qr_code."]}},
+            status=400,
+        )
+
+    user = None
+    if qr_code:
+        user = CustomUser.objects.filter(qr_code=qr_code).first()
+
+    user_created = False
+    if not user and telegram_id is not None:
+        user, user_created = CustomUser.objects.get_or_create(telegram_id=telegram_id)
+
+    if not user:
+        return JsonResponse(
+            {"detail": {"qr_code": ["Пользователь не найден"]}},
+            status=404,
+        )
+
+    if telegram_id is not None and user.telegram_id != telegram_id:
+        return JsonResponse(
+            {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
+            status=400,
+        )
+
+    if telegram_id is None:
+        telegram_id = user.telegram_id
 
     one_c_guid = str(data.get("one_c_guid") or "")
     bonus_balance = data.get("bonus_balance")
     referrer_tid = data.get("referrer_telegram_id")
 
-    write_mode = any(
-        [bonus_balance is not None, referrer_tid, one_c_guid]
-    )
-
-    user, _ = CustomUser.objects.get_or_create(telegram_id=telegram_id)
+    write_mode = any([bonus_balance is not None, referrer_tid, one_c_guid]) or user_created
 
     raw_dt = data.get("created_at") or data.get("registration_date")
     if raw_dt:
@@ -451,6 +480,7 @@ def onec_customer_sync(request):
             "customer": {
                 "telegram_id": user.telegram_id,
                 "one_c_guid": guid_for_resp,
+                "qr_code": user.qr_code,
                 "bonus_balance": float(user.bonuses or 0),
                 "referrer_telegram_id": getattr(
                     getattr(user, "referrer", None), "telegram_id", None
