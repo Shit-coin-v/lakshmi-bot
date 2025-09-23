@@ -93,8 +93,18 @@ async def send_customer_to_onec(session, user, referrer_id=None):
                         try:
                             user.bonuses = bonus
                             session.add(user)
+                            await session.commit()
+                            refresh = getattr(session, "refresh", None)
+                            if callable(refresh):
+                                await refresh(user)
                         except Exception as e:
                             logging.warning("Failed to update bonuses locally: %s", e)
+                            rollback = getattr(session, "rollback", None)
+                            if callable(rollback):
+                                try:
+                                    await rollback()
+                                except Exception:
+                                    logging.exception("Failed to rollback bonuses update")
 
                     logging.info("1C registration OK for tg=%s", user.telegram_id)
                 else:

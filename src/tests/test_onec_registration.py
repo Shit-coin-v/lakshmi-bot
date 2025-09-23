@@ -20,10 +20,16 @@ from onec_client import send_customer_to_onec
 class DummySession:
     def __init__(self):
         self.committed = False
+        self.refreshed = False
+        self.rolled_back = False
     async def commit(self):
         self.committed = True
     def add(self, obj):
         pass
+    async def refresh(self, obj):
+        self.refreshed = True
+    async def rollback(self):
+        self.rolled_back = True
 
 
 def test_send_customer_to_onec(monkeypatch):
@@ -31,6 +37,8 @@ def test_send_customer_to_onec(monkeypatch):
     monkeypatch.setenv("ONEC_CUSTOMER_URL", "http://example.com/onec/customer")
     monkeypatch.setenv("ONEC_API_KEY", "api_key")
     monkeypatch.setenv("ONEC_API_SECRET", "secret")
+    monkeypatch.setenv("INTEGRATION_API_KEY", "api_key")
+    monkeypatch.setenv("INTEGRATION_HMAC_SECRET", "secret")
     importlib.reload(config)
 
     called = {}
@@ -44,7 +52,7 @@ def test_send_customer_to_onec(monkeypatch):
             async def json(self):
                 return {"one_c_guid": "GUID123", "bonus_balance": 5}
             async def text(self):
-                return "ok"
+                return json.dumps({"one_c_guid": "GUID123", "bonus_balance": 5})
             async def __aenter__(self):
                 return self
             async def __aexit__(self, exc_type, exc, tb):
@@ -72,11 +80,18 @@ def test_send_customer_to_onec(monkeypatch):
 
     assert called["upsert"] == (42, "GUID123")
     assert session.committed
+    assert session.refreshed
+    assert not session.rolled_back
+    assert user.bonuses == 5
     payload = json.loads(called["data"])
     assert payload["telegram_id"] == 1
     assert payload["referrer_telegram_id"] == 2
     headers = called["headers"]
     assert headers["X-Api-Key"] == "api_key"
-    assert "Idempotency-Key" in headers
-    expected_sign = hmac.new(b"secret", called["data"].encode(), hashlib.sha256).hexdigest()
+    assert "X-Idempotency-Key" in headers
+    expected_sign = hmac.new(
+        config.ONEC_API_SECRET.encode(),
+        f"{headers['X-Timestamp']}.{called['data']}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
     assert headers["X-Sign"] == expected_sign
