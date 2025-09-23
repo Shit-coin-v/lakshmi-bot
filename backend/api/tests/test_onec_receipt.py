@@ -1,8 +1,4 @@
 import json
-import time
-import hmac
-import hashlib
-
 from django.test import TestCase, Client
 
 from api import security
@@ -12,21 +8,11 @@ from main.models import Transaction, CustomUser
 class OneCReceiptTests(TestCase):
     def setUp(self):
         security.API_KEY = 'test-key'
-        security.HMAC_SECRET = 'test-secret'
-        security.DISABLE_HMAC = False
         self.client = Client()
 
     def _headers(self, body: bytes):
-        ts = str(int(time.time()))
-        sign = hmac.new(
-            security.HMAC_SECRET.encode(),
-            f"{ts}.".encode() + body,
-            hashlib.sha256,
-        ).hexdigest()
         return {
             'HTTP_X_API_KEY': security.API_KEY,
-            'HTTP_X_TIMESTAMP': ts,
-            'HTTP_X_SIGN': sign,
         }
 
     def test_repeat_receipt_does_not_duplicate_transactions(self):

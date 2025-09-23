@@ -1,6 +1,6 @@
-import os
-import logging
 import asyncio
+import logging
+import os
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -22,10 +22,16 @@ from database.models import SessionLocal, create_db, BotActivity, CustomUser
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot: Bot | None = None
 dp = Dispatcher()
+
+
+def get_bot() -> Bot:
+    if bot is None:
+        raise RuntimeError("Telegram bot is not initialised")
+    return bot
 
 
 class Registration(StatesGroup):
@@ -150,7 +156,7 @@ async def callback_handler(callback: CallbackQuery):
             await callback.message.answer(f"Ваши бонусы: {user.bonuses}")
 
         elif callback.data == "invite_friend":
-            bot_info = await bot.get_me()
+            bot_info = await get_bot().get_me()
             bot_username = bot_info.username
             ref_link = f"https://t.me/{bot_username}?start=ref{user.telegram_id}"
             await callback.message.answer(f"🔗 Ваша реферальная ссылка:\n{ref_link}")
@@ -161,11 +167,19 @@ async def callback_handler(callback: CallbackQuery):
 
 
 async def main():
+    global bot
+    bot = Bot(
+        token=config.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     await create_db()
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    if not config.BOT_TOKEN:
+        logger.error("BOT_TOKEN is not configured; Telegram bot will not start")
+        raise SystemExit(1)
     asyncio.run(main())
 

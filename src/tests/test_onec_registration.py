@@ -1,7 +1,5 @@
 import asyncio
 import json
-import hmac
-import hashlib
 from datetime import datetime, timezone
 
 import aiohttp
@@ -36,9 +34,7 @@ def test_send_customer_to_onec(monkeypatch):
     monkeypatch.setenv("BOT_TOKEN", "test")
     monkeypatch.setenv("ONEC_CUSTOMER_URL", "http://example.com/onec/customer")
     monkeypatch.setenv("ONEC_API_KEY", "api_key")
-    monkeypatch.setenv("ONEC_API_SECRET", "secret")
     monkeypatch.setenv("INTEGRATION_API_KEY", "api_key")
-    monkeypatch.setenv("INTEGRATION_HMAC_SECRET", "secret")
     importlib.reload(config)
 
     called = {}
@@ -89,9 +85,5 @@ def test_send_customer_to_onec(monkeypatch):
     headers = called["headers"]
     assert headers["X-Api-Key"] == "api_key"
     assert "X-Idempotency-Key" in headers
-    expected_sign = hmac.new(
-        config.ONEC_API_SECRET.encode(),
-        f"{headers['X-Timestamp']}.{called['data']}".encode(),
-        hashlib.sha256,
-    ).hexdigest()
-    assert headers["X-Sign"] == expected_sign
+    assert "X-Timestamp" not in headers
+    assert "X-Sign" not in headers

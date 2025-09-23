@@ -1,11 +1,17 @@
 from django.urls import path
 
 from .views import (
-        PurchaseAPIView, SendMessageAPIView,
-        onec_health, onec_receipt, onec_customer_sync, onec_product_sync,
+    PurchaseAPIView,
+    SendMessageAPIView,
+    healthz,
+    onec_customer_sync,
+    onec_health,
+    onec_product_sync,
+    onec_receipt,
 )
 
 urlpatterns = [
+    path("healthz/", healthz, name="healthz"),
     path('onec/health', onec_health, name='onec_health'),
     path('onec/receipt', onec_receipt, name='onec_receipt'),
     path('onec/customer', onec_customer_sync, name='onec_customer_sync'),
