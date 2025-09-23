@@ -477,9 +477,10 @@ def onec_product_sync(request):
         if not ser.is_valid():
             return JsonResponse({"detail": ser.errors}, status=400)
         data = ser.validated_data
+        one_c_guid = data.get("one_c_guid")
 
         defaults = {
-            "one_c_guid": data.get("one_c_guid"),
+            "one_c_guid": one_c_guid,
             "name": data["name"],
             "price": data["price"],
             "category": data["category"],
@@ -491,21 +492,6 @@ def onec_product_sync(request):
             product_code=data["product_code"], defaults=defaults
         )
 
-        try:
-            guid_for_resp = one_c_guid
-            if not guid_for_resp:
-                m = OneCClientMap.objects.filter(user=user).first()
-                guid_for_resp = getattr(m, one_c_guid, None)
-        except Exception:
-            guid_for_resp = one_c_guid
-        
-        try:
-            guid_for_resp = one_c_guid
-            if not guid_for_resp:
-                m = OneCClientMap.objects.filter(user=user).first()
-                guid_for_resp = getattr(m, "one_c_guid", None)
-        except Exception:
-            guid_for_resp = one_c_guid
         resp = {
             "status": "created" if created else "updated",
             "product": {
