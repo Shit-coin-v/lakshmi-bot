@@ -1,10 +1,7 @@
 import aiohttp
-import hmac
-import hashlib
 import json
 import logging
 import uuid
-import time
 from datetime import timezone
 
 import config
@@ -17,12 +14,9 @@ async def send_customer_to_onec(session, user, referrer_id=None):
     Требуются переменные окружения:
       - ONEC_CUSTOMER_URL
       - INTEGRATION_API_KEY
-      - INTEGRATION_HMAC_SECRET
-
-    Подпись: HMAC-SHA256(secret, f"{ts}.{raw_body}")
-    Заголовки: X-Api-Key, X-Timestamp, X-Sign, X-Idempotency-Key
+    Заголовки: X-Api-Key, X-Idempotency-Key
     """
-    if not config.ONEC_CUSTOMER_URL or not config.ONEC_API_KEY or not config.ONEC_API_SECRET:
+    if not config.ONEC_CUSTOMER_URL or not config.ONEC_API_KEY:
         logging.error("1C integration is not configured")
         return
 
@@ -50,18 +44,9 @@ async def send_customer_to_onec(session, user, referrer_id=None):
 
     body = json.dumps(payload, ensure_ascii=False)
 
-    ts = str(int(time.time()))
-    sign = hmac.new(
-        config.ONEC_API_SECRET.encode(),
-        f"{ts}.{body}".encode(),
-        hashlib.sha256,
-    ).hexdigest()
-
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": config.ONEC_API_KEY,
-        "X-Timestamp": ts,
-        "X-Sign": sign,
         "X-Idempotency-Key": str(uuid.uuid4()),
     }
 

@@ -5,7 +5,6 @@ from django.contrib import admin, messages
 from django.db.models import Count
 
 from .models import *
-from src.broadcast import send_broadcast_message
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +82,16 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
     truncated_message.short_description = "Текст сообщения"
 
     def send_broadcast(self, request, queryset):
+        try:
+            from src.broadcast import send_broadcast_message
+        except RuntimeError as exc:
+            self.message_user(request, str(exc), messages.ERROR)
+            return
+        except Exception as exc:
+            logger.error("Failed to import broadcast helper: %s", exc)
+            self.message_user(request, "Не удалось инициализировать рассылку", messages.ERROR)
+            return
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 

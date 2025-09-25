@@ -32,7 +32,7 @@ class CustomUser(models.Model):
         "self",
         null=True,
         blank=True,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         related_name="referrals",
         db_column="referrer_id",
         to_field="telegram_id"
@@ -50,7 +50,7 @@ class CustomUser(models.Model):
         return self.full_name or f"User {self.telegram_id}"
 
 class Transaction(models.Model):
-    customer = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING, null=True, blank=True)
+    customer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     product = models.ForeignKey(Product, on_delete=models.DO_NOTHING, null=True, blank=True)
     quantity = models.IntegerField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
