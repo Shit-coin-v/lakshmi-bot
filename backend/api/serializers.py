@@ -40,8 +40,6 @@ class ReceiptCustomerSerializer(serializers.Serializer):
     one_c_guid = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
-        if not data.get('telegram_id') and not data.get('one_c_guid'):
-            raise serializers.ValidationError("telegram_id или one_c_guid обязателен")
         return data
 
 

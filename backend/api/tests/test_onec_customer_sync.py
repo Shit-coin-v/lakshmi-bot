@@ -59,6 +59,22 @@ class OneCCustomerSyncTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("telegram_id", response.json()["detail"])
 
+    def test_lookup_by_telegram_id_requires_existing_user(self):
+        response = self._post({"telegram_id": 777})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(CustomUser.objects.filter(telegram_id=777).exists())
+
+    def test_lookup_by_telegram_id(self):
+        user = CustomUser.objects.create(telegram_id=333)
+
+        response = self._post({"telegram_id": 333})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "lookup")
+        self.assertEqual(payload["customer"]["telegram_id"], user.telegram_id)
+
 
 class OneCClientMapCascadeTests(TestCase):
     def test_deleting_user_cascades_map(self):
