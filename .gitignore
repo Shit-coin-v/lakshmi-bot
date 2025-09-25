@@ -22,3 +22,4 @@ staticfiles/
 !.env.example
 
 *.swp
+backend/collected_static/
