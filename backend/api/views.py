@@ -212,28 +212,60 @@ def onec_receipt(request):
 
     customer_block = data["customer"]
     telegram_id = customer_block.get("telegram_id")
-    one_c_guid = customer_block.get("one_c_guid")
+    one_c_guid_raw = customer_block.get("one_c_guid")
+    one_c_guid = (one_c_guid_raw or "").strip() or None
 
     user = None
+    is_guest = False
+
     if one_c_guid:
         mapping = (
             OneCClientMap.objects.select_related("user")
             .filter(one_c_guid=one_c_guid)
             .first()
         )
-        if mapping:
-            user = mapping.user
-
-    if not user and telegram_id:
-        user = CustomUser.objects.filter(telegram_id=telegram_id).first()
-
-    if not user:
-        if telegram_id is None:
+        if not mapping:
             return JsonResponse(
-                {"detail": {"telegram_id": ["Обязательное поле для новых клиентов."]}},
+                {"detail": "Клиент не найден. Пройдите регистрацию в боте."},
                 status=400,
             )
-        user, _ = CustomUser.objects.get_or_create(telegram_id=telegram_id)
+        user = mapping.user
+
+    if telegram_id is not None:
+        user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
+        if not user_by_tid:
+            return JsonResponse(
+                {"detail": "Клиент не найден. Пройдите регистрацию в боте."},
+                status=400,
+            )
+        if user and user_by_tid.id != user.id:
+            return JsonResponse(
+                {"detail": "Клиент не найден. Пройдите регистрацию в боте."},
+                status=400,
+            )
+        user = user or user_by_tid
+
+    if not user:
+        if one_c_guid or telegram_id is not None:
+            return JsonResponse(
+                {"detail": "Клиент не найден. Пройдите регистрацию в боте."},
+                status=400,
+            )
+
+        guest_tid = getattr(settings, "GUEST_TELEGRAM_ID", None)
+        try:
+            guest_tid_int = int(guest_tid)
+        except (TypeError, ValueError):
+            logger.error("Invalid GUEST_TELEGRAM_ID setting: %r", guest_tid)
+            return JsonResponse({"detail": "guest_user_not_configured"}, status=500)
+
+        user = CustomUser.objects.filter(telegram_id=guest_tid_int).first()
+        if not user:
+            logger.error(
+                "Guest user with telegram_id %s not found", guest_tid_int
+            )
+            return JsonResponse({"detail": "guest_user_not_found"}, status=500)
+        is_guest = True
 
     if one_c_guid:
         OneCClientMap.objects.update_or_create(
@@ -244,7 +276,7 @@ def onec_receipt(request):
     total_amount = _as_decimal(totals["total_amount"])
     discount_total = _as_decimal(totals["discount_total"])
     bonus_spent = _as_decimal(totals["bonus_spent"])
-    bonus_earned = _as_decimal(totals["bonus_earned"])
+    bonus_earned = D("0") if is_guest else _as_decimal(totals["bonus_earned"])
 
     positions = data["positions"]
     created_count = 0
@@ -323,7 +355,7 @@ def onec_receipt(request):
             finally:
                 first_line = False
 
-        if created_count > 0:
+        if created_count > 0 and not is_guest:
             user.total_spent = (user.total_spent or D("0")) + total_amount
             user.purchase_count = (user.purchase_count or 0) + 1
             user.last_purchase_date = dt_in if settings.USE_TZ else dt_naive
@@ -400,13 +432,34 @@ def onec_customer_sync(request):
             status=400,
         )
 
-    user = None
+    user: CustomUser | None = None
     if qr_code:
         user = CustomUser.objects.filter(qr_code=qr_code).first()
+        if not user:
+            return JsonResponse(
+                {"detail": {"qr_code": ["Пользователь не найден"]}},
+                status=404,
+            )
 
-    user_created = False
-    if not user and telegram_id is not None:
-        user, user_created = CustomUser.objects.get_or_create(telegram_id=telegram_id)
+    if telegram_id is not None:
+        if user and user.telegram_id != telegram_id:
+            return JsonResponse(
+                {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
+                status=400,
+            )
+
+        user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
+        if not user_by_tid:
+            return JsonResponse(
+                {"detail": {"telegram_id": ["Пользователь не найден"]}},
+                status=404,
+            )
+        if user and user_by_tid.id != user.id:
+            return JsonResponse(
+                {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
+                status=400,
+            )
+        user = user or user_by_tid
 
     if not user:
         return JsonResponse(
@@ -427,7 +480,7 @@ def onec_customer_sync(request):
     bonus_balance = data.get("bonus_balance")
     referrer_tid = data.get("referrer_telegram_id")
 
-    write_mode = any([bonus_balance is not None, referrer_tid, one_c_guid]) or user_created
+    write_mode = any([bonus_balance is not None, referrer_tid, one_c_guid])
 
     raw_dt = data.get("created_at") or data.get("registration_date")
     if raw_dt:
