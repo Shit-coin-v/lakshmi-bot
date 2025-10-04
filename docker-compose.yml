@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
 
   promtail:
@@ -11,6 +13,11 @@ services:
       - ./promtail-config.yaml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     privileged: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   loki:
     image: grafana/loki:2.9.6
@@ -19,6 +26,11 @@ services:
       - "127.0.0.1:3100:3100"
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   prometheus:
     image: prom/prometheus:v2.48.1
@@ -28,6 +40,11 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheusdata:/prometheus
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   grafana:
     image: grafana/grafana:10.4.3
@@ -42,14 +59,19 @@ services:
     volumes:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - grafanadata:/var/lib/grafana
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   db:
     image: postgres:17
     env_file: .env
     restart: always
     container_name: db
-#    ports:
-#      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - db_backups:/var/lib/postgresql/backups
@@ -58,6 +80,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   app:
     build: .
@@ -80,6 +107,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   celery_worker:
     build: .
@@ -98,8 +130,12 @@ services:
       PYTHONPATH: /app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
-    command: ["-A", "backend.backend", "worker", "--loglevel=info"]
-
+    command: ["-A", "backend.celery", "worker", "--loglevel=info"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   celery_beat:
     build: .
@@ -120,8 +156,12 @@ services:
       PYTHONPATH: /app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
-    command: ["-A", "backend.backend", "beat", "--loglevel=info"]
-
+    command: ["-A", "backend.celery", "beat", "--loglevel=info"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   redis:
     image: redis:7
@@ -134,7 +174,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     build: ./nginx/
@@ -150,7 +194,11 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - static:/app/backend/collected_static
       - media:/app/media
-
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   metabase:
     image: metabase/metabase:v0.49.14
@@ -167,6 +215,11 @@ services:
       - db
     ports:
       - "127.0.0.1:3001:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
 volumes:
   static:
@@ -176,3 +229,4 @@ volumes:
   grafanadata:
   prometheusdata:
   metabase-data:
+
