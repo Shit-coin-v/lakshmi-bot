@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -19,6 +18,7 @@ from registration import UserRegistration
 from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
 from database.models import SessionLocal, create_db, BotActivity, CustomUser
+from qr_code import resolve_qr_code_path
 
 load_dotenv()
 
@@ -64,10 +64,12 @@ async def command_start_handler(message: Message, state: FSMContext):
 
         if user:
             text = "Привет!"
-            if user.qr_code and os.path.exists(user.qr_code):
-                await message.answer(text, reply_markup=get_qr_code_button())
-            else:
-                await message.answer(text)
+            if user.qr_code:
+                qr_path = resolve_qr_code_path(user.qr_code)
+                if qr_path.exists():
+                    await message.answer(text, reply_markup=get_qr_code_button())
+                    return
+            await message.answer(text)
         else:
             command_args = message.text.split()
             referrer_id = None
@@ -123,11 +125,13 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         await send_customer_to_onec(session, user, data.get("referrer_id"))
 
     await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
-    if user.qr_code and os.path.exists(user.qr_code):
-        await callback.message.answer(
-            "Вот ваша кнопка для получения QR-кода:",
-            reply_markup=get_qr_code_button(),
-        )
+    if user.qr_code:
+        qr_path = resolve_qr_code_path(user.qr_code)
+        if qr_path.exists():
+            await callback.message.answer(
+                "Вот ваша кнопка для получения QR-кода:",
+                reply_markup=get_qr_code_button(),
+            )
     await state.clear()
     await callback.answer()
 
@@ -145,11 +149,16 @@ async def callback_handler(callback: CallbackQuery):
         await save_bot_activity(session, telegram_id=callback.from_user.id, action=callback.data)
 
         if callback.data == "show_qr":
-            if not user.qr_code or not os.path.exists(user.qr_code):
+            if not user.qr_code:
                 await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
                 return await callback.answer()
 
-            photo = FSInputFile(user.qr_code)
+            qr_path = resolve_qr_code_path(user.qr_code)
+            if not qr_path.exists():
+                await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
+                return await callback.answer()
+
+            photo = FSInputFile(str(qr_path))
             await callback.message.answer_photo(photo)
 
         elif callback.data == "show_bonuses":
