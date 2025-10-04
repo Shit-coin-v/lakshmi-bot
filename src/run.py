@@ -1,7 +1,6 @@
-import os
-import re
-import logging
 import asyncio
+import logging
+import os
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -9,7 +8,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.state import StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
@@ -17,20 +16,26 @@ from dotenv import load_dotenv
 
 import config
 from registration import UserRegistration
+from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
 from database.models import SessionLocal, create_db, BotActivity, CustomUser
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot: Bot | None = None
 dp = Dispatcher()
 
 
+def get_bot() -> Bot:
+    if bot is None:
+        raise RuntimeError("Telegram bot is not initialised")
+    return bot
+
+
 class Registration(StatesGroup):
-    waiting_for_fio = State()
-    waiting_for_birth_date = State()
+    pass
 
 
 async def save_bot_activity(session, telegram_id: int, action: str):
@@ -56,10 +61,9 @@ async def command_start_handler(message: Message, state: FSMContext):
         user_service = UserRegistration(session)
         user = await user_service.get_user_by_id(message.from_user.id)
 
-        await save_bot_activity(session, telegram_id=message.from_user.id, action="start")
 
         if user:
-            text = f"Привет, {user.full_name}!"
+            text = "Привет!"
             if user.qr_code and os.path.exists(user.qr_code):
                 await message.answer(text, reply_markup=get_qr_code_button())
             else:
@@ -86,17 +90,7 @@ async def command_start_handler(message: Message, state: FSMContext):
                 text=(
                     "👋 Здравствуйте!\n"
                     "Добро пожаловать в нашу систему лояльности.\n"
-                    "Прежде чем начать регистрацию, пожалуйста, ознакомьтесь с "
-                    "условиями обработки персональных данных.\n"
-                    "🔐 Мы собираем и обрабатываем следующие данные:\n"
-                    " • ФИО\n"
-                    " • Дата рождения\n"
-                    " • Telegram ID\n"
-                    "\n"
-                    "Цель обработки данных:\n"
-                    " • Регистрация в бонусной программе\n"
-                    " • Персонализированные предложения\n"
-                    " • Ведение внутренней аналитики\n\n"
+                    "Прежде чем начать, пожалуйста, ознакомьтесь с условиями обработки персональных данных.\n\n"
                     "📄 Полный текст политики доступен здесь:\n"
                     "👉 https://docs.google.com/document/d/13BI-g30MvueQS2fSvaVdnKA9M2LkyEBUTaJ0GFI5f2g/edit?usp=sharing\n\n"
                     "Нажимая кнопку «Я согласен», вы подтверждаете своё согласие на обработку персональных данных "
@@ -117,9 +111,24 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
             return await callback.answer()
 
         await state.update_data(personal_data_consent=True)
-        await callback.message.answer("Спасибо за согласие. Пожалуйста, введите ваше ФИО:")
-        await state.set_state(Registration.waiting_for_fio)
+        data = await state.get_data()
+        user = await user_service.create_user(
+            telegram_id=callback.from_user.id,
+            first_name=callback.from_user.first_name,
+            last_name=callback.from_user.last_name,
+            referrer_id=data.get("referrer_id"),
+            personal_data_consent=True,
+        )
 
+        await send_customer_to_onec(session, user, data.get("referrer_id"))
+
+    await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
+    if user.qr_code and os.path.exists(user.qr_code):
+        await callback.message.answer(
+            "Вот ваша кнопка для получения QR-кода:",
+            reply_markup=get_qr_code_button(),
+        )
+    await state.clear()
     await callback.answer()
 
 
@@ -147,7 +156,7 @@ async def callback_handler(callback: CallbackQuery):
             await callback.message.answer(f"Ваши бонусы: {user.bonuses}")
 
         elif callback.data == "invite_friend":
-            bot_info = await bot.get_me()
+            bot_info = await get_bot().get_me()
             bot_username = bot_info.username
             ref_link = f"https://t.me/{bot_username}?start=ref{user.telegram_id}"
             await callback.message.answer(f"🔗 Ваша реферальная ссылка:\n{ref_link}")
@@ -155,55 +164,22 @@ async def callback_handler(callback: CallbackQuery):
     await callback.answer()
 
 
-@dp.message(Registration.waiting_for_fio)
-async def process_fio(message: Message, state: FSMContext):
-    FIO_REGEX = r"^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$"
-    if not re.match(FIO_REGEX, message.text.strip()):
-        await message.answer(
-            "❌ Некорректный формат ФИО.\n"
-            "Например: <b>Иванов Иван Иванович</b>",
-            parse_mode="HTML"
-        )
-        return
-
-    await state.update_data(full_name=message.text.strip())
-    await message.answer("Введите вашу дату рождения (в формате ДД.ММ.ГГГГ):")
-    await state.set_state(Registration.waiting_for_birth_date)
-
-@dp.message(Registration.waiting_for_birth_date)
-async def process_birth_date(message: Message, state: FSMContext):
-    try:
-        birth_date = datetime.strptime(message.text, "%d.%m.%Y")
-    except ValueError:
-        await message.answer("Неверный формат. Введите дату как ДД.ММ.ГГГГ.")
-        return
-
-    data = await state.get_data()
-
-    async with SessionLocal() as session:
-        user_service = UserRegistration(session)
-        user = await user_service.create_user(
-            telegram_id=data["telegram_id"],
-            first_name=data["first_name"],
-            last_name=data["last_name"],
-            full_name=data["full_name"],
-            birth_date=birth_date,
-            referrer_id=data.get("referrer_id"),
-            personal_data_consent=data.get("personal_data_consent", False)
-        )
-
-    await message.answer("Спасибо! Вы успешно зарегистрированы.")
-    if user.qr_code and os.path.exists(user.qr_code):
-        await message.answer("Вот ваша кнопка для получения QR-кода:", reply_markup=get_qr_code_button())
-
-    await state.clear()
 
 
 async def main():
+    global bot
+    bot = Bot(
+        token=config.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     await create_db()
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    if not config.BOT_TOKEN:
+        logger.error("BOT_TOKEN is not configured; Telegram bot will not start")
+        raise SystemExit(1)
     asyncio.run(main())
+

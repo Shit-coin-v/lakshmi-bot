@@ -1,8 +1,25 @@
-/venv/
-/.env
-/media/
-/src/qr_codes/
-/backend/celerybeat-schedule.bak
-/backend/celerybeat-schedule.dat
-/backend/celerybeat-schedule.dir
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
 
+# Env & secrets
+.env
+.env.*
+*.env
+
+# Virtualenvs
+venv/
+.venv/
+backend/venv/
+
+# Django runtime
+/media/
+staticfiles/
+!.env.example
+
+*.swp
+backend/collected_static/

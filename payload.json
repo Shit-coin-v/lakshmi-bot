@@ -1,0 +1,23 @@
+{
+  "receipt_guid": "RCP-GUEST-TEST-1",
+  "datetime": "2025-09-26T21:18:43+03:00",
+  "store_id": 1,
+  "customer": {},
+  "totals": {
+    "total_amount": 308,
+    "discount_total": 0,
+    "bonus_spent": 0,
+    "bonus_earned": 0
+  },
+  "positions": [
+    {
+      "line_number": 1,
+      "product_code": "ЦБ-00067497",
+      "name": "Энергетик Берн оригинал 449мл",
+      "quantity": 2,
+      "price": 154,
+      "discount_amount": 0,
+      "is_promotional": false
+    }
+  ]
+}

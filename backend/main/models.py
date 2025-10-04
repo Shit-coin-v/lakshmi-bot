@@ -3,74 +3,80 @@ from django.utils import timezone
 
 
 class Product(models.Model):
-    product_code = models.CharField(max_length=50, unique=True)
+    product_code = models.CharField(max_length=50, unique=True, blank=True, null=True)
     name = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    category = models.CharField(max_length=100)
-    stock = models.IntegerField(default=0)
+    category = models.CharField(max_length=100, blank=True, null=True)
+    stock = models.IntegerField(blank=True, null=True)
     store_id = models.IntegerField()
-    is_promotional = models.BooleanField(default=False)
-    updated_at = models.DateTimeField(auto_now=True)
+    is_promotional = models.BooleanField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    one_c_guid = models.CharField(max_length=64, unique=True, blank=True, null=True)
 
     class Meta:
-        verbose_name = 'Продукт'
-        verbose_name_plural = 'Продукты'
-        db_table = 'products'
+        db_table = "products"
 
     def __str__(self):
         return self.name
-
 
 class CustomUser(models.Model):
     telegram_id = models.BigIntegerField(unique=True)
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
-    registration_date = models.DateTimeField(default=timezone.now)
+    birth_date = models.DateTimeField(null=True, blank=True)
+    registration_date = models.DateTimeField(null=True, blank=True)
     qr_code = models.CharField(max_length=500, null=True, blank=True)
-    bonuses = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    bonuses = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     referrer = models.ForeignKey(
         "self",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="referrals",
-        db_column='referrer_id',
-        to_field='telegram_id'  # Указываем, что внешний ключ ссылается на telegram_id
+        db_column="referrer_id",
+        to_field="telegram_id"
     )
     last_purchase_date = models.DateTimeField(null=True, blank=True)
-    total_spent = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
-    purchase_count = models.PositiveIntegerField(default=0)
+    total_spent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    purchase_count = models.IntegerField(null=True, blank=True)
+    personal_data_consent = models.BooleanField(null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = 'Пользователь'
-        verbose_name_plural = 'Пользователи'
-        db_table = 'customers'
+        db_table = "customers"
 
     def __str__(self):
         return self.full_name or f"User {self.telegram_id}"
 
-
 class Transaction(models.Model):
-    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
-    quantity = models.IntegerField(default=1)
+    customer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    product = models.ForeignKey(Product, on_delete=models.DO_NOTHING, null=True, blank=True)
+    quantity = models.IntegerField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
-    purchase_date = models.DateField(default=timezone.now)
-    purchase_time = models.TimeField(default=timezone.now)
+    bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    purchase_date = models.DateField(null=True, blank=True)
+    purchase_time = models.TimeField(null=True, blank=True)
     store_id = models.IntegerField()
-    is_promotional = models.BooleanField(default=False)
+    is_promotional = models.BooleanField(null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    purchased_at = models.DateTimeField(null=True, blank=True)
+    idempotency_key = models.UUIDField(unique=True, null=True, blank=True)
+    receipt_total_amount   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    receipt_discount_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    receipt_bonus_spent    = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    receipt_bonus_earned   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    receipt_guid = models.CharField(max_length=64, null=True, blank=True)
+    receipt_line = models.IntegerField()
 
     class Meta:
-        verbose_name = 'Транзакция'
-        verbose_name_plural = 'Транзакции'
-        db_table = 'transactions'
+        db_table = "transactions"
+        constraints = [
+            models.UniqueConstraint(fields=["receipt_guid", "receipt_line"], name="uniq_receipt_line")
+        ]
 
     def __str__(self):
         return f"Transaction #{self.id}"
-
 
 class BroadcastMessage(models.Model):
     message_text = models.TextField("Текст сообщения", null=False)
