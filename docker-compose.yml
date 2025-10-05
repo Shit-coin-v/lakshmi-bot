@@ -136,6 +136,8 @@ services:
       options:
         max-size: "20m"
         max-file: "3"
+    volumes:
+      - media:/app/media
 
   celery_beat:
     build: .
@@ -162,6 +164,8 @@ services:
       options:
         max-size: "20m"
         max-file: "3"
+    volumes:
+      - media:/app/media
 
   redis:
     image: redis:7
