@@ -13,14 +13,15 @@ QR_DIR = MEDIA_ROOT / "qr_codes"
 QR_DIR.mkdir(parents=True, exist_ok=True)
 
 def generate_qr_code(data: str, filename: Optional[str] = None) -> str:
+    data_str = str(data)
     if not filename:
-        digest = hashlib.sha1(data.encode("utf-8")).hexdigest()[:10]
+        digest = hashlib.sha1(data_str.encode("utf-8")).hexdigest()[:10]
         ts = int(datetime.utcnow().timestamp())
         filename = f"qr_{digest}_{ts}.png"
     filepath = (QR_DIR / filename).resolve()
     if MEDIA_ROOT not in filepath.parents and filepath != MEDIA_ROOT:
         raise ValueError("Invalid filename/path for QR code")
-    img = qrcode.make(data)
+    img = qrcode.make(data_str)
     img.save(filepath)
     return f"/media/qr_codes/{filename}"
 
