@@ -18,7 +18,7 @@ from registration import UserRegistration
 from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
 from database.models import SessionLocal, create_db, BotActivity, CustomUser
-from qr_code import resolve_qr_code_path
+from qr_code import resolve_qr_code_path, generate_qr_code
 
 load_dotenv()
 
@@ -55,6 +55,40 @@ async def save_bot_activity(session, telegram_id: int, action: str):
         await session.commit()
 
 
+async def ensure_qr_code_path(session, user: CustomUser):
+    """Возвращает путь к файлу QR-кода, восстанавливая его при необходимости."""
+    if not user or not user.qr_code:
+        return None
+
+    qr_code_value = str(user.qr_code).strip()
+    path = None
+
+    try:
+        path = resolve_qr_code_path(qr_code_value)
+    except ValueError:
+        logger.warning(
+            "Не удалось преобразовать значение QR-кода в путь (telegram_id=%s, value=%r)",
+            user.telegram_id,
+            qr_code_value,
+        )
+    else:
+        if path.exists():
+            return path
+        logger.warning(
+            "Файл QR-кода не найден на диске (telegram_id=%s, path=%s)",
+            user.telegram_id,
+            path,
+        )
+
+    data_for_qr = qr_code_value if qr_code_value and path is None else str(user.telegram_id)
+    filename = f"user_{user.telegram_id}.png"
+    new_qr_value = generate_qr_code(data_for_qr, filename=filename)
+    user.qr_code = new_qr_value
+    session.add(user)
+    await session.commit()
+    return resolve_qr_code_path(new_qr_value)
+
+
 @dp.message(CommandStart())
 async def command_start_handler(message: Message, state: FSMContext):
     async with SessionLocal() as session:
@@ -64,11 +98,10 @@ async def command_start_handler(message: Message, state: FSMContext):
 
         if user:
             text = "Привет!"
-            if user.qr_code:
-                qr_path = resolve_qr_code_path(user.qr_code)
-                if qr_path.exists():
-                    await message.answer(text, reply_markup=get_qr_code_button())
-                    return
+            qr_path = await ensure_qr_code_path(session, user)
+            if qr_path and qr_path.exists():
+                await message.answer(text, reply_markup=get_qr_code_button())
+                return
             await message.answer(text)
         else:
             command_args = message.text.split()
@@ -149,12 +182,8 @@ async def callback_handler(callback: CallbackQuery):
         await save_bot_activity(session, telegram_id=callback.from_user.id, action=callback.data)
 
         if callback.data == "show_qr":
-            if not user.qr_code:
-                await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
-                return await callback.answer()
-
-            qr_path = resolve_qr_code_path(user.qr_code)
-            if not qr_path.exists():
+            qr_path = await ensure_qr_code_path(session, user)
+            if not qr_path or not qr_path.exists():
                 await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
                 return await callback.answer()
 
