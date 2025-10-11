@@ -1,61 +1,55 @@
 from pathlib import Path
-<<<<<<< Updated upstream
+from datetime import datetime
+from typing import Optional
+import hashlib
 
-=======
-import os
->>>>>>> Stashed changes
-import qrcode
+try:
+    import qrcode
+except Exception as e:
+    raise RuntimeError("qrcode package is required: pip install qrcode[pil]") from e
 
-MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", "/app/media")).resolve()
-QR_CODES_DIR = Path(os.getenv("QR_CODES_DIR", str(MEDIA_ROOT / "qr_codes"))).resolve()
-QR_CODES_DIR.mkdir(parents=True, exist_ok=True)
+MEDIA_ROOT = (Path(__file__).resolve().parents[1] / "backend" / "media").resolve()
+QR_DIR = MEDIA_ROOT / "qr_codes"
+QR_DIR.mkdir(parents=True, exist_ok=True)
 
-def qr_file_path(telegram_id: int) -> Path:
-    return QR_CODES_DIR / f"qr_{telegram_id}.png"
-
-def generate_qr_code(telegram_id: int) -> str:
-<<<<<<< Updated upstream
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(str(telegram_id))
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-    filename = f"qr_{telegram_id}.png"
-    filepath = QR_CODES_DIR / filename
+def generate_qr_code(data: str, filename: Optional[str] = None) -> str:
+    if not filename:
+        digest = hashlib.sha1(data.encode("utf-8")).hexdigest()[:10]
+        ts = int(datetime.utcnow().timestamp())
+        filename = f"qr_{digest}_{ts}.png"
+    filepath = (QR_DIR / filename).resolve()
+    if MEDIA_ROOT not in filepath.parents and filepath != MEDIA_ROOT:
+        raise ValueError("Invalid filename/path for QR code")
+    img = qrcode.make(data)
     img.save(filepath)
+    return f"/media/qr_codes/{filename}"
 
-    return str(filepath)
+def resolve_qr_code_path(relative_url: str) -> Path:
+    """
+    Принимает:
+      - 'qr_codes/<file>'
+      - '/media/qr_codes/<file>'
+      - '/app/media/qr_codes/<file>' (абсолютный путь из контейнера)
+    Возвращает абсолютный путь внутри MEDIA_ROOT.
+    """
+    s = str(relative_url).strip()
 
+    # абсол. путь контейнера -> /media/qr_codes/<file>
+    if s.startswith("/app/media/"):
+        s = "/" + s.split("/app/", 1)[1]  # теперь '/media/...'
 
-def resolve_qr_code_path(path: str) -> Path:
-    """Возвращает абсолютный путь к QR-коду."""
-    file_path = Path(path)
-    if file_path.is_absolute():
-        return file_path
+    # убрать ведущий слэш
+    s = s.lstrip("/")
 
-    resolved = (BASE_DIR / file_path).resolve()
-    if resolved.exists():
-        return resolved
+    # голый 'qr_codes/...' -> 'media/qr_codes/...'
+    if s.startswith("qr_codes/"):
+        s = "media/" + s
 
-    return (QR_CODES_DIR / file_path.name).resolve()
-=======
-    """Генерирует (или возвращает) путь к PNG в персистентном каталоге."""
-    path = qr_file_path(telegram_id)
-    if not path.exists():
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(str(telegram_id))
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        img.save(path)
-    return str(path)
->>>>>>> Stashed changes
+    if not s.startswith("media/qr_codes/"):
+        raise ValueError(f"Unexpected QR url: {relative_url}")
+
+    # 'media/qr_codes/...' -> <MEDIA_ROOT>/qr_codes/...
+    filepath = (MEDIA_ROOT / s[len("media/"):]).resolve()
+    if MEDIA_ROOT not in filepath.parents and filepath != MEDIA_ROOT:
+        raise ValueError("Resolved path escapes MEDIA_ROOT")
+    return filepath
