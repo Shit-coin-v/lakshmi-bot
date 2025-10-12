@@ -17,7 +17,9 @@ async def send_customer_to_onec(session, user, referrer_id=None):
     Заголовки: X-Api-Key, X-Idempotency-Key
     """
     if not config.ONEC_CUSTOMER_URL or not config.ONEC_API_KEY:
-        logging.error("1C integration is not configured")
+        logging.info(
+            "Skipping 1C customer sync: ONEC_CUSTOMER_URL/ONEC_API_KEY not configured"
+        )
         return
 
     # Готовим payload (created_at в UTC ISO-8601)
