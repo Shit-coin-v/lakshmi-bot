@@ -28,7 +28,7 @@ class UserRegistration:
         referrer_id: int | None = None,
         personal_data_consent: bool = False,
     ) -> CustomUser:
-        qr_code = generate_qr_code(telegram_id)
+        qr_code = generate_qr_code(telegram_id, telegram_id=telegram_id)
 
         user = CustomUser(
             telegram_id=telegram_id,
