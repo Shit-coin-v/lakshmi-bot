@@ -108,3 +108,61 @@ class BotActivity(models.Model):
 
     def __str__(self):
         return f"{self.customer}: {self.action} at {self.timestamp}"
+
+
+class NewsletterDelivery(models.Model):
+    message = models.ForeignKey(
+        BroadcastMessage,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+    )
+    customer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="newsletter_deliveries",
+    )
+    chat_id = models.BigIntegerField()
+    telegram_message_id = models.BigIntegerField()
+    open_token = models.CharField(max_length=64, unique=True, db_index=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "newsletter_deliveries"
+        verbose_name = "Доставка рассылки"
+        verbose_name_plural = "Доставки рассылок"
+        indexes = [
+            models.Index(fields=["message", "customer"], name="newsletter_delivery_idx"),
+        ]
+
+    def __str__(self):
+        return f"Delivery #{self.id} for {self.customer_id}"
+
+
+class NewsletterOpenEvent(models.Model):
+    delivery = models.ForeignKey(
+        NewsletterDelivery,
+        on_delete=models.CASCADE,
+        related_name="open_events",
+    )
+    occurred_at = models.DateTimeField(default=timezone.now)
+    raw_callback_data = models.CharField(max_length=128, blank=True)
+    telegram_user_id = models.BigIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "newsletter_open_events"
+        verbose_name = "Открытие рассылки"
+        verbose_name_plural = "Открытия рассылок"
+        indexes = [
+            models.Index(fields=["delivery"], name="newsletter_open_delivery_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["delivery"],
+                name="newsletter_open_events_delivery_key",
+            )
+        ]
+
+    def __str__(self):
+        return f"Open event #{self.id} for delivery {self.delivery_id}"

@@ -4,7 +4,15 @@ import logging
 from django.contrib import admin, messages
 from django.db.models import Count
 
-from .models import *
+from .models import (
+    BotActivity,
+    BroadcastMessage,
+    CustomUser,
+    NewsletterDelivery,
+    NewsletterOpenEvent,
+    Product,
+    Transaction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +123,31 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
 @admin.register(BotActivity)
 class BotActivityAdmin(admin.ModelAdmin):
     list_display = ('customer', 'action', 'timestamp')
+
+
+@admin.register(NewsletterDelivery)
+class NewsletterDeliveryAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'message',
+        'customer',
+        'chat_id',
+        'telegram_message_id',
+        'open_token',
+        'opened_at',
+        'created_at',
+    )
+    list_filter = ('message', 'opened_at')
+    search_fields = ('open_token', 'customer__telegram_id')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(NewsletterOpenEvent)
+class NewsletterOpenEventAdmin(admin.ModelAdmin):
+    list_display = ('id', 'delivery', 'occurred_at', 'telegram_user_id')
+    list_filter = ('occurred_at',)
+    search_fields = ('delivery__open_token', 'telegram_user_id')
+    readonly_fields = ('occurred_at',)
 
 
 admin.site.register(Product, ProductAdmin)
