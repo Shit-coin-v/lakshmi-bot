@@ -23,3 +23,12 @@ staticfiles/
 
 *.swp
 backend/collected_static/
+
+# IDE settings
+.idea/
+
+# Generated QR codes
+src/qr_codes/
+
+# Backup files
+*.bak.*
