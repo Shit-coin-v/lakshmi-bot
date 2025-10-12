@@ -23,3 +23,9 @@ staticfiles/
 
 *.swp
 backend/collected_static/
+
+# Development artifacts
+.idea/
+src/qr_codes/
+*.bak
+*.bak.*
