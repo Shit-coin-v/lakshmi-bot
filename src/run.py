@@ -18,7 +18,11 @@ from registration import UserRegistration
 from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
 from database.models import SessionLocal, create_db, BotActivity, CustomUser
-from qr_code import resolve_qr_code_path, generate_qr_code
+from qr_code import (
+    resolve_qr_code_path,
+    generate_qr_code,
+    qr_code_filename,
+)
 
 load_dotenv()
 
@@ -62,9 +66,12 @@ async def ensure_qr_code_path(session, user: CustomUser):
 
     qr_code_value = str(user.qr_code).strip()
     path = None
+    normalized_url = None
 
     try:
-        path = resolve_qr_code_path(qr_code_value)
+        path, normalized_url = resolve_qr_code_path(
+            qr_code_value, telegram_id=user.telegram_id
+        )
     except ValueError:
         logger.warning(
             "Не удалось преобразовать значение QR-кода в путь (telegram_id=%s, value=%r)",
@@ -73,6 +80,10 @@ async def ensure_qr_code_path(session, user: CustomUser):
         )
     else:
         if path.exists():
+            if normalized_url and normalized_url != qr_code_value:
+                user.qr_code = normalized_url
+                session.add(user)
+                await session.commit()
             return path
         logger.warning(
             "Файл QR-кода не найден на диске (telegram_id=%s, path=%s)",
@@ -81,12 +92,16 @@ async def ensure_qr_code_path(session, user: CustomUser):
         )
 
     data_for_qr = qr_code_value if qr_code_value and path is None else str(user.telegram_id)
-    filename = f"user_{user.telegram_id}.png"
-    new_qr_value = generate_qr_code(data_for_qr, filename=filename)
-    user.qr_code = new_qr_value
-    session.add(user)
-    await session.commit()
-    return resolve_qr_code_path(new_qr_value)
+    filename = qr_code_filename(user.telegram_id)
+    new_qr_value = generate_qr_code(
+        data_for_qr, filename=filename, telegram_id=user.telegram_id
+    )
+    if user.qr_code != new_qr_value:
+        user.qr_code = new_qr_value
+        session.add(user)
+        await session.commit()
+    new_path, _ = resolve_qr_code_path(new_qr_value, telegram_id=user.telegram_id)
+    return new_path
 
 
 @dp.message(CommandStart())
@@ -159,7 +174,9 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
     if user.qr_code:
-        qr_path = resolve_qr_code_path(user.qr_code)
+        qr_path, _ = resolve_qr_code_path(
+            user.qr_code, telegram_id=user.telegram_id
+        )
         if qr_path.exists():
             await callback.message.answer(
                 "Вот ваша кнопка для получения QR-кода:",
