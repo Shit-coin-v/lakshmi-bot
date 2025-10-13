@@ -1,33 +1,29 @@
+# backend/main/tasks.py
 import asyncio
 import logging
-
 from celery import shared_task
 from django.db import close_old_connections
 
-from .models import BroadcastMessage
-
 logger = logging.getLogger(__name__)
-
 
 @shared_task(bind=True)
 def broadcast_send_task(self, message_id: int) -> None:
-    """Schedule sending of a broadcast message via the Telegram bot."""
-
+    """Фоновая отправка рассылки через Django ORM (без SQLAlchemy)."""
     close_old_connections()
-    try:
-        BroadcastMessage.objects.get(pk=message_id)
-    except BroadcastMessage.DoesNotExist:
-        logger.warning("Broadcast message %s not found; skipping", message_id)
-        return
 
-    logger.info("Broadcast %s queued for delivery", message_id)
+    # ленивые импорты, чтобы избежать циклов и привязать всё к текущему loop
+    from aiogram import Bot
+    from aiogram.enums import ParseMode
+    from aiogram.client.default import DefaultBotProperties
 
-    from src.broadcast import send_broadcast_message  # imported lazily to avoid circular deps
+    from src.broadcast import _send_with_django, BOT_TOKEN
 
-    try:
-        asyncio.run(send_broadcast_message(message_id))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.exception("Broadcast %s failed: %s", message_id, exc)
-        raise
-    else:
-        logger.info("Broadcast %s finished", message_id)
+    async def runner():
+        bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        try:
+            await _send_with_django(message_id, bot_instance=bot)
+        finally:
+            await bot.session.close()
+
+    asyncio.run(runner())
+
