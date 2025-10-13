@@ -90,13 +90,12 @@ def test_generate_unique_open_token(monkeypatch):
         def fake_token_hex(length):
             return tokens.pop(0)
 
-        async def fake_token_exists(_, token):
+        async def fake_token_exists(token):
             return token == "a" * 32
 
         monkeypatch.setattr(broadcast.secrets, "token_hex", fake_token_hex)
-        monkeypatch.setattr(broadcast, "_token_exists", fake_token_exists)
 
-        token = await generate_unique_open_token(object())
+        token = await generate_unique_open_token(fake_token_exists)
         assert token == "b" * 32
 
     asyncio.run(run_test())

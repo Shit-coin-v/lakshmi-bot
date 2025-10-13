@@ -135,6 +135,12 @@ class NewsletterDelivery(models.Model):
         indexes = [
             models.Index(fields=["message", "customer"], name="newsletter_delivery_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "customer"],
+                name="newsletter_delivery_uc",
+            )
+        ]
 
     def __str__(self):
         return f"Delivery #{self.id} for {self.customer_id}"
