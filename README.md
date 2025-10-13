@@ -59,6 +59,22 @@ object; the server will allocate the receipt to the configured guest user.
    DJANGO_SETTINGS_MODULE=backend.test_settings pytest src/tests/test_newsletter_tracking.py
    SECRET_KEY=dummy python backend/manage.py test main.tests --settings=backend.test_settings
    ```
+4. Run the Celery workers that handle broadcast delivery:
+   ```bash
+   # Using docker-compose
+   docker-compose up celery_worker
+
+   # Or locally
+   celery -A backend.celery worker --loglevel=info
+   ```
+   Keep the worker logs open to watch lines such as `Broadcast <id>: sent=…`
+   for progress. Each delivery is also written to the `newsletter_deliveries`
+   table, so you can monitor completion with a simple count query:
+   ```sql
+   SELECT COUNT(*) FROM newsletter_deliveries WHERE message_id = <broadcast_id>;
+   ```
+   Errors are surfaced in the worker logs with `Broadcast <id> failed` or
+   `Unexpected error` messages.
 
 ### Stored data
 
