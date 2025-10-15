@@ -508,24 +508,24 @@ def onec_receipt(request):
             },
         )
 
-        if created_count > 0 and not is_guest:
-            bonus_delta_to_apply = _quantize(delta_bonus)
-            total_spent_delta = _quantize(total_spent_delta)
-            update_kwargs: dict[str, Any] = {
-                "bonuses": Coalesce(F("bonuses"), Value(D("0"))) + bonus_delta_to_apply,
-                "last_purchase_date": purchased_at_value,
-                "total_spent": Coalesce(F("total_spent"), Value(D("0")))
-                + total_spent_delta,
-            }
-            if purchase_increment > 0:
-                update_kwargs["purchase_count"] = (
-                    Coalesce(F("purchase_count"), Value(0)) + purchase_increment
-                )
-
-            CustomUser.objects.filter(id=user.id).update(**update_kwargs)
-            user.refresh_from_db(
-                fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"]
+    if created_count > 0 and not is_guest:
+        bonus_delta_to_apply = _quantize(delta_bonus)
+        total_spent_delta = _quantize(total_spent_delta)
+        update_kwargs: dict[str, Any] = {
+            "bonuses": Coalesce(F("bonuses"), Value(D("0"))) + bonus_delta_to_apply,
+            "last_purchase_date": purchased_at_value,
+            "total_spent": Coalesce(F("total_spent"), Value(D("0")))
+            + total_spent_delta,
+        }
+        if purchase_increment > 0:
+            update_kwargs["purchase_count"] = (
+                Coalesce(F("purchase_count"), Value(0)) + purchase_increment
             )
+
+        CustomUser.objects.filter(id=user.id).update(**update_kwargs)
+        user.refresh_from_db(
+            fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"]
+        )
 
     guid_for_resp = one_c_guid
     if not guid_for_resp:
