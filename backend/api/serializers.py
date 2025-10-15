@@ -36,6 +36,9 @@ class ReceiptPositionSerializer(serializers.Serializer):
     )
     is_promotional = serializers.BooleanField(required=False, default=False)
     line_number = serializers.IntegerField(min_value=1)
+    bonus_earned = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0")
+    )
     category = serializers.CharField(required=False, allow_blank=True)
 
 
