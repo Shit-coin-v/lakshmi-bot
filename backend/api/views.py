@@ -361,6 +361,49 @@ def onec_receipt(request):
 
     positions = data["positions"]
 
+    pos_with, pos_without = [], []
+    for position in positions:
+        if "bonus_earned" in position and position["bonus_earned"] is not None:
+            pos_with.append(position)
+        else:
+            pos_without.append(position)
+
+    B_tot = _quantize(_as_decimal(totals.get("bonus_earned", "0")))
+    B_fixed = _quantize(
+        sum((_as_decimal(p["bonus_earned"]) for p in pos_with), D("0"))
+    )
+    B_left = B_tot - B_fixed
+    if B_left < 0:
+        logger.warning(
+            "onec_receipt: positional bonuses exceed totals; clamping to totals"
+        )
+        B_left = D("0")
+
+    if B_left > 0 and pos_without:
+        totals_for_alloc: list[D] = []
+        for p in pos_without:
+            price = _as_decimal(p["price"])
+            discount = _as_decimal(p.get("discount_amount", 0))
+            qty = _as_decimal(p["quantity"])
+            totals_for_alloc.append(_quantize((price - discount) * qty))
+        denom_alloc = sum(totals_for_alloc) or D("1")
+
+        allocated: list[D] = []
+        running = D("0")
+        for idx, p in enumerate(pos_without):
+            if idx < len(pos_without) - 1:
+                part = _quantize(B_left * (totals_for_alloc[idx] / denom_alloc))
+                allocated.append(part)
+                running += part
+            else:
+                allocated.append(_quantize(B_left - running))
+
+        for p, val in zip(pos_without, allocated):
+            p["bonus_earned"] = str(val)
+    elif pos_without:
+        for p in pos_without:
+            p["bonus_earned"] = str(D("0"))
+
     if hasattr(Transaction, "receipt_guid") and hasattr(Transaction, "receipt_line"):
         existing_lines = set(
             Transaction.objects.filter(receipt_guid=data["receipt_guid"])
