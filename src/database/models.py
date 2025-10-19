@@ -19,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     Time,
+    UniqueConstraint,
     select,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -151,6 +152,11 @@ class CustomUser(Base):
 
     transactions = relationship("Transaction", back_populates="customer")
     bot_activities = relationship("BotActivity", back_populates="customer")
+    newsletter_deliveries = relationship(
+        "NewsletterDelivery",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+    )
 
 
 class Product(Base):
@@ -193,6 +199,11 @@ class BroadcastMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     send_to_all = Column(Boolean, default=True)
     target_user_ids = Column(String, nullable=True)
+    deliveries = relationship(
+        "NewsletterDelivery",
+        back_populates="message",
+        cascade="all, delete-orphan",
+    )
 
 
 class BotActivity(Base):
@@ -204,6 +215,61 @@ class BotActivity(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     customer = relationship("CustomUser", back_populates="bot_activities")
+
+
+class NewsletterDelivery(Base):
+    __tablename__ = "newsletter_deliveries"
+
+    id = Column(Integer, primary_key=True)
+    message_id = Column(
+        Integer,
+        ForeignKey("broadcast_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id = Column(
+        Integer,
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chat_id = Column(BigInteger, nullable=False)
+    telegram_message_id = Column(BigInteger, nullable=False)
+    open_token = Column(String(64), nullable=False, unique=True, index=True)
+    opened_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    message = relationship("BroadcastMessage", back_populates="deliveries")
+    customer = relationship("CustomUser", back_populates="newsletter_deliveries")
+    open_events = relationship(
+        "NewsletterOpenEvent",
+        back_populates="delivery",
+        cascade="all, delete-orphan",
+    )
+
+
+class NewsletterOpenEvent(Base):
+    __tablename__ = "newsletter_open_events"
+    __table_args__ = (UniqueConstraint("delivery_id", name="newsletter_open_events_delivery_key"),)
+
+    id = Column(Integer, primary_key=True)
+    delivery_id = Column(
+        Integer,
+        ForeignKey("newsletter_deliveries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    occurred_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    raw_callback_data = Column(String(128), nullable=True)
+    telegram_user_id = Column(BigInteger, nullable=True)
+
+    delivery = relationship("NewsletterDelivery", back_populates="open_events")
 
 
 class OneCClientMap(Base):

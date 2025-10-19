@@ -1,10 +1,18 @@
-import asyncio
 import logging
 
 from django.contrib import admin, messages
 from django.db.models import Count
 
-from .models import *
+from .models import (
+    BotActivity,
+    BroadcastMessage,
+    CustomUser,
+    NewsletterDelivery,
+    NewsletterOpenEvent,
+    Product,
+    Transaction,
+)
+from .tasks import broadcast_send_task
 
 logger = logging.getLogger(__name__)
 
@@ -82,32 +90,19 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
     truncated_message.short_description = "Текст сообщения"
 
     def send_broadcast(self, request, queryset):
-        try:
-            from src.broadcast import send_broadcast_message
-        except RuntimeError as exc:
-            self.message_user(request, str(exc), messages.ERROR)
-            return
-        except Exception as exc:
-            logger.error("Failed to import broadcast helper: %s", exc)
-            self.message_user(request, "Не удалось инициализировать рассылку", messages.ERROR)
-            return
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        success = errors = 0
+        queued = 0
         for msg in queryset:
-            try:
-                loop.run_until_complete(send_broadcast_message(msg))
-                success += 1
-            except Exception as e:
-                errors += 1
-                logger.error(f"Ошибка рассылки {msg.id}: {str(e)}")
+            broadcast_send_task.delay(msg.id)
+            queued += 1
 
-        if success:
-            self.message_user(request, f"Успешно отправлено: {success}", messages.SUCCESS)
-        if errors:
-            self.message_user(request, f"Ошибок: {errors}", messages.ERROR)
+        if queued:
+            self.message_user(
+                request,
+                f"Задача поставлена в очередь для {queued} рассылок",
+                messages.SUCCESS,
+            )
+        else:
+            self.message_user(request, "Не выбрано ни одной рассылки", messages.WARNING)
 
     send_broadcast.short_description = "▶ Отправить выбранные рассылки"
 
@@ -115,6 +110,31 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
 @admin.register(BotActivity)
 class BotActivityAdmin(admin.ModelAdmin):
     list_display = ('customer', 'action', 'timestamp')
+
+
+@admin.register(NewsletterDelivery)
+class NewsletterDeliveryAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'message',
+        'customer',
+        'chat_id',
+        'telegram_message_id',
+        'open_token',
+        'opened_at',
+        'created_at',
+    )
+    list_filter = ('message', 'opened_at')
+    search_fields = ('open_token', 'customer__telegram_id')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(NewsletterOpenEvent)
+class NewsletterOpenEventAdmin(admin.ModelAdmin):
+    list_display = ('id', 'delivery', 'occurred_at', 'telegram_user_id')
+    list_filter = ('occurred_at',)
+    search_fields = ('delivery__open_token', 'telegram_user_id')
+    readonly_fields = ('occurred_at',)
 
 
 admin.site.register(Product, ProductAdmin)

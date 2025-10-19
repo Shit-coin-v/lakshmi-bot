@@ -12,6 +12,8 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction as db_tx
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.utils import timezone as dj_tz
 from django.utils.decorators import method_decorator
@@ -359,6 +361,49 @@ def onec_receipt(request):
 
     positions = data["positions"]
 
+    pos_with, pos_without = [], []
+    for position in positions:
+        if "bonus_earned" in position and position["bonus_earned"] is not None:
+            pos_with.append(position)
+        else:
+            pos_without.append(position)
+
+    B_tot = _quantize(_as_decimal(totals.get("bonus_earned", "0")))
+    B_fixed = _quantize(
+        sum((_as_decimal(p["bonus_earned"]) for p in pos_with), D("0"))
+    )
+    B_left = B_tot - B_fixed
+    if B_left < 0:
+        logger.warning(
+            "onec_receipt: positional bonuses exceed totals; clamping to totals"
+        )
+        B_left = D("0")
+
+    if B_left > 0 and pos_without:
+        totals_for_alloc: list[D] = []
+        for p in pos_without:
+            price = _as_decimal(p["price"])
+            discount = _as_decimal(p.get("discount_amount", 0))
+            qty = _as_decimal(p["quantity"])
+            totals_for_alloc.append(_quantize((price - discount) * qty))
+        denom_alloc = sum(totals_for_alloc) or D("1")
+
+        allocated: list[D] = []
+        running = D("0")
+        for idx, p in enumerate(pos_without):
+            if idx < len(pos_without) - 1:
+                part = _quantize(B_left * (totals_for_alloc[idx] / denom_alloc))
+                allocated.append(part)
+                running += part
+            else:
+                allocated.append(_quantize(B_left - running))
+
+        for p, val in zip(pos_without, allocated):
+            p["bonus_earned"] = str(val)
+    elif pos_without:
+        for p in pos_without:
+            p["bonus_earned"] = str(D("0"))
+
     if hasattr(Transaction, "receipt_guid") and hasattr(Transaction, "receipt_line"):
         existing_lines = set(
             Transaction.objects.filter(receipt_guid=data["receipt_guid"])
@@ -391,6 +436,10 @@ def onec_receipt(request):
     allocations: list[dict[str, Any]] = []
     denom = total_amount if total_amount > 0 else D("1")
     first_line = True
+    delta_bonus = D("0")
+    total_spent_delta = D("0")
+    purchase_increment = 1 if not existing_lines else 0
+    purchased_at_value = dt_in if settings.USE_TZ else dt_naive
 
     try:
         with db_tx.atomic():
@@ -404,7 +453,8 @@ def onec_receipt(request):
                 line_number = position["line_number"]
 
                 pos_total = _quantize((price - discount_amount) * qty)
-                pos_bonus_earned = _quantize(bonus_earned * (pos_total / denom))
+                pos_bonus_earned = _quantize(_as_decimal(position["bonus_earned"]))
+                pos_bonus_spent = _quantize(bonus_spent * (pos_total / denom))
 
                 product_defaults = {
                     "name": name,
@@ -438,6 +488,12 @@ def onec_receipt(request):
                     transaction_defaults["receipt_guid"] = data["receipt_guid"]
                 if hasattr(Transaction, "receipt_line"):
                     transaction_defaults["receipt_line"] = line_number
+                if hasattr(Transaction, "purchased_at"):
+                    transaction_defaults.setdefault("purchased_at", purchased_at_value)
+                if hasattr(Transaction, "receipt_bonus_earned"):
+                    transaction_defaults["receipt_bonus_earned"] = pos_bonus_earned
+                if hasattr(Transaction, "receipt_bonus_spent"):
+                    transaction_defaults["receipt_bonus_spent"] = pos_bonus_spent
                 if first_line and hasattr(Transaction, "idempotency_key"):
                     transaction_defaults["idempotency_key"] = idem_key
 
@@ -455,6 +511,8 @@ def onec_receipt(request):
                 else:
                     if created:
                         created_count += 1
+                        total_spent_delta += pos_total
+                        delta_bonus += pos_bonus_earned - pos_bonus_spent
                         allocations.append(
                             {
                                 "product_code": code,
@@ -463,6 +521,24 @@ def onec_receipt(request):
                                 "bonus_earned": float(pos_bonus_earned),
                             }
                         )
+                    else:
+                        updates: dict[str, Any] = {}
+                        if hasattr(Transaction, "receipt_bonus_earned") and getattr(
+                            transaction, "receipt_bonus_earned", None
+                        ) in (None,):
+                            updates["receipt_bonus_earned"] = pos_bonus_earned
+                        if getattr(transaction, "bonus_earned", None) != pos_bonus_earned:
+                            updates["bonus_earned"] = pos_bonus_earned
+                        if hasattr(Transaction, "receipt_bonus_spent") and getattr(
+                            transaction, "receipt_bonus_spent", None
+                        ) in (None,):
+                            updates["receipt_bonus_spent"] = pos_bonus_spent
+                        if hasattr(Transaction, "purchased_at") and getattr(
+                            transaction, "purchased_at", None
+                        ) is None:
+                            updates["purchased_at"] = purchased_at_value
+                        if updates:
+                            Transaction.objects.filter(pk=transaction.pk).update(**updates)
                 finally:
                     first_line = False
     except DuplicateReceiptLineError as exc:
@@ -475,19 +551,24 @@ def onec_receipt(request):
             },
         )
 
-        if created_count > 0 and not is_guest:
-            user.total_spent = (user.total_spent or D("0")) + total_amount
-            user.purchase_count = (user.purchase_count or 0) + 1
-            user.last_purchase_date = dt_in if settings.USE_TZ else dt_naive
-            user.bonuses = (user.bonuses or D("0")) - bonus_spent + bonus_earned
-            user.save(
-                update_fields=[
-                    "total_spent",
-                    "purchase_count",
-                    "last_purchase_date",
-                    "bonuses",
-                ]
+    if created_count > 0 and not is_guest:
+        bonus_delta_to_apply = _quantize(delta_bonus)
+        total_spent_delta = _quantize(total_spent_delta)
+        update_kwargs: dict[str, Any] = {
+            "bonuses": Coalesce(F("bonuses"), Value(D("0"))) + bonus_delta_to_apply,
+            "last_purchase_date": purchased_at_value,
+            "total_spent": Coalesce(F("total_spent"), Value(D("0")))
+            + total_spent_delta,
+        }
+        if purchase_increment > 0:
+            update_kwargs["purchase_count"] = (
+                Coalesce(F("purchase_count"), Value(0)) + purchase_increment
             )
+
+        CustomUser.objects.filter(id=user.id).update(**update_kwargs)
+        user.refresh_from_db(
+            fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"]
+        )
 
     guid_for_resp = one_c_guid
     if not guid_for_resp:

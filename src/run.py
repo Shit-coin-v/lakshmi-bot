@@ -1,15 +1,19 @@
 import asyncio
 import logging
+import re
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.state import StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from dotenv import load_dotenv
 
@@ -17,7 +21,13 @@ import config
 from registration import UserRegistration
 from onec_client import send_customer_to_onec
 from keyboards import get_qr_code_button, get_consent_button
-from database.models import SessionLocal, create_db, BotActivity, CustomUser
+from database.models import (
+    SessionLocal,
+    BotActivity,
+    CustomUser,
+    NewsletterDelivery,
+    NewsletterOpenEvent,
+)
 from qr_code import (
     resolve_qr_code_path,
     generate_qr_code,
@@ -30,6 +40,59 @@ logger = logging.getLogger(__name__)
 
 bot: Bot | None = None
 dp = Dispatcher()
+
+OPEN_CALLBACK_PREFIX = "open:"
+TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
+
+
+async def register_newsletter_open(
+    session,
+    token: str,
+    telegram_user_id: int,
+    raw_data: str,
+):
+    stmt = (
+        select(NewsletterDelivery)
+        .options(selectinload(NewsletterDelivery.message))
+        .where(NewsletterDelivery.open_token == token)
+    )
+
+    if hasattr(stmt, "with_for_update"):
+        stmt = stmt.with_for_update()
+
+    delivery = None
+    newly_opened = False
+
+    try:
+        async with session.begin():
+            result = await session.execute(stmt)
+            delivery = result.scalar_one_or_none()
+            if not delivery:
+                return None, False
+
+            if delivery.opened_at is None:
+                now = datetime.utcnow()
+                delivery.opened_at = now
+                event = NewsletterOpenEvent(
+                    delivery_id=delivery.id,
+                    occurred_at=now,
+                    raw_callback_data=(raw_data or "")[:128],
+                    telegram_user_id=telegram_user_id,
+                )
+                session.add(event)
+                newly_opened = True
+    except IntegrityError:
+        if hasattr(session, "rollback"):
+            await session.rollback()
+        result = await session.execute(
+            select(NewsletterDelivery)
+            .options(selectinload(NewsletterDelivery.message))
+            .where(NewsletterDelivery.open_token == token)
+        )
+        delivery = result.scalar_one_or_none()
+        newly_opened = False
+
+    return delivery, newly_opened
 
 
 def get_bot() -> Bot:
@@ -219,6 +282,49 @@ async def callback_handler(callback: CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(lambda c: c.data and c.data.startswith(OPEN_CALLBACK_PREFIX))
+async def newsletter_open_callback(callback: CallbackQuery):
+    data = callback.data or ""
+    if len(data) > 64:
+        logger.warning("Received oversized callback payload: %s", data)
+        return await callback.answer("Некорректный запрос", show_alert=True)
+
+    token = data[len(OPEN_CALLBACK_PREFIX) :]
+    if not TOKEN_RE.fullmatch(token):
+        logger.warning("Invalid newsletter token: %s", data)
+        return await callback.answer("Некорректный токен", show_alert=True)
+
+    async with SessionLocal() as session:
+        delivery, newly_opened = await register_newsletter_open(
+            session,
+            token,
+            callback.from_user.id,
+            data,
+        )
+
+    if not delivery:
+        logger.warning(
+            "Newsletter delivery not found for token %s (user=%s)",
+            token,
+            callback.from_user.id,
+        )
+        return await callback.answer("Сообщение не найдено", show_alert=True)
+
+    if newly_opened:
+        try:
+            await callback.message.edit_text(delivery.message.message_text)
+        except TelegramBadRequest as exc:
+            logger.warning(
+                "Failed to edit newsletter message %s: %s",
+                delivery.id,
+                exc,
+            )
+            await callback.message.answer(delivery.message.message_text)
+        await callback.answer("Сообщение открыто")
+    else:
+        await callback.answer("Уже открыто")
+
+
 
 
 async def main():
@@ -227,7 +333,6 @@ async def main():
         token=config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    await create_db()
     await dp.start_polling(bot)
 
 
