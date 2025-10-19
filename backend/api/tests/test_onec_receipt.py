@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.conf import settings
 from django.test import Client, TestCase
@@ -43,13 +44,14 @@ class OneCReceiptTests(TestCase):
                     "quantity": "1",
                     "price": "100.00",
                     "line_number": 1,
+                    "bonus_earned": "1.00",
                 }
             ],
             "totals": {
                 "total_amount": "100.00",
                 "discount_total": "0",
                 "bonus_spent": "0",
-                "bonus_earned": "10.00",
+                "bonus_earned": "1.00",
             },
         }
 
@@ -68,6 +70,312 @@ class OneCReceiptTests(TestCase):
         self.assertEqual(data["status"], "ok")
         self.assertEqual(data["created_count"], 1)
         self.assertEqual(Transaction.objects.count(), 1)
+
+    def test_receipt_without_position_bonus_allocates_totals(self):
+        payload = self._base_payload()
+        payload["positions"][0].pop("bonus_earned")
+        payload["totals"]["bonus_earned"] = "6.00"
+
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000011",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(data["created_count"], 1)
+
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.receipt_bonus_earned, Decimal("6.00"))
+        self.assertEqual(tx.bonus_earned, Decimal("6.00"))
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("6.00"))
+
+    def test_mixed_position_bonuses_allocate_remaining_bonus(self):
+        payload = self._base_payload()
+        payload["receipt_guid"] = "R-MIXED"
+        payload["positions"].append(
+            {
+                "product_code": "SKU-2",
+                "quantity": "1",
+                "price": "200.00",
+                "line_number": 2,
+            }
+        )
+        payload["positions"][0]["bonus_earned"] = "1.00"
+        payload["totals"]["bonus_earned"] = "3.00"
+
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000012",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        tx_first = Transaction.objects.get(receipt_line=1)
+        tx_second = Transaction.objects.get(receipt_line=2)
+        self.assertEqual(tx_first.receipt_bonus_earned, Decimal("1.00"))
+        self.assertEqual(tx_second.receipt_bonus_earned, Decimal("2.00"))
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("3.00"))
+
+    def test_multiple_positions_without_bonuses_are_distributed(self):
+        payload = self._base_payload()
+        payload["receipt_guid"] = "R-DIST"
+        payload["positions"] = [
+            {
+                "product_code": "SKU-1",
+                "quantity": "1",
+                "price": "33.33",
+                "line_number": 1,
+            },
+            {
+                "product_code": "SKU-2",
+                "quantity": "1",
+                "price": "33.33",
+                "line_number": 2,
+            },
+            {
+                "product_code": "SKU-3",
+                "quantity": "1",
+                "price": "33.34",
+                "line_number": 3,
+            },
+        ]
+        payload["totals"] = {
+            "total_amount": "100.00",
+            "discount_total": "0.00",
+            "bonus_spent": "0.00",
+            "bonus_earned": "10.00",
+        }
+
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000013",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        bonuses = {
+            tx.receipt_line: tx.receipt_bonus_earned
+            for tx in Transaction.objects.filter(receipt_guid="R-DIST")
+        }
+        self.assertEqual(bonuses[1], Decimal("3.33"))
+        self.assertEqual(bonuses[2], Decimal("3.33"))
+        self.assertEqual(bonuses[3], Decimal("3.34"))
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("10.00"))
+
+    def test_bonus_accrual_happens_once(self):
+        payload = self._base_payload()
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        first_response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000101",
+        )
+        self.assertEqual(first_response.status_code, 201)
+        first_data = first_response.json()
+        self.assertEqual(first_data["status"], "ok")
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("1.00"))
+
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.receipt_bonus_earned, Decimal("1.00"))
+        self.assertEqual(tx.bonus_earned, Decimal("1.00"))
+
+        second_response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000101",
+        )
+        self.assertEqual(second_response.status_code, 200)
+        second_data = second_response.json()
+        self.assertEqual(second_data["status"], "already exists")
+        self.assertEqual(Transaction.objects.count(), 1)
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("1.00"))
+
+    def test_excess_position_bonus_logs_warning_and_accepts_receipt(self):
+        payload = self._base_payload()
+        payload["receipt_guid"] = "R-OVER"
+        payload["positions"] = [
+            {
+                "product_code": "SKU-1",
+                "quantity": "1",
+                "price": "100.00",
+                "line_number": 1,
+                "bonus_earned": "4.00",
+            },
+            {
+                "product_code": "SKU-2",
+                "quantity": "1",
+                "price": "100.00",
+                "line_number": 2,
+                "bonus_earned": "4.00",
+            },
+            {
+                "product_code": "SKU-3",
+                "quantity": "1",
+                "price": "100.00",
+                "line_number": 3,
+                "bonus_earned": "4.00",
+            },
+        ]
+        payload["totals"]["bonus_earned"] = "10.00"
+
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        with self.assertLogs("backend.api.views", level="WARNING") as cm:
+            response = self._post_receipt(
+                payload,
+                api_key=security.API_KEY,
+                idem="00000000-0000-0000-0000-000000000015",
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            any(
+                "positional bonuses exceed totals" in message
+                for message in cm.output
+            )
+        )
+
+        bonuses = {
+            tx.receipt_line: tx.receipt_bonus_earned
+            for tx in Transaction.objects.filter(receipt_guid="R-OVER")
+        }
+        self.assertEqual(sum(bonuses.values()), Decimal("12.00"))
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("12.00"))
+
+    def test_partial_delivery_accrues_only_new_positions(self):
+        base_payload = self._base_payload()
+        base_payload["receipt_guid"] = "R-PARTIAL"
+        base_payload["positions"].append(
+            {
+                "product_code": "SKU-2",
+                "quantity": "1",
+                "price": "50.00",
+                "line_number": 2,
+                "bonus_earned": "1.00",
+            }
+        )
+        base_payload["totals"]["total_amount"] = "150.00"
+        base_payload["totals"]["bonus_earned"] = "2.00"
+
+        user = CustomUser.objects.create(
+            telegram_id=base_payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        first_resp = self._post_receipt(
+            base_payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000201",
+        )
+        self.assertEqual(first_resp.status_code, 201)
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("2.00"))
+
+        follow_payload = {
+            **base_payload,
+            "positions": [
+                base_payload["positions"][1],
+                {
+                    "product_code": "SKU-3",
+                    "quantity": "1",
+                    "price": "60.00",
+                    "line_number": 3,
+                    "bonus_earned": "1.00",
+                },
+            ],
+        }
+        follow_payload["totals"] = {
+            "total_amount": "110.00",
+            "discount_total": "0",
+            "bonus_spent": "0",
+            "bonus_earned": "2.00",
+        }
+
+        second_resp = self._post_receipt(
+            follow_payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000202",
+        )
+        self.assertEqual(second_resp.status_code, 201)
+        second_data = second_resp.json()
+        self.assertEqual(second_data["created_count"], 1)
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("3.00"))
+
+        self.assertEqual(
+            Transaction.objects.filter(receipt_guid="R-PARTIAL").count(), 3
+        )
+
+    def test_totals_do_not_override_bonus_balance(self):
+        payload = self._base_payload()
+        payload["totals"]["bonus_earned"] = "0.00"
+        payload["positions"][0]["bonus_earned"] = "1.00"
+
+        user = CustomUser.objects.create(
+            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
+        )
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000301",
+        )
+        self.assertEqual(response.status_code, 201)
+
+        user.refresh_from_db()
+        self.assertEqual(user.bonuses, Decimal("1.00"))
+
+    def test_receipt_line_field_is_required(self):
+        payload = self._base_payload()
+        position = payload["positions"][0]
+        position.pop("line_number")
+        position["receipt_line"] = 1
+
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000401",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        details = response.json().get("details", {})
+        self.assertIn("positions", details)
 
     def test_guest_receipt_returns_201(self):
         payload = self._base_payload()
