@@ -1,0 +1,79 @@
+# ========================
+# GLOBAL & OS (Общее для всего проекта)
+# ========================
+.DS_Store
+*.log
+*.swp
+*.bak
+*.bak.*
+.history
+.svn/
+
+# IDE & Editors (JetBrains, VS Code)
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# ========================
+# BACKEND (Python / Django)
+# Пути относительно папки backend_bot/
+# ========================
+# Byte-compiled / Optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Database
+*.sqlite3
+
+# Environments & Secrets
+backend_bot/.env
+backend_bot/.env.*
+backend_bot/*.env
+backend_bot/venv/
+backend_bot/.venv/
+backend_bot/backend/venv/
+
+# Django specific
+backend_bot/media/
+backend_bot/staticfiles/
+backend_bot/backend/collected_static/
+
+# Development specific
+backend_bot/src/qr_codes/
+
+# Исключение для примера (если нужно, чтобы .env.example был виден)
+!backend_bot/.env.example
+
+# ========================
+# APP (Flutter / Dart)
+# Пути относительно папки app/
+# ========================
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/.pub/
+app/build/
+app/coverage/
+app/migrate_working_dir/
+
+# iOS / Mac specific in Flutter
+app/.atom/
+app/.build/
+app/.buildlog/
+app/.swiftpm/
+app/**/*.class
+app/**/doc/api/
+app/**/ios/Flutter/.last_build_id
+
+# Symbolication & Obfuscation
+app/app.*.symbols
+app/app.*.map.json
+
+# Android Studio artifacts
+app/android/app/debug
+app/android/app/profile
+app/android/app/release
