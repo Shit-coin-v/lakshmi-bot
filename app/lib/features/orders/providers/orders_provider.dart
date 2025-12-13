@@ -25,3 +25,8 @@ final orderDetailByIdProvider = FutureProvider.family
       final service = ref.watch(orderServiceProvider);
       return service.fetchOrderDetailById(id);
     });
+final repeatOrderProvider =
+    Provider.autoDispose<Future<int> Function(int orderId)>((ref) {
+      final service = ref.watch(orderServiceProvider);
+      return (orderId) => service.repeatOrder(orderId);
+    });

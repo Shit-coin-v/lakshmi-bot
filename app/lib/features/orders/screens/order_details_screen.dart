@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../providers/orders_provider.dart';
 
-/// Роль: эксперт по Flutter/Dart 👨‍💻
 class OrderDetailsScreen extends ConsumerWidget {
   final int orderId;
 
@@ -22,6 +23,72 @@ class OrderDetailsScreen extends ConsumerWidget {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
+
+      // ✅ Кнопка фиксированно снизу
+      bottomNavigationBar: detailAsync.when(
+        loading: () => const SizedBox.shrink(),
+        error: (err, _) => const SizedBox.shrink(),
+
+        data: (o) => SafeArea(
+          minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                // 🧠⏳ маленький лоадер-диалог
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  final repeat = ref.read(repeatOrderProvider);
+                  final newOrderId = await repeat(o.id);
+
+                  if (context.mounted) Navigator.of(context).pop();
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Заказ повторён ✅"),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+
+                    // ✅ Переходим на статус нового заказа
+                    context.push('/order-status/$newOrderId');
+                  }
+                } catch (e) {
+                  if (context.mounted) Navigator.of(context).pop();
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Ошибка: $e"),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.replay),
+              label: const Text("Повторить заказ"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -63,6 +130,7 @@ class OrderDetailsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +150,6 @@ class OrderDetailsScreen extends ConsumerWidget {
                       )
                     else
                       ...o.items.map((it) {
-                        // ✅ Исправление: у модели нет it.lineTotal — считаем сами
                         final double lineTotal =
                             (it.priceAtMoment) * (it.quantity.toDouble());
 
@@ -119,6 +186,7 @@ class OrderDetailsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,6 +210,7 @@ class OrderDetailsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   children: [
@@ -153,6 +222,8 @@ class OrderDetailsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 8),
             ],
           );
         },
