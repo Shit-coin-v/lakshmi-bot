@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,10 +23,18 @@ import 'features/loyalty/screens/loyalty_screen.dart';
 import 'features/address/screens/saved_addresses_screen.dart';
 import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
+import 'core/push_notification_service.dart';
 
 // 👇 2. MAIN ТЕПЕРЬ ASYNC И ЗАГРУЖАЕТ ДАТЫ
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Обязательно перед асинхронным запуском
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await initializeDateFormatting(
     'ru',
     null,
@@ -40,7 +50,10 @@ const Color kLightGreen = Color(
 ); // Lighter shade for secondary buttons
 const Color kBackground = Color(0xFFF9F9F9);
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
@@ -92,8 +105,23 @@ final _router = GoRouter(
   ],
 );
 
-class LakshmiMarketApp extends StatelessWidget {
+class LakshmiMarketApp extends ConsumerStatefulWidget {
   const LakshmiMarketApp({super.key});
+
+  @override
+  ConsumerState<LakshmiMarketApp> createState() => _LakshmiMarketAppState();
+}
+
+class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initPush();
+  }
+
+  Future<void> _initPush() async {
+    await ref.read(pushNotificationServiceProvider).initialize(_router);
+  }
 
   @override
   Widget build(BuildContext context) {

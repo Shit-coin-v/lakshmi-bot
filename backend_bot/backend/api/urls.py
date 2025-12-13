@@ -5,6 +5,7 @@ from .views import (
     OrderCreateView,
     PurchaseAPIView,
     SendMessageAPIView,
+    PushRegisterView,
     OrderListUserView,
     OrderDetailView,
     CustomerProfileView,
@@ -27,6 +28,7 @@ urlpatterns = [
     
     path('api/purchase/', PurchaseAPIView.as_view(), name='purchase'),
     path('api/send-message/', SendMessageAPIView.as_view(), name='send-message'),
+    path('api/push/register/', PushRegisterView.as_view(), name='push-register'),
     path('api/products/', ProductListView.as_view(), name='product-list'),
     path('api/orders/create/', OrderCreateView.as_view(), name='order-create'),
     path('api/orders/', OrderListUserView.as_view(), name='order-history'),

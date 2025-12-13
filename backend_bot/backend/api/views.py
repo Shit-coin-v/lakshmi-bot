@@ -29,10 +29,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework import filters
 
-from main.models import CustomUser, Product, Transaction, Order
+from main.models import CustomUser, Product, Transaction, Order, CustomerDevice
+from main.push import notify_order_status_change
 from src import config
 
 from .models import OneCClientMap
+from .permissions import ApiKeyPermission
 from .security import require_onec_auth
 from .serializers import (
     ProductUpdateSerializer,
@@ -198,6 +200,43 @@ class SendMessageAPIView(APIView):
                 {"err": "Failed to send message to Telegram."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+
+class PushRegisterView(APIView):
+    permission_classes = [ApiKeyPermission]
+    authentication_classes = []
+
+    def post(self, request):
+        fcm_token = (request.data.get("fcm_token") or "").strip()
+        platform = (request.data.get("platform") or "android").lower()
+        customer_id = request.data.get("customer_id")
+
+        if not fcm_token or not customer_id:
+            return Response(
+                {"detail": "customer_id and fcm_token are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            customer = CustomUser.objects.get(id=int(customer_id))
+        except (TypeError, ValueError, CustomUser.DoesNotExist):
+            return Response(
+                {"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        device, created = CustomerDevice.objects.update_or_create(
+            fcm_token=fcm_token,
+            defaults={"customer": customer, "platform": platform},
+        )
+
+        logger.info(
+            "Registered FCM token for customer=%s | platform=%s | created=%s",
+            customer.id,
+            platform,
+            created,
+        )
+
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
         return Response({"msg": "Message sent successfully."})
     
@@ -955,9 +994,13 @@ def onec_order_status(request):
             o = Order.objects.select_for_update().get(id=int(order_id))
 
             updates = []
+            status_changed = False
+            previous_status = o.status
+
             if status_in and o.status != status_in:
                 o.status = status_in
                 updates.append("status")
+                status_changed = True
 
             # поля синка с 1С (если ты их добавил миграциями)
             if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
@@ -978,7 +1021,12 @@ def onec_order_status(request):
                 updates.append("last_sync_error")
 
             if updates:
+                if status_changed:
+                    o._skip_signal_notification = True
                 o.save(update_fields=updates)
+
+            if status_changed:
+                notify_order_status_change(o, previous_status=previous_status)
 
     except Order.DoesNotExist:
         return _onec_error(

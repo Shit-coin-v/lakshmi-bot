@@ -65,6 +65,35 @@ class CustomUser(models.Model):
         return self.full_name or f"User {self.telegram_id}"
 
 
+class CustomerDevice(models.Model):
+    PLATFORM_CHOICES = (
+        ("android", "Android"),
+        ("ios", "iOS"),
+        ("web", "Web"),
+    )
+
+    customer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="devices",
+        verbose_name="Клиент",
+    )
+    fcm_token = models.CharField(max_length=255, unique=True, verbose_name="FCM токен")
+    platform = models.CharField(
+        max_length=20, choices=PLATFORM_CHOICES, default="android", verbose_name="Платформа"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлен")
+
+    class Meta:
+        db_table = "customer_devices"
+        verbose_name = "Устройство клиента"
+        verbose_name_plural = "Устройства клиентов"
+
+    def __str__(self):
+        return f"{self.customer_id} | {self.platform}"
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('new', 'Новый'),
