@@ -797,6 +797,209 @@ def onec_product_sync(request):
     }
     return JsonResponse(resp, status=201 if created else 200)
 
+
+@csrf_exempt
+@require_POST
+@require_onec_auth
+def onec_order_create(request):
+    raw = request.body or b"{}"
+    if isinstance(raw, (bytes, bytearray)):
+        raw = raw.decode("utf-8")
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return _onec_error("invalid_json", "Request body must be valid JSON.")
+
+    order_id = payload.get("order_id")
+    if not order_id:
+        return _onec_error("missing_field", "order_id is required.", details={"order_id": ["required"]})
+
+    # Здесь “в реальной жизни” вместо заглушки делаем:
+    # - создание документа в 1С через HTTP-сервис 1С
+    # - или пересылку в внутренний шлюз/VPN
+    #
+    # Пока возвращаем ACK, чтобы Celery мог пометить заказ как sent.
+    return JsonResponse(
+        {
+            "status": "ok",
+            "order_id": order_id,
+            "onec_guid": payload.get("onec_guid") or None,
+        },
+        status=200,
+    )
+
+
+@csrf_exempt
+@require_GET
+@require_onec_auth
+def onec_orders_pending(request):
+    after_raw = (request.GET.get("after") or "").strip()
+    limit_raw = (request.GET.get("limit") or "50").strip()
+
+    try:
+        limit = int(limit_raw)
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    with db_tx.atomic():
+        qs = (
+            Order.objects
+            .select_for_update(skip_locked=True)
+            .select_related("customer")
+            .prefetch_related("items__product")
+            .filter(status="new")
+            .order_by("created_at")
+        )
+
+        if after_raw:
+            try:
+                dt = datetime.fromisoformat(after_raw.replace("Z", "+00:00"))
+                if dj_tz.is_naive(dt):
+                    dt = dj_tz.make_aware(dt, timezone=timezone.utc)
+                qs = qs.filter(created_at__gt=dt)
+            except ValueError:
+                return _onec_error(
+                    "invalid_after",
+                    "Query param 'after' must be ISO datetime.",
+                    details={"after": after_raw},
+                )
+
+        orders = []
+        returned_ids = []
+
+        for o in qs[:limit]:
+            items = []
+            for it in o.items.all():
+                p = it.product
+                items.append({
+                    "product_code": p.product_code,
+                    "name": p.name,
+                    "quantity": int(it.quantity),
+                    "price": str(it.price_at_moment),
+                })
+
+            orders.append({
+                "order_id": o.id,
+                "created_at": o.created_at.isoformat(),
+                "status": o.status,
+                "payment_method": o.payment_method,
+                "customer": {
+                    "id": o.customer_id,
+                    "telegram_id": o.customer.telegram_id,
+                    "full_name": o.customer.full_name,
+                    "phone": o.phone,
+                },
+                "delivery": {
+                    "address": o.address,
+                    "comment": o.comment,
+                },
+                "prices": {
+                    "products_price": str(o.products_price),
+                    "delivery_price": str(o.delivery_price),
+                    "total_price": str(o.total_price),
+                },
+                "items": items,
+            })
+            returned_ids.append(o.id)
+
+        if returned_ids:
+            Order.objects.filter(id__in=returned_ids, status="new").update(status="assembly")
+
+    return JsonResponse({"status": "ok", "count": len(orders), "orders": orders}, status=200)
+
+
+@csrf_exempt
+@require_POST
+@require_onec_auth
+def onec_order_status(request):
+    raw = request.body or b"{}"
+    if isinstance(raw, (bytes, bytearray)):
+        raw = raw.decode("utf-8")
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return _onec_error("invalid_json", "Request body must be valid JSON.")
+
+    order_id = payload.get("order_id")
+    status_in = (payload.get("status") or "").strip()
+    onec_guid = (payload.get("onec_guid") or "").strip() or None
+
+    if not order_id:
+        return _onec_error(
+            "missing_field",
+            "order_id is required.",
+            details={"order_id": ["required"]},
+        )
+
+    # Разрешаем только твои статусы из модели Order.STATUS_CHOICES
+    allowed = {"new", "assembly", "delivery", "completed", "canceled"}
+    if status_in and status_in not in allowed:
+        return _onec_error(
+            "invalid_status",
+            "Invalid status value.",
+            details={"status": sorted(allowed)},
+        )
+
+    try:
+        with db_tx.atomic():
+            o = Order.objects.select_for_update().get(id=int(order_id))
+
+            updates = []
+            if status_in and o.status != status_in:
+                o.status = status_in
+                updates.append("status")
+
+            # поля синка с 1С (если ты их добавил миграциями)
+            if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
+                o.onec_guid = onec_guid
+                updates.append("onec_guid")
+
+            # sync_status можно держать отдельно от business-status
+            if hasattr(o, "sync_status") and o.sync_status != "sent":
+                o.sync_status = "sent"
+                updates.append("sync_status")
+
+            if hasattr(o, "sent_to_onec_at") and not o.sent_to_onec_at:
+                o.sent_to_onec_at = dj_tz.now()
+                updates.append("sent_to_onec_at")
+
+            if hasattr(o, "last_sync_error") and o.last_sync_error:
+                o.last_sync_error = None
+                updates.append("last_sync_error")
+
+            if updates:
+                o.save(update_fields=updates)
+
+    except Order.DoesNotExist:
+        return _onec_error(
+            "order_not_found",
+            "Order not found.",
+            details={"order_id": order_id},
+            status_code=404,
+        )
+    except (TypeError, ValueError):
+        return _onec_error(
+            "invalid_order_id",
+            "order_id must be an integer.",
+            details={"order_id": order_id},
+        )
+
+    return JsonResponse(
+        {
+            "status": "ok",
+            "order": {
+                "order_id": int(order_id),
+                "status": status_in or None,
+                "onec_guid": onec_guid,
+            },
+        },
+        status=200,
+    )
+
+
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.filter(is_active=True) 
     serializer_class = ProductListSerializer

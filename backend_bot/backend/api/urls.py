@@ -8,6 +8,9 @@ from .views import (
     OrderListUserView,
     OrderDetailView,
     CustomerProfileView,
+    onec_orders_pending,
+    onec_order_create,
+    onec_order_status,
     healthz,
     onec_customer_sync,
     onec_health,
@@ -29,4 +32,8 @@ urlpatterns = [
     path('api/orders/', OrderListUserView.as_view(), name='order-history'),
     path('api/orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
     path('api/customer/<int:pk>/', CustomerProfileView.as_view(), name='customer-profile'),
+    path('onec/order', onec_order_create, name='onec_order_create'),
+    path('onec/orders/pending', onec_orders_pending, name='onec_orders_pending'),
+    path('onec/order/status', onec_order_status, name='onec_order_status'),
+
 ]

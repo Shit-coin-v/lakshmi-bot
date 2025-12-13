@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Any
+from api.tasks import send_order_to_onec
 
 from rest_framework import serializers
 from main.models import Product, Order, OrderItem, CustomUser
@@ -183,6 +184,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         for item_data in items_data:
             OrderItem.objects.create(order=order, **item_data)
+
+        send_order_to_onec.delay(order.id)
 
         return order
     

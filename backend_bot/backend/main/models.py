@@ -102,6 +102,15 @@ class Order(models.Model):
         verbose_name="Способ оплаты"
     )
 
+    # --- 1C sync ---
+    onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")
+    sync_status = models.CharField(max_length=20, default="new", db_index=True, verbose_name="Синхр. статус")
+    sent_to_onec_at = models.DateTimeField(null=True, blank=True, verbose_name="Отправлен в 1С")
+    last_sync_error = models.TextField(null=True, blank=True, verbose_name="Ошибка синхронизации")
+    sync_attempts = models.IntegerField(default=0, verbose_name="Попыток синхронизации")
+    # --------------
+
+
     class Meta:
         db_table = "orders"
         verbose_name = "Заказ доставки"

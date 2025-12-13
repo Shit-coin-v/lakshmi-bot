@@ -224,3 +224,6 @@ LOGGING = {
         "level": LOG_LEVEL,
     },
 }
+
+INTEGRATION_API_KEY = os.getenv("INTEGRATION_API_KEY", "")
+ONEC_ORDER_URL = os.getenv("ONEC_ORDER_URL", "")
