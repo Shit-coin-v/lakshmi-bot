@@ -1,6 +1,5 @@
 from decimal import Decimal
 from typing import Any
-from api.tasks import send_order_to_onec
 
 from rest_framework import serializers
 from main.models import Product, Order, OrderItem, CustomUser
@@ -178,16 +177,17 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        items_data = validated_data.pop('items') # Вытаскиваем товары
-        
+        items_data = validated_data.pop('items')
         order = Order.objects.create(**validated_data)
 
         for item_data in items_data:
             OrderItem.objects.create(order=order, **item_data)
 
+        from .tasks import send_order_to_onec   
         send_order_to_onec.delay(order.id)
 
         return order
+
     
 
 # Сериализатор для Списка Заказов (История)
@@ -204,6 +204,36 @@ class OrderListSerializer(serializers.ModelSerializer):
             'status', 
             'status_display', 
             'items_count'
+        ]
+
+class OrderItemDetailSerializer(serializers.ModelSerializer):
+    product_code = serializers.CharField(source="product.product_code", read_only=True)
+    name = serializers.CharField(source="product.name", read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = ["product_code", "name", "quantity", "price_at_moment"]
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    items = OrderItemDetailSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "created_at",
+            "status",
+            "status_display",
+            "payment_method",
+            "address",
+            "phone",
+            "comment",
+            "products_price",
+            "delivery_price",
+            "total_price",
+            "items",
         ]
 
 

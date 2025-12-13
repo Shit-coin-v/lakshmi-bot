@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api_client.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/order_model.dart';
+import '../models/order_detail_model.dart';
 
 final orderServiceProvider = Provider((ref) => OrderService(ref));
 
@@ -48,6 +49,20 @@ class OrderService {
       }
     } catch (e) {
       throw Exception('Ошибка загрузки заказа: $e');
+    }
+  }
+
+  Future<OrderDetailModel> fetchOrderDetailById(int id) async {
+    try {
+      final response = await _dio.get('/api/orders/$id/');
+
+      if (response.statusCode == 200) {
+        return OrderDetailModel.fromJson(response.data);
+      } else {
+        throw Exception('Заказ не найден');
+      }
+    } catch (e) {
+      throw Exception('Ошибка загрузки деталей заказа: $e');
     }
   }
 }

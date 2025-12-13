@@ -20,6 +20,7 @@ import 'features/notifications/screens/notifications_screen.dart';
 import 'features/loyalty/screens/loyalty_screen.dart';
 import 'features/address/screens/saved_addresses_screen.dart';
 import 'features/notifications/screens/notification_settings_screen.dart';
+import 'features/orders/screens/order_details_screen.dart';
 
 // 👇 2. MAIN ТЕПЕРЬ ASYNC И ЗАГРУЖАЕТ ДАТЫ
 Future<void> main() async {
@@ -79,6 +80,13 @@ final _router = GoRouter(
         final isNew = state.uri.queryParameters['new'] == 'true';
 
         return OrderStatusScreen(orderId: id, fromOrderCreation: isNew);
+      },
+    ),
+    GoRoute(
+      path: '/order-details/:id',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return OrderDetailsScreen(orderId: id);
       },
     ),
   ],

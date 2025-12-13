@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
 import '../services/order_service.dart';
+import '../models/order_detail_model.dart';
 
 // Этот провайдер сам загрузит данные при открытии экрана
 final myOrdersProvider = FutureProvider.autoDispose<List<OrderModel>>((
@@ -18,3 +19,9 @@ final orderByIdProvider = FutureProvider.family.autoDispose<OrderModel, int>((
   final service = ref.watch(orderServiceProvider);
   return service.fetchOrderById(id);
 });
+
+final orderDetailByIdProvider = FutureProvider.family
+    .autoDispose<OrderDetailModel, int>((ref, id) async {
+      final service = ref.watch(orderServiceProvider);
+      return service.fetchOrderDetailById(id);
+    });

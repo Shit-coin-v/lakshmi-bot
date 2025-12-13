@@ -42,6 +42,7 @@ from .serializers import (
     OrderCreateSerializer,
     OrderListSerializer,
     CustomerProfileSerializer,
+    OrderDetailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -199,6 +200,12 @@ class SendMessageAPIView(APIView):
             )
 
         return Response({"msg": "Message sent successfully."})
+    
+
+class OrderDetailView(generics.RetrieveAPIView):
+    queryset = Order.objects.all().prefetch_related("items__product")
+    serializer_class = OrderDetailSerializer
+    permission_classes = [AllowAny]
 
 
 @require_GET
@@ -1027,12 +1034,6 @@ class OrderListUserView(generics.ListAPIView):
         
         return Order.objects.none()
     
-
-class OrderDetailView(generics.RetrieveAPIView):
-    queryset = Order.objects.all()
-    serializer_class = OrderListSerializer
-    permission_classes = [AllowAny]
-
 
 class CustomerProfileView(generics.RetrieveUpdateAPIView):
     """

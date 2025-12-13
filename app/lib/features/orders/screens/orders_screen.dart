@@ -43,22 +43,24 @@ class OrdersScreen extends ConsumerWidget {
               ),
             );
           }
+
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: orders.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
-            // 👇 ИЗМЕНЕННЫЙ БЛОК ITEM BUILDER
             itemBuilder: (context, index) {
               final order = orders[index];
+
               return GestureDetector(
-                onTap: () {
-                  // Переход на экран статуса с ID заказа
-                  context.push('/order-status/${order.id}');
-                },
-                child: _OrderCard(order: order),
+                // ✅ ВАЖНО: тап по карточке -> СТАТУС (как на твоём скрине)
+                onTap: () => context.push('/order-status/${order.id}'),
+                child: _OrderCard(
+                  order: order,
+                  // ✅ Отдельно "Детали"
+                  onDetails: () => context.push('/order-details/${order.id}'),
+                ),
               );
             },
-            // 👆 КОНЕЦ ИЗМЕНЕНИЙ
           );
         },
       ),
@@ -68,9 +70,10 @@ class OrdersScreen extends ConsumerWidget {
 
 class _OrderCard extends StatelessWidget {
   final OrderModel order;
-  const _OrderCard({required this.order});
+  final VoidCallback onDetails;
 
-  // Цвет статуса
+  const _OrderCard({required this.order, required this.onDetails});
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'new':
@@ -99,9 +102,7 @@ class _OrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.05,
-            ), // Используем withValues
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -110,6 +111,7 @@ class _OrderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Заголовок + статус
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -123,7 +125,6 @@ class _OrderCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  // Используем withValues
                   color: _getStatusColor(order.status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -138,12 +139,16 @@ class _OrderCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 8),
           Text(
             dateStr,
             style: const TextStyle(color: Colors.grey, fontSize: 12),
           ),
+
           const Divider(height: 24),
+
+          // Итог
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -159,6 +164,17 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // ✅ Кнопка "Детали" (не ломает тап по карточке)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onDetails,
+              child: const Text("Детали заказа"),
+            ),
           ),
         ],
       ),
