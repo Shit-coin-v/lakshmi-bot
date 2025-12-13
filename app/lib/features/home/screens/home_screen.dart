@@ -1,27 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/products_provider.dart';
 import '../models/product.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../cart/models/cart_item.dart';
-import 'package:go_router/go_router.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Слушаем наш провайдер
     final productsAsyncValue = ref.watch(productsProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Лакшми Маркет'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false, // Выравнивание по левому краю
+        title: const Text(
+          'Лакшми Маркет',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.black,
+          ),
+        ),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
+          IconButton(
+            onPressed: () {
+              context.push('/notifications');
+            },
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.black,
+            ),
+          ),
+
+          // Корзина
           Consumer(
             builder: (context, ref, child) {
-              // Слушаем общее количество товаров
               final cartCount = ref.watch(cartCountProvider);
 
               return IconButton(
@@ -29,77 +48,121 @@ class HomeScreen extends ConsumerWidget {
                   context.push('/cart');
                 },
                 icon: Badge(
-                  // Если 0, то бейдж не показываем (isVisible: false)
                   isLabelVisible: cartCount > 0,
                   label: Text('$cartCount'),
-                  backgroundColor: Colors.green, // Цвет кружочка
-                  child: const Icon(Icons.shopping_cart),
+                  backgroundColor: Colors.green,
+                  child: const Icon(Icons.shopping_cart, color: Colors.black),
                 ),
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
 
       bottomSheet: const _CartTotalBar(),
 
-      body: productsAsyncValue.when(
-        // 1. Если данные загружаются - крутим колесико
-        loading: () => const Center(child: CircularProgressIndicator()),
-
-        // 2. Если ошибка - показываем текст и кнопку повтора
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Ошибка: $err', textAlign: TextAlign.center),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () => ref.refresh(productsProvider),
-                child: const Text('Повторить'),
+      body: Column(
+        children: [
+          // 👇 БЛОК ПОИСКА (Теперь здесь)
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
-        ),
-
-        // 3. Если данные пришли - показываем сетку товаров
-        data: (products) {
-          if (products.isEmpty) {
-            return const Center(child: Text('Товаров пока нет'));
-          }
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // 2 колонки
-              childAspectRatio: 0.75, // Соотношение сторон карточки
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Поиск товаров...',
+                  prefixIcon: Icon(Icons.search, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                ),
+                onChanged: (value) {
+                  ref.read(searchQueryProvider.notifier).state = value;
+                },
+              ),
             ),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return _ProductCard(product: product);
-            },
-          );
-        },
+          ),
+
+          // 👇 СПИСОК ТОВАРОВ
+          Expanded(
+            child: productsAsyncValue.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+
+              error: (err, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Ошибка: $err', textAlign: TextAlign.center),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () => ref.refresh(productsProvider),
+                      child: const Text('Повторить'),
+                    ),
+                  ],
+                ),
+              ),
+
+              data: (products) {
+                if (products.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 60,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Ничего не найдено',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return _ProductCard(product: product);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// ... Остальные виджеты остаются без изменений ...
+
 class _ProductCard extends ConsumerWidget {
-  // <-- Стало ConsumerWidget
   final Product product;
 
   const _ProductCard({required this.product});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Ищем, есть ли этот товар в корзине
     final cartItems = ref.watch(cartProvider);
     final cartItem = cartItems.firstWhere(
       (item) => item.product.id == product.id,
-      orElse: () => CartItem(product: product, quantity: 0), // Фейковый пустой
+      orElse: () => CartItem(product: product, quantity: 0),
     );
     final quantity = cartItem.quantity;
 
@@ -118,7 +181,6 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Картинка (без изменений)
           Expanded(
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
@@ -138,7 +200,6 @@ class _ProductCard extends ConsumerWidget {
               ),
             ),
           ),
-          // Текст и Кнопки
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -148,9 +209,9 @@ class _ProductCard extends ConsumerWidget {
                   product.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
@@ -163,10 +224,7 @@ class _ProductCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // --- УМНАЯ КНОПКА ---
                 if (quantity == 0)
-                  // Если 0 - показываем большую кнопку "В корзину"
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -178,17 +236,18 @@ class _ProductCard extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       child: Text(
-                        product.stock > 0 ? 'В корзину' : 'Нет в наличии',
+                        product.stock > 0 ? 'В корзину' : 'Нет',
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                   )
                 else
-                  // Если > 0 - показываем "Минус Цифра Плюс"
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -202,7 +261,7 @@ class _ProductCard extends ConsumerWidget {
                         '$quantity',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                       _IconBtn(
@@ -221,7 +280,6 @@ class _ProductCard extends ConsumerWidget {
   }
 }
 
-// Маленькая кнопка для +/-
 class _IconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -249,11 +307,9 @@ class _CartTotalBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Слушаем изменения суммы и количества
     final totalAmount = ref.watch(cartTotalProvider);
     final totalCount = ref.watch(cartCountProvider);
 
-    // Если корзина пустая - прячем плашку (возвращаем пустоту)
     if (totalCount == 0) return const SizedBox.shrink();
 
     return Container(
@@ -262,7 +318,6 @@ class _CartTotalBar extends ConsumerWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            // Используем .withValues, чтобы не было предупреждений
             color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -5),
@@ -272,7 +327,7 @@ class _CartTotalBar extends ConsumerWidget {
       child: SafeArea(
         child: SizedBox(
           width: double.infinity,
-          height: 54, // Чуть выше, чтобы удобнее нажимать
+          height: 54,
           child: ElevatedButton(
             onPressed: () {
               context.push('/cart');
@@ -284,7 +339,6 @@ class _CartTotalBar extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 0,
-              // Убираем стандартные отступы, чтобы настроить свои внутри
               padding: EdgeInsets.zero,
             ),
             child: Padding(

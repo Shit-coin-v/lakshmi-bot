@@ -26,8 +26,9 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework import filters
 
-# Добавил Order в импорты
 from main.models import CustomUser, Product, Transaction, Order
 from src import config
 
@@ -40,6 +41,7 @@ from .serializers import (
     ProductListSerializer,
     OrderCreateSerializer,
     OrderListSerializer,
+    CustomerProfileSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -800,6 +802,9 @@ class ProductListView(generics.ListAPIView):
     serializer_class = ProductListSerializer
     permission_classes = [AllowAny]
 
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'description']
+
 
 class OrderCreateView(generics.CreateAPIView):
     queryset = Order.objects.all()
@@ -824,3 +829,14 @@ class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderListSerializer
     permission_classes = [AllowAny]
+
+
+class CustomerProfileView(generics.RetrieveUpdateAPIView):
+    """
+    Получение и обновление профиля клиента.
+    """
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomerProfileSerializer
+    permission_classes = [AllowAny]
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]

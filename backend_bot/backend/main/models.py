@@ -34,9 +34,12 @@ class CustomUser(models.Model):
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Телефон")
+    email = models.EmailField(null=True, blank=True, verbose_name="Email")
     birth_date = models.DateTimeField(null=True, blank=True)
     registration_date = models.DateTimeField(null=True, blank=True)
     qr_code = models.CharField(max_length=500, null=True, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name="Аватар")
     bonuses = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     referrer = models.ForeignKey(
         "self",
@@ -61,7 +64,7 @@ class CustomUser(models.Model):
     def __str__(self):
         return self.full_name or f"User {self.telegram_id}"
 
-# --- НОВАЯ ТАБЛИЦА: ЗАКАЗЫ ---
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('new', 'Новый'),
@@ -69,6 +72,12 @@ class Order(models.Model):
         ('delivery', 'Курьер едет'),
         ('completed', 'Доставлен'),
         ('canceled', 'Отменен'),
+    ]
+
+    PAYMENT_CHOICES = [
+        ('card_courier', 'Картой курьеру'),
+        ('cash', 'Наличными'),
+        ('sbp', 'СБП'),
     ]
 
     customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='orders', verbose_name="Клиент")
@@ -84,6 +93,14 @@ class Order(models.Model):
     products_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма товаров")
     delivery_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Стоимость доставки")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Итого к оплате")
+    
+    # Способ оплаты
+    payment_method = models.CharField(
+        max_length=20, 
+        choices=PAYMENT_CHOICES, 
+        default='card_courier', 
+        verbose_name="Способ оплаты"
+    )
 
     class Meta:
         db_table = "orders"

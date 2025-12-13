@@ -5,6 +5,8 @@ import '../../auth/services/auth_service.dart';
 import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
 import '../services/order_service.dart';
+import '../../address/providers/address_provider.dart';
+import '../../address/models/address_model.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -15,26 +17,147 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isLoading = false;
+  AddressModel? _selectedAddress;
 
-  final TextEditingController _addressController = TextEditingController(
-    text: "ул. Тестовая, д. 1",
-  );
-  final TextEditingController _phoneController = TextEditingController(
-    text: "+79990000000",
-  );
-  final TextEditingController _commentController = TextEditingController(
-    text: "Код домофона 123",
-  );
+  // По умолчанию
+  String _paymentMethod = 'card_courier';
+
+  late TextEditingController _phoneController;
+  late TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController = TextEditingController(text: "+7 999 000-00-00");
+    _commentController = TextEditingController();
+  }
 
   @override
   void dispose() {
-    _addressController.dispose();
     _phoneController.dispose();
     _commentController.dispose();
     super.dispose();
   }
 
+  // --- ВЫБОР АДРЕСА ---
+  void _selectAddress() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _AddressPickerSheet(
+        onSelect: (address) {
+          setState(() {
+            _selectedAddress = address;
+            final details = [
+              if (address.entrance.isNotEmpty) 'Подъезд ${address.entrance}',
+              if (address.floor.isNotEmpty) 'Этаж ${address.floor}',
+              if (address.intercom.isNotEmpty) 'Домофон ${address.intercom}',
+              if (address.comment.isNotEmpty) address.comment,
+            ].join(', ');
+            if (details.isNotEmpty) _commentController.text = details;
+          });
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  // --- ВЫБОР ОПЛАТЫ (НОВЫЙ МЕТОД) ---
+  void _showPaymentMethodPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Выберите способ оплаты",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              _PaymentOption(
+                title: "Картой курьеру",
+                icon: Icons.credit_card,
+                value: "card_courier",
+                groupValue: _paymentMethod,
+                onChanged: (val) {
+                  setState(() => _paymentMethod = val!);
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _PaymentOption(
+                title: "Наличными",
+                icon: Icons.payments_outlined,
+                value: "cash",
+                groupValue: _paymentMethod,
+                onChanged: (val) {
+                  setState(() => _paymentMethod = val!);
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _PaymentOption(
+                title: "СБП",
+                icon: Icons.qr_code_2,
+                value: "sbp",
+                groupValue: _paymentMethod,
+                onChanged: (val) {
+                  setState(() => _paymentMethod = val!);
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Вспомогательные методы для отображения выбранного
+  String _getPaymentTitle(String value) {
+    switch (value) {
+      case 'card_courier':
+        return 'Картой курьеру';
+      case 'cash':
+        return 'Наличными';
+      case 'sbp':
+        return 'СБП';
+      default:
+        return 'Картой курьеру';
+    }
+  }
+
+  IconData _getPaymentIcon(String value) {
+    switch (value) {
+      case 'card_courier':
+        return Icons.credit_card;
+      case 'cash':
+        return Icons.payments_outlined;
+      case 'sbp':
+        return Icons.qr_code_2;
+      default:
+        return Icons.credit_card;
+    }
+  }
+
   Future<void> _submitOrder(double totalPrice, List<CartItem> items) async {
+    if (_selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пожалуйста, выберите адрес доставки')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -42,22 +165,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final realUserId = await authService.getSavedUserId();
       final userIdToSend = realUserId ?? 1;
 
-      // 1. Получаем ID заказа (переименовали success в orderId)
       final orderId = await ref
           .read(orderServiceProvider)
           .createOrder(
-            address: _addressController.text,
+            address: _selectedAddress!.fullAddress,
             phone: _phoneController.text,
             comment: _commentController.text,
+            paymentMethod: _paymentMethod,
             totalPrice: totalPrice,
             items: items,
             userId: userIdToSend,
           );
 
-      // 2. Проверяем на null
       if (orderId != null) {
         ref.read(cartProvider.notifier).clear();
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -65,7 +186,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               backgroundColor: Colors.green,
             ),
           );
-
           context.go(
             Uri(
               path: '/order-status/$orderId',
@@ -98,11 +218,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
-
     const double deliveryCost = 0.0;
-    const double discount = 0.0;
-
-    final finalTotal = productsTotal + deliveryCost - discount;
+    final finalTotal = productsTotal + deliveryCost;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -161,18 +278,116 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                           const SizedBox(height: 16),
                           ...cartItems.map((item) => _CartItemRow(item: item)),
+
                           const SizedBox(height: 24),
                           const Divider(),
                           const SizedBox(height: 16),
-                          _DeliverySection(
-                            address: _addressController.text,
-                            time: "Как можно скорее",
+
+                          const Text(
+                            "Детали доставки",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
+                          const SizedBox(height: 16),
+
+                          InkWell(
+                            onTap: _selectAddress,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _selectedAddress == null
+                                              ? "Выберите адрес"
+                                              : "Адрес доставки",
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _selectedAddress?.fullAddress ??
+                                              "Нажмите, чтобы выбрать",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: "Телефон для связи",
+                              prefixIcon: const Icon(Icons.phone_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _commentController,
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              labelText: "Комментарий к заказу",
+                              hintText: "Подъезд, этаж, код домофона...",
+                              prefixIcon: const Icon(Icons.comment_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
+
+                          // 👇 МЫ УБРАЛИ ОТСЮДА СПИСОК ОПЛАТЫ, ЧТОБЫ ПОМЕСТИТЬ ЕГО ВНИЗ
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
                   ),
                 ),
+
+                // --- НИЖНЯЯ ПАНЕЛЬ ---
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -197,13 +412,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           value: "${productsTotal.toStringAsFixed(0)} ₽",
                         ),
                         const SizedBox(height: 8),
-                        _SummaryRow(
-                          title: "Доставка",
-                          value: deliveryCost == 0
-                              ? "Бесплатно"
-                              : "$deliveryCost ₽",
-                        ),
-                        const SizedBox(height: 16),
+                        _SummaryRow(title: "Доставка", value: "Бесплатно"),
+                        const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -224,7 +434,60 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
+
+                        const Divider(height: 24),
+
+                        // 👇 ВОТ ЗДЕСЬ ТЕПЕРЬ ОПЛАТА (ВСЕГДА НА ВИДУ)
+                        InkWell(
+                          onTap: _showPaymentMethodPicker,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _getPaymentIcon(_paymentMethod),
+                                  color: Colors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Способ оплаты",
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      _getPaymentTitle(_paymentMethod),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Text(
+                                "Изменить",
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -268,10 +531,202 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 }
 
+// Виджет одной опции оплаты (используется внутри BottomSheet)
+class _PaymentOption extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String value;
+  final String groupValue;
+  final ValueChanged<String?> onChanged;
+
+  const _PaymentOption({
+    required this.title,
+    required this.icon,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = value == groupValue;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.green.withValues(alpha: 0.05)
+              : Colors.white,
+          border: Border.all(
+            color: isSelected ? Colors.green : Colors.grey[300]!,
+            width: isSelected ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? Colors.green : Colors.grey[600]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.green),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ... Остальные виджеты (_AddressPickerSheet, _CartItemRow, _CountBtn, _SummaryRow)
+// остаются БЕЗ ИЗМЕНЕНИЙ (скопируй из прошлого файла, они тут нужны!)
+class _AddressPickerSheet extends ConsumerWidget {
+  final Function(AddressModel) onSelect;
+  const _AddressPickerSheet({required this.onSelect});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final addresses = ref.watch(addressProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "Выберите адрес доставки",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          if (addresses.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  const Icon(
+                    Icons.location_off_outlined,
+                    size: 48,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "У вас нет сохраненных адресов",
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/saved-addresses');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        "Добавить адрес",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: addresses.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final addr = addresses[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _getIconForLabel(addr.label),
+                        color: Colors.green,
+                        size: 24,
+                      ),
+                    ),
+                    title: Text(
+                      addr.label.isNotEmpty ? addr.label : "Адрес",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      addr.fullAddress,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => onSelect(addr),
+                    trailing: const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.grey,
+                    ),
+                  );
+                },
+              ),
+            ),
+          if (addresses.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/saved-addresses');
+              },
+              child: const Text(
+                "Управление адресами",
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForLabel(String label) {
+    switch (label) {
+      case 'Дом':
+        return Icons.home;
+      case 'Работа':
+        return Icons.work;
+      default:
+        return Icons.location_on;
+    }
+  }
+}
+
 class _CartItemRow extends ConsumerWidget {
   final CartItem item;
   const _CartItemRow({required this.item});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
@@ -285,7 +740,7 @@ class _CartItemRow extends ConsumerWidget {
               width: 80,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
+              errorBuilder: (context, error, stackTrace) =>
                   Container(width: 80, height: 80, color: Colors.grey[200]),
             ),
           ),
@@ -296,12 +751,12 @@ class _CartItemRow extends ConsumerWidget {
               children: [
                 Text(
                   item.product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -348,7 +803,6 @@ class _CountBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   const _CountBtn({required this.icon, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -362,83 +816,10 @@ class _CountBtn extends StatelessWidget {
   }
 }
 
-class _DeliverySection extends StatelessWidget {
-  final String address;
-  final String time;
-  const _DeliverySection({this.address = "", this.time = ""});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _DeliveryOption(
-          icon: Icons.location_on,
-          title: "Адрес доставки",
-          value: address,
-        ),
-        const SizedBox(height: 12),
-        _DeliveryOption(
-          icon: Icons.access_time,
-          title: "Время доставки",
-          value: time,
-        ),
-      ],
-    );
-  }
-}
-
-class _DeliveryOption extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  const _DeliveryOption({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey[700]),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SummaryRow extends StatelessWidget {
   final String title;
   final String value;
   const _SummaryRow({required this.title, required this.value});
-
   @override
   Widget build(BuildContext context) {
     return Row(

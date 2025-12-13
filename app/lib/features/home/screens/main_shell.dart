@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../main.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
+import '../../loyalty/screens/loyalty_screen.dart';
 
 // Simple state provider for bottom nav index
 final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
@@ -16,7 +17,7 @@ class MainShell extends ConsumerWidget {
 
     final List<Widget> pages = [
       const HomeScreen(),
-      const Center(child: Text("Loyalty Card (QR)")),
+      const LoyaltyScreen(),
       const ProfileScreen(),
     ];
 

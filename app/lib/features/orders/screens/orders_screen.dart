@@ -46,7 +46,7 @@ class OrdersScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             // 👇 ИЗМЕНЕННЫЙ БЛОК ITEM BUILDER
             itemBuilder: (context, index) {
               final order = orders[index];

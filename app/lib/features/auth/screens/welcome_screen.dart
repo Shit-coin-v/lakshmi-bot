@@ -26,16 +26,30 @@ class WelcomeScreen extends StatelessWidget {
                 child: const Icon(Icons.eco, size: 60, color: kPrimaryGreen),
               ),
               const SizedBox(height: 30),
-              Text(
-                "Добро пожаловать в\nЛакшми маркет",
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+
+              // 👇 ВОТ ЗДЕСЬ ИЗМЕНЕНИЯ
+              Text.rich(
+                TextSpan(
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87, // Основной цвет (черный)
+                  ),
+                  children: const [
+                    TextSpan(text: "Добро пожаловать в\n"), // Первая часть
+                    TextSpan(
+                      text: "Лакшми маркет", // Вторая часть
+                      style: TextStyle(
+                        color: kPrimaryGreen, // Делаем зеленым
+                      ),
                     ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
               ),
+
+              // -----------------------
               const Spacer(),
-              
+
               // Register Button (Dark Green)
               SizedBox(
                 width: double.infinity,
@@ -45,7 +59,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Login Button (Light Green)
               SizedBox(
                 width: double.infinity,
@@ -59,8 +73,8 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
-              // QR Login Button (Grey/Purple tint)
+
+              // QR Login Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

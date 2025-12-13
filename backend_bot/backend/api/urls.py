@@ -7,6 +7,7 @@ from .views import (
     SendMessageAPIView,
     OrderListUserView,
     OrderDetailView,
+    CustomerProfileView,
     healthz,
     onec_customer_sync,
     onec_health,
@@ -27,4 +28,5 @@ urlpatterns = [
     path('api/orders/create/', OrderCreateView.as_view(), name='order-create'),
     path('api/orders/', OrderListUserView.as_view(), name='order-history'),
     path('api/orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
+    path('api/customer/<int:pk>/', CustomerProfileView.as_view(), name='customer-profile'),
 ]

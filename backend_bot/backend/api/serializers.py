@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
-from main.models import Product, Order, OrderItem
+from main.models import Product, Order, OrderItem, CustomUser
 
 
 class PurchaseSerializer(serializers.Serializer):
@@ -170,7 +170,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             'customer', 
             'address', 
             'phone', 
-            'comment', 
+            'comment',
+            'payment_method', 
             'total_price', 
             'items'
         ]
@@ -201,3 +202,19 @@ class OrderListSerializer(serializers.ModelSerializer):
             'status_display', 
             'items_count'
         ]
+
+
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id', 
+            'telegram_id', 
+            'full_name', 
+            'phone', 
+            'email', 
+            'bonuses', 
+            'qr_code',
+            'avatar'
+        ]
+        read_only_fields = ['id', 'telegram_id', 'bonuses', 'qr_code']
