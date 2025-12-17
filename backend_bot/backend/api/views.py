@@ -1,5 +1,3 @@
-"""REST and webhook views exposed by the backend API."""
-
 from __future__ import annotations
 
 import json
@@ -21,30 +19,29 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import status
 from rest_framework.exceptions import ErrorDetail
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from rest_framework.views import APIView
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework import filters
+from rest_framework import generics, filters
 
 from main.models import CustomUser, Product, Transaction, Order, CustomerDevice
 from main.push import notify_order_status_change
 from src import config
 
-from .models import OneCClientMap
 from .permissions import ApiKeyPermission
+from .models import OneCClientMap
 from .security import require_onec_auth
 from .serializers import (
+    CustomerProfileSerializer,
+    OrderCreateSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+    ProductListSerializer,
     ProductUpdateSerializer,
     PurchaseSerializer,
     ReceiptSerializer,
-    ProductListSerializer,
-    OrderCreateSerializer,
-    OrderListSerializer,
-    CustomerProfileSerializer,
-    OrderDetailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +57,13 @@ def _quantize(amount: D) -> D:
     return amount.quantize(D("0.01"), rounding=ROUND_HALF_UP)
 
 
-def _onec_error(error_code: str, message: str, *, details: Any | None = None, status_code: int = 400):
+def _onec_error(
+    error_code: str,
+    message: str,
+    *,
+    details: Any | None = None,
+    status_code: int = 400,
+):
     payload: dict[str, Any] = {"error_code": error_code, "message": message}
     if details is not None:
         payload["details"] = details
@@ -194,19 +197,27 @@ class SendMessageAPIView(APIView):
         try:
             response = requests.post(telegram_url, json=payload, timeout=5)
             response.raise_for_status()
-        except requests.RequestException as exc:  # pragma: no cover - network failure
+        except requests.RequestException as exc:  # pragma: no cover
             logger.warning("Failed to send Telegram message: %s", exc)
             return Response(
                 {"err": "Failed to send message to Telegram."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
+        return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
+
 
 class PushRegisterView(APIView):
-    permission_classes = [ApiKeyPermission]
+    # ApiKeyPermission у тебя уже завязан на X-Api-Key 👍
+    permission_classes = []  # НЕ ставим DRF-auth; проверка только через ApiKeyPermission ниже
     authentication_classes = []
 
     def post(self, request):
+        # ручная проверка через permission класс
+        perm = ApiKeyPermission()
+        if not perm.has_permission(request, self):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
         fcm_token = (request.data.get("fcm_token") or "").strip()
         platform = (request.data.get("platform") or "android").lower()
         customer_id = request.data.get("customer_id")
@@ -220,9 +231,7 @@ class PushRegisterView(APIView):
         try:
             customer = CustomUser.objects.get(id=int(customer_id))
         except (TypeError, ValueError, CustomUser.DoesNotExist):
-            return Response(
-                {"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND)
 
         device, created = CustomerDevice.objects.update_or_create(
             fcm_token=fcm_token,
@@ -236,10 +245,8 @@ class PushRegisterView(APIView):
             created,
         )
 
-        return Response({"status": "ok"}, status=status.HTTP_200_OK)
+        return Response({"status": "ok", "device_id": device.id}, status=status.HTTP_200_OK)
 
-        return Response({"msg": "Message sent successfully."})
-    
 
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
@@ -251,7 +258,6 @@ class OrderDetailView(generics.RetrieveAPIView):
 @csrf_exempt
 def healthz(_request):
     """Public health-check endpoint for container orchestration."""
-
     return JsonResponse({"status": "ok"})
 
 
@@ -313,9 +319,7 @@ def onec_receipt(request):
     existing_by_idem = False
     if hasattr(Transaction, "idempotency_key"):
         try:
-            existing_by_idem = Transaction.objects.filter(
-                idempotency_key=idem_key
-            ).exists()
+            existing_by_idem = Transaction.objects.filter(idempotency_key=idem_key).exists()
         except DjangoValidationError:
             return _onec_error(
                 "invalid_idempotency_key",
@@ -391,9 +395,7 @@ def onec_receipt(request):
 
         user = CustomUser.objects.filter(telegram_id=guest_tid_int).first()
         if not user:
-            logger.error(
-                "Guest user with telegram_id %s not found", guest_tid_int
-            )
+            logger.error("Guest user with telegram_id %s not found", guest_tid_int)
             return _onec_error(
                 "guest_user_not_found",
                 "Guest user is missing in the database.",
@@ -403,9 +405,7 @@ def onec_receipt(request):
         is_guest = True
 
     if one_c_guid:
-        OneCClientMap.objects.update_or_create(
-            one_c_guid=one_c_guid, defaults={"user": user}
-        )
+        OneCClientMap.objects.update_or_create(one_c_guid=one_c_guid, defaults={"user": user})
 
     totals = data["totals"]
     total_amount = _as_decimal(totals["total_amount"])
@@ -423,14 +423,10 @@ def onec_receipt(request):
             pos_without.append(position)
 
     B_tot = _quantize(_as_decimal(totals.get("bonus_earned", "0")))
-    B_fixed = _quantize(
-        sum((_as_decimal(p["bonus_earned"]) for p in pos_with), D("0"))
-    )
+    B_fixed = _quantize(sum((_as_decimal(p["bonus_earned"]) for p in pos_with), D("0")))
     B_left = B_tot - B_fixed
     if B_left < 0:
-        logger.warning(
-            "onec_receipt: positional bonuses exceed totals; clamping to totals"
-        )
+        logger.warning("onec_receipt: positional bonuses exceed totals; clamping to totals")
         B_left = D("0")
 
     if B_left > 0 and pos_without:
@@ -444,7 +440,7 @@ def onec_receipt(request):
 
         allocated: list[D] = []
         running = D("0")
-        for idx, p in enumerate(pos_without):
+        for idx, _p in enumerate(pos_without):
             if idx < len(pos_without) - 1:
                 part = _quantize(B_left * (totals_for_alloc[idx] / denom_alloc))
                 allocated.append(part)
@@ -510,11 +506,7 @@ def onec_receipt(request):
                 pos_bonus_earned = _quantize(_as_decimal(position["bonus_earned"]))
                 pos_bonus_spent = _quantize(bonus_spent * (pos_total / denom))
 
-                product_defaults = {
-                    "name": name,
-                    "price": price,
-                    "is_promotional": is_promotional,
-                }
+                product_defaults = {"name": name, "price": price, "is_promotional": is_promotional}
                 if "category" in position:
                     product_defaults["category"] = position["category"]
                 if hasattr(Product, "store_id") and "store_id" in data:
@@ -558,9 +550,7 @@ def onec_receipt(request):
                         defaults=transaction_defaults,
                     )
                 except IntegrityError as exc:
-                    logger.info(
-                        "Receipt line already processed", extra={"line": line_number}
-                    )
+                    logger.info("Receipt line already processed", extra={"line": line_number})
                     raise DuplicateReceiptLineError(line_number) from exc
                 else:
                     if created:
@@ -599,10 +589,7 @@ def onec_receipt(request):
         return _onec_error(
             "duplicate_receipt_line",
             "Receipt line already processed.",
-            details={
-                "receipt_guid": data["receipt_guid"],
-                "line_numbers": [exc.line_number],
-            },
+            details={"receipt_guid": data["receipt_guid"], "line_numbers": [exc.line_number]},
         )
 
     if created_count > 0 and not is_guest:
@@ -611,18 +598,13 @@ def onec_receipt(request):
         update_kwargs: dict[str, Any] = {
             "bonuses": Coalesce(F("bonuses"), Value(D("0"))) + bonus_delta_to_apply,
             "last_purchase_date": purchased_at_value,
-            "total_spent": Coalesce(F("total_spent"), Value(D("0")))
-            + total_spent_delta,
+            "total_spent": Coalesce(F("total_spent"), Value(D("0"))) + total_spent_delta,
         }
         if purchase_increment > 0:
-            update_kwargs["purchase_count"] = (
-                Coalesce(F("purchase_count"), Value(0)) + purchase_increment
-            )
+            update_kwargs["purchase_count"] = Coalesce(F("purchase_count"), Value(0)) + purchase_increment
 
         CustomUser.objects.filter(id=user.id).update(**update_kwargs)
-        user.refresh_from_db(
-            fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"]
-        )
+        user.refresh_from_db(fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"])
 
     guid_for_resp = one_c_guid
     if not guid_for_resp:
@@ -636,13 +618,11 @@ def onec_receipt(request):
         "allocations": allocations,
         "customer": {
             "telegram_id": user.telegram_id,
-            "id": user.id,  # <--- ВОТ ТУТ НОВАЯ СТРОЧКА!
+            "id": user.id,
             "one_c_guid": guid_for_resp,
             "qr_code": user.qr_code,
             "bonus_balance": float(user.bonuses or D("0")),
-            "referrer_telegram_id": getattr(
-                getattr(user, "referrer", None), "telegram_id", None
-            ),
+            "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
         },
         "totals": {
             "total_amount": float(total_amount),
@@ -682,51 +662,30 @@ def onec_customer_sync(request):
             return JsonResponse({"detail": {"telegram_id": ["Неверное значение"]}}, status=400)
 
     if telegram_id is None and not qr_code:
-        return JsonResponse(
-            {"detail": {"telegram_id": ["Нужно указать telegram_id или qr_code."]}},
-            status=400,
-        )
+        return JsonResponse({"detail": {"telegram_id": ["Нужно указать telegram_id или qr_code."]}}, status=400)
 
     user: CustomUser | None = None
     if qr_code:
         user = CustomUser.objects.filter(qr_code=qr_code).first()
         if not user:
-            return JsonResponse(
-                {"detail": {"qr_code": ["Пользователь не найден"]}},
-                status=404,
-            )
+            return JsonResponse({"detail": {"qr_code": ["Пользователь не найден"]}}, status=404)
 
     if telegram_id is not None:
         if user and user.telegram_id != telegram_id:
-            return JsonResponse(
-                {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
-                status=400,
-            )
+            return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
 
         user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
         if not user_by_tid:
-            return JsonResponse(
-                {"detail": {"telegram_id": ["Пользователь не найден"]}},
-                status=404,
-            )
+            return JsonResponse({"detail": {"telegram_id": ["Пользователь не найден"]}}, status=404)
         if user and user_by_tid.id != user.id:
-            return JsonResponse(
-                {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
-                status=400,
-            )
+            return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
         user = user or user_by_tid
 
     if not user:
-        return JsonResponse(
-            {"detail": {"qr_code": ["Пользователь не найден"]}},
-            status=404,
-        )
+        return JsonResponse({"detail": {"qr_code": ["Пользователь не найден"]}}, status=404)
 
     if telegram_id is not None and user.telegram_id != telegram_id:
-        return JsonResponse(
-            {"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}},
-            status=400,
-        )
+        return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
 
     if telegram_id is None:
         telegram_id = user.telegram_id
@@ -774,10 +733,7 @@ def onec_customer_sync(request):
         user.save()
 
     if one_c_guid:
-        OneCClientMap.objects.update_or_create(
-            one_c_guid=one_c_guid,
-            defaults={"user": user},
-        )
+        OneCClientMap.objects.update_or_create(one_c_guid=one_c_guid, defaults={"user": user})
 
     mapping = OneCClientMap.objects.filter(user=user).first()
     guid_for_resp = getattr(mapping, "one_c_guid", None) or (one_c_guid or None)
@@ -787,13 +743,11 @@ def onec_customer_sync(request):
             "status": "ok" if write_mode else "lookup",
             "customer": {
                 "telegram_id": user.telegram_id,
-                "id": user.id,  # <--- ВОТ ТУТ НОВАЯ СТРОЧКА!
+                "id": user.id,
                 "one_c_guid": guid_for_resp,
                 "qr_code": user.qr_code,
                 "bonus_balance": float(user.bonuses or 0),
-                "referrer_telegram_id": getattr(
-                    getattr(user, "referrer", None), "telegram_id", None
-                ),
+                "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
             },
         }
     )
@@ -861,11 +815,6 @@ def onec_order_create(request):
     if not order_id:
         return _onec_error("missing_field", "order_id is required.", details={"order_id": ["required"]})
 
-    # Здесь “в реальной жизни” вместо заглушки делаем:
-    # - создание документа в 1С через HTTP-сервис 1С
-    # - или пересылку в внутренний шлюз/VPN
-    #
-    # Пока возвращаем ACK, чтобы Celery мог пометить заказ как sent.
     return JsonResponse(
         {
             "status": "ok",
@@ -891,8 +840,7 @@ def onec_orders_pending(request):
 
     with db_tx.atomic():
         qs = (
-            Order.objects
-            .select_for_update(skip_locked=True)
+            Order.objects.select_for_update(skip_locked=True)
             .select_related("customer")
             .prefetch_related("items__product")
             .filter(status="new")
@@ -919,35 +867,36 @@ def onec_orders_pending(request):
             items = []
             for it in o.items.all():
                 p = it.product
-                items.append({
-                    "product_code": p.product_code,
-                    "name": p.name,
-                    "quantity": int(it.quantity),
-                    "price": str(it.price_at_moment),
-                })
+                items.append(
+                    {
+                        "product_code": p.product_code,
+                        "name": p.name,
+                        "quantity": int(it.quantity),
+                        "price": str(it.price_at_moment),
+                    }
+                )
 
-            orders.append({
-                "order_id": o.id,
-                "created_at": o.created_at.isoformat(),
-                "status": o.status,
-                "payment_method": o.payment_method,
-                "customer": {
-                    "id": o.customer_id,
-                    "telegram_id": o.customer.telegram_id,
-                    "full_name": o.customer.full_name,
-                    "phone": o.phone,
-                },
-                "delivery": {
-                    "address": o.address,
-                    "comment": o.comment,
-                },
-                "prices": {
-                    "products_price": str(o.products_price),
-                    "delivery_price": str(o.delivery_price),
-                    "total_price": str(o.total_price),
-                },
-                "items": items,
-            })
+            orders.append(
+                {
+                    "order_id": o.id,
+                    "created_at": o.created_at.isoformat(),
+                    "status": o.status,
+                    "payment_method": o.payment_method,
+                    "customer": {
+                        "id": o.customer_id,
+                        "telegram_id": o.customer.telegram_id,
+                        "full_name": o.customer.full_name,
+                        "phone": o.phone,
+                    },
+                    "delivery": {"address": o.address, "comment": o.comment},
+                    "prices": {
+                        "products_price": str(o.products_price),
+                        "delivery_price": str(o.delivery_price),
+                        "total_price": str(o.total_price),
+                    },
+                    "items": items,
+                }
+            )
             returned_ids.append(o.id)
 
         if returned_ids:
@@ -980,7 +929,6 @@ def onec_order_status(request):
             details={"order_id": ["required"]},
         )
 
-    # Разрешаем только твои статусы из модели Order.STATUS_CHOICES
     allowed = {"new", "assembly", "delivery", "completed", "canceled"}
     if status_in and status_in not in allowed:
         return _onec_error(
@@ -993,7 +941,7 @@ def onec_order_status(request):
         with db_tx.atomic():
             o = Order.objects.select_for_update().get(id=int(order_id))
 
-            updates = []
+            updates: list[str] = []
             status_changed = False
             previous_status = o.status
 
@@ -1002,12 +950,10 @@ def onec_order_status(request):
                 updates.append("status")
                 status_changed = True
 
-            # поля синка с 1С (если ты их добавил миграциями)
             if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
                 o.onec_guid = onec_guid
                 updates.append("onec_guid")
 
-            # sync_status можно держать отдельно от business-status
             if hasattr(o, "sync_status") and o.sync_status != "sent":
                 o.sync_status = "sent"
                 updates.append("sync_status")
@@ -1022,11 +968,21 @@ def onec_order_status(request):
 
             if updates:
                 if status_changed:
+                    # если у тебя где-то есть signal/observer — можно им управлять этим флагом
                     o._skip_signal_notification = True
                 o.save(update_fields=updates)
 
+            # ✅ ВАЖНО: пуш не должен ломать эндпоинт статуса
             if status_changed:
-                notify_order_status_change(o, previous_status=previous_status)
+                try:
+                    notify_order_status_change(o, previous_status=previous_status)
+                except Exception:
+                    logger.exception(
+                        "Failed to send push for order status change: order_id=%s %s->%s",
+                        o.id,
+                        previous_status,
+                        o.status,
+                    )
 
     except Order.DoesNotExist:
         return _onec_error(
@@ -1045,23 +1001,19 @@ def onec_order_status(request):
     return JsonResponse(
         {
             "status": "ok",
-            "order": {
-                "order_id": int(order_id),
-                "status": status_in or None,
-                "onec_guid": onec_guid,
-            },
+            "order": {"order_id": int(order_id), "status": status_in or None, "onec_guid": onec_guid},
         },
         status=200,
     )
 
 
 class ProductListView(generics.ListAPIView):
-    queryset = Product.objects.filter(is_active=True) 
+    queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductListSerializer
     permission_classes = [AllowAny]
 
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'description']
+    search_fields = ["name", "description"]
 
 
 class OrderCreateView(generics.CreateAPIView):
@@ -1075,20 +1027,18 @@ class OrderListUserView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        user_id = self.request.query_params.get('user_id')
-        
+        user_id = self.request.query_params.get("user_id")
+
         if user_id:
-            return Order.objects.filter(customer_id=user_id).order_by('-created_at')
-        
+            return Order.objects.filter(customer_id=user_id).order_by("-created_at")
+
         return Order.objects.none()
-    
+
 
 class CustomerProfileView(generics.RetrieveUpdateAPIView):
-    """
-    Получение и обновление профиля клиента.
-    """
+    """Получение и обновление профиля клиента."""
+
     queryset = CustomUser.objects.all()
     serializer_class = CustomerProfileSerializer
     permission_classes = [AllowAny]
-
     parser_classes = [MultiPartParser, FormParser, JSONParser]

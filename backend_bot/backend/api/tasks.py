@@ -16,6 +16,7 @@ from main.models import CustomUser, Order
 
 logger = logging.getLogger(__name__)
 
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -123,7 +124,7 @@ def send_order_to_onec(self, order_id: int):
     url = _get_onec_order_url()
     headers = {
         "Content-Type": "application/json",
-        "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),  # если ключ только в env
+        "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),
         "X-Idempotency-Key": str(uuid.uuid4()),
     }
 
@@ -150,9 +151,12 @@ def send_order_to_onec(self, order_id: int):
             order.save(update_fields=["sync_status", "sent_to_onec_at", "onec_guid", "last_sync_error"])
 
         return {"status": "sent", "order_id": order_id, "onec_guid": onec_guid}
-
+    
     except Exception as exc:
-        _fail_order(order_id, str(exc))
+        logger.exception("send_order_to_onec failed: order_id=%s", order_id)
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+            return {"status": "failed", "reason": str(exc)}
+
         raise self.retry(exc=exc)
 
 

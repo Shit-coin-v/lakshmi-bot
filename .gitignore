@@ -77,3 +77,5 @@ app/app.*.map.json
 app/android/app/debug
 app/android/app/profile
 app/android/app/release
+# Secrets
+backend_bot/backend/backend/firebase_service_account.json

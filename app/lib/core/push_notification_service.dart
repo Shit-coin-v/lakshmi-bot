@@ -1,9 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:flutter/material.dart';
 import '../features/auth/services/auth_service.dart';
 import '../features/notifications/services/push_api_service.dart';
 
@@ -57,7 +56,8 @@ class PushNotificationService {
 
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.createNotificationChannel(_channel);
   }
 
@@ -79,15 +79,27 @@ class PushNotificationService {
   }
 
   Future<void> _syncCurrentToken() async {
-    final token = await _messaging.getToken();
-    if (token != null) {
-      await registerTokenForCurrentUser(token);
+    try {
+      final token = await _messaging.getToken();
+      debugPrint(
+        'FCM token = ${token == null ? "NULL" : "${token.substring(0, 12)}..."}',
+      );
+
+      if (token != null && token.isNotEmpty) {
+        await registerTokenForCurrentUser(token);
+      }
+    } catch (e) {
+      debugPrint('FCM token error (ignored): $e');
     }
   }
 
   void _listenForTokenRefresh() {
-    _messaging.onTokenRefresh.listen((token) {
-      registerTokenForCurrentUser(token);
+    _messaging.onTokenRefresh.listen((token) async {
+      try {
+        await registerTokenForCurrentUser(token);
+      } catch (e) {
+        debugPrint('FCM token refresh error (ignored): $e');
+      }
     });
   }
 
@@ -109,7 +121,8 @@ class PushNotificationService {
     final orderId = message.data['order_id'];
     final status = message.data['status'];
 
-    final statusText = _statusText(status) ??
+    final statusText =
+        _statusText(status) ??
         message.notification?.body ??
         'Статус заказа обновлён';
 
@@ -131,8 +144,17 @@ class PushNotificationService {
   }
 
   Future<void> registerTokenForCurrentUser([String? overrideToken]) async {
-    final token = overrideToken ?? await _messaging.getToken();
+    String? token;
+
+    try {
+      token = overrideToken ?? await _messaging.getToken();
+    } catch (e) {
+      debugPrint('FCM getToken error (ignored): $e');
+      return;
+    }
+
     if (token == null || token.isEmpty) return;
+    debugPrint('FCM TOKEN: ${token.substring(0, 12)}...');
 
     final authService = _ref.read(authServiceProvider);
     final customerId = await authService.getSavedUserId();

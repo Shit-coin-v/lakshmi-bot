@@ -227,3 +227,7 @@ LOGGING = {
 
 INTEGRATION_API_KEY = os.getenv("INTEGRATION_API_KEY", "")
 ONEC_ORDER_URL = os.getenv("ONEC_ORDER_URL", "")
+
+# DEV: выполнять Celery-задачи синхронно, без брокера (чтобы API не падал 500)
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True

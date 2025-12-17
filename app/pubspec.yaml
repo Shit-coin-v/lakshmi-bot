@@ -37,7 +37,8 @@ dependencies:
   go_router: ^13.0.0
   google_fonts: ^6.1.0
   image_picker: ^1.2.1
-  mobile_scanner: ^5.0.0 # Requires platform setup (minSdkVersion 21 android, Info.plist iOS)
+  google_mlkit_barcode_scanning: ^0.12.0
+  mobile_scanner: ^5.0.0
   cupertino_icons: ^1.0.2
   dio: ^5.4.0
   flutter_secure_storage: ^9.0.0

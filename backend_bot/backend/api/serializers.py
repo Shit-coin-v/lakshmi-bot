@@ -70,28 +70,6 @@ class ReceiptCustomerSerializer(serializers.Serializer):
 
 
 class ReceiptSerializer(serializers.Serializer):
-    """Minimal schema for `/onec/receipt` payloads.
-
-    Required fields (with types):
-
-    * `receipt_guid` — string, unique receipt identifier.
-    * `datetime` — ISO-8601 datetime of purchase.
-    * `store_id` — store identifier (string or number).
-    * `positions` — non-empty list of receipt lines. Each item must contain:
-        - `line_number` (integer >= 1, unique per receipt),
-        - `product_code` (string),
-        - `quantity` (decimal > 0),
-        - `price` (decimal >= 0).
-      Optional item fields: `name`, `category`, `discount_amount`, `is_promotional`.
-    * `totals` — object with `total_amount`, `discount_total`, `bonus_spent`,
-      `bonus_earned` (all decimals >= 0).
-
-    Optional fields:
-
-    * `customer` — object with optional `telegram_id` (int) and/or `one_c_guid`
-      (string). May be omitted entirely to process a guest receipt.
-    """
-
     receipt_guid = serializers.CharField()
     datetime = serializers.DateTimeField()
     store_id = serializers.CharField()
@@ -148,50 +126,90 @@ class ProductListSerializer(serializers.ModelSerializer):
         return None
     
 
-# 1. Сериализатор для одной позиции (товар + кол-во)
-class OrderItemSerializer(serializers.ModelSerializer):
-    product_id = serializers.SlugRelatedField(
-        slug_field='product_code',
-        queryset=Product.objects.all(), 
-        source='product'
+class OrderItemSerializer(serializers.Serializer):
+    product_code = serializers.CharField(required=False, allow_blank=False)
+    product_id = serializers.CharField(required=False, allow_blank=False)
+    quantity = serializers.IntegerField(min_value=1)
+    price_at_moment = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
     )
 
-    class Meta:
-        model = OrderItem
-        fields = ['product_id', 'quantity', 'price_at_moment']
+    def validate(self, attrs):
+        code = (attrs.get("product_code") or attrs.get("product_id") or "").strip()
+        if not code:
+            raise serializers.ValidationError({"product_code": ["Обязательное поле."]})
 
-# 2. Сериализатор для самого заказа
+        try:
+            product = Product.objects.get(product_code=code)
+        except Product.DoesNotExist:
+            raise serializers.ValidationError({"product_code": ["Товар не найден."]})
+
+        attrs["product"] = product
+
+        if attrs.get("price_at_moment") in (None, ""):
+            attrs["price_at_moment"] = product.price
+
+        return attrs
+
+
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
 
     class Meta:
         model = Order
         fields = [
-            'id',
-            'customer', 
-            'address', 
-            'phone', 
-            'comment',
-            'payment_method', 
-            'total_price', 
-            'items'
+            "id",
+            "customer",
+            "address",
+            "phone",
+            "comment",
+            "payment_method",
+            "total_price",
+            "items",
         ]
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and "customer" not in data and "customer_id" in data:
+            data = {**data, "customer": data.get("customer_id")}
+        return super().to_internal_value(data)
+
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        order = Order.objects.create(**validated_data)
+        items_data = validated_data.pop("items")
+        validated_data.pop("total_price", None)
 
-        for item_data in items_data:
-            OrderItem.objects.create(order=order, **item_data)
+        order = Order.objects.create(
+            products_price=Decimal("0.00"),
+            delivery_price=Decimal("150.00"),
+            total_price=Decimal("0.00"),
+            **validated_data,
+        )
 
-        from .tasks import send_order_to_onec   
+        products_sum = Decimal("0.00")
+
+        for item in items_data:
+            qty = int(item["quantity"])
+            price = Decimal(item["price_at_moment"])
+            products_sum += price * qty
+
+            OrderItem.objects.create(
+                order=order,
+                product=item["product"],
+                quantity=qty,
+                price_at_moment=price,
+            )
+
+        order.products_price = products_sum.quantize(Decimal("0.01"))
+        order.total_price = (order.products_price + (order.delivery_price or Decimal("0.00"))).quantize(
+            Decimal("0.01")
+        )
+        order.save(update_fields=["products_price", "total_price"])
+
+        from .tasks import send_order_to_onec
         send_order_to_onec.delay(order.id)
 
         return order
-
     
 
-# Сериализатор для Списка Заказов (История)
 class OrderListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     items_count = serializers.IntegerField(source='items.count', read_only=True)
@@ -219,8 +237,6 @@ class OrderItemDetailSerializer(serializers.ModelSerializer):
             "quantity",
             "price_at_moment",
         ]
-
-
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):

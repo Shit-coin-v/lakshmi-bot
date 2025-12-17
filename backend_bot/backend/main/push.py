@@ -1,14 +1,3 @@
-"""Helpers to send Firebase Cloud Messaging notifications for orders.
-
-Payload example sent to FCM:
-
-```
-{
-    "notification": {"title": "Статус заказа", "body": "Курьер выехал"},
-    "data": {"order_id": "123", "status": "delivery"}
-}
-```
-"""
 from __future__ import annotations
 
 import json
@@ -21,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured
 try:  # firebase-admin is optional until configured
     import firebase_admin
     from firebase_admin import credentials, messaging
-except ImportError as exc:  # pragma: no cover - handled at runtime
+except ImportError:  # pragma: no cover - handled at runtime
     firebase_admin = None
     credentials = None
     messaging = None
@@ -80,8 +69,51 @@ def _order_tokens(order) -> Iterable[str]:
     return list(customer.devices.values_list("fcm_token", flat=True))
 
 
+def _send_to_tokens(
+    tokens: Iterable[str],
+    *,
+    title: str,
+    body: str,
+    data: dict | None = None,
+    app=None,
+) -> dict:
+    """
+    Отправка без multicast, чтобы не дергать /batch (у тебя он дает 404).
+    Возвращает счетчики и список невалидных токенов.
+    """
+    tokens = [t for t in tokens if t]
+    if not tokens:
+        return {"sent": 0, "success": 0, "failure": 0, "invalid_tokens": []}
+
+    payload = {str(k): str(v) for k, v in (data or {}).items()}
+
+    success = 0
+    failure = 0
+    invalid_tokens: list[str] = []
+
+    for token in tokens:
+        msg = messaging.Message(
+            token=token,
+            notification=messaging.Notification(title=title, body=body),
+            data=payload,
+        )
+        try:
+            messaging.send(msg, app=app)
+            success += 1
+        except Exception as exc:  # pragma: no cover - network/config/runtime issues
+            failure += 1
+            code = getattr(exc, "code", "")  # firebase_admin.exceptions.FirebaseError.code
+            logger.warning("FCM push failed token=%s code=%s exc=%s", token, code, exc)
+
+            # Чистим мусорные токены, если Firebase говорит что токен умер
+            if code == "registration-token-not-registered" or code == "invalid-argument":
+                invalid_tokens.append(token)
+
+    return {"sent": len(tokens), "success": success, "failure": failure, "invalid_tokens": invalid_tokens}
+
+
 def notify_order_status_change(order, *, previous_status: str | None = None) -> None:
-    """Send a push notification if the status actually changed to a tracked value."""
+    """Send a push notification if the status actually changed to a tracked value. ✅"""
 
     if order.status == previous_status:
         return
@@ -101,34 +133,20 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
         return
 
     data_payload = {"order_id": str(order.id), "status": order.status}
-    multicast = messaging.MulticastMessage(
-        tokens=tokens,
-        notification=messaging.Notification(title="Статус заказа", body=message_text),
-        data=data_payload,
-    )
 
     try:
-        response = messaging.send_multicast(multicast, app=app)
-    except Exception:  # pragma: no cover - network/config issues
+        result = _send_to_tokens(
+            tokens,
+            title="Статус заказа",
+            body=message_text,
+            data=data_payload,
+            app=app,
+        )
+    except Exception:  # pragma: no cover
         logger.exception("Failed to send FCM message for order %s", order.id)
         return
 
-    invalid_tokens = []
-    for idx, resp in enumerate(response.responses):
-        if resp.success:
-            continue
-
-        error = resp.exception
-        error_code = getattr(error, "code", "")
-        logger.warning(
-            "FCM push failed for order %s token=%s code=%s", order.id, tokens[idx], error_code
-        )
-
-        if error_code == "registration-token-not-registered" or isinstance(
-            error, getattr(messaging, "UnregisteredError", ())
-        ):
-            invalid_tokens.append(tokens[idx])
-
+    invalid_tokens = result.get("invalid_tokens") or []
     if invalid_tokens:
         from .models import CustomerDevice  # imported lazily to avoid circular imports
 
@@ -136,8 +154,57 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
         logger.info("Removed %s invalid FCM tokens", len(invalid_tokens))
 
     logger.info(
-        "Push notification sent for order %s | payload=%s", order.id, data_payload
+        "Push notification send result for order %s | payload=%s | result=%s",
+        order.id,
+        data_payload,
+        {k: result.get(k) for k in ("sent", "success", "failure")},
     )
 
 
-__all__ = ["notify_order_status_change"]
+def send_test_push_to_customer(
+    customer_id: int,
+    *,
+    title: str = "Test",
+    body: str = "Hello",
+    data: dict | None = None,
+    platform: str | None = None,
+) -> dict:
+    """
+    Send a test push notification to devices of a customer. 🧪📲
+
+    Важно: отправляет ПО ОДНОМУ токену через messaging.send(),
+    чтобы не дергать /batch и не ловить 404.
+    """
+    from .models import CustomerDevice  # lazy import to avoid circular imports
+
+    tokens_qs = CustomerDevice.objects.filter(customer_id=customer_id)
+    if platform:
+        tokens_qs = tokens_qs.filter(platform=platform)
+
+    tokens = list(tokens_qs.values_list("fcm_token", flat=True))
+    if not tokens:
+        return {"sent": 0, "success": 0, "failure": 0, "detail": "no tokens"}
+
+    app = _get_app()
+
+    result = _send_to_tokens(
+        tokens,
+        title=title,
+        body=body,
+        data=data,
+        app=app,
+    )
+
+    invalid_tokens = result.get("invalid_tokens") or []
+    if invalid_tokens:
+        CustomerDevice.objects.filter(fcm_token__in=invalid_tokens).delete()
+        logger.info("Removed %s invalid FCM tokens (test)", len(invalid_tokens))
+
+    return {
+        "sent": result.get("sent", 0),
+        "success": result.get("success", 0),
+        "failure": result.get("failure", 0),
+    }
+
+
+__all__ = ["notify_order_status_change", "send_test_push_to_customer"]

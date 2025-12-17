@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "921266591576",
+    "project_id": "lakshmi-d653f",
+    "storage_bucket": "lakshmi-d653f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:921266591576:android:7338fd5558d7c05b39b72d",
+        "android_client_info": {
+          "package_name": "com.example.lakshmi_market"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB96iqF5wPu8cyIhbloE0SwxFZSTP9Gk5k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

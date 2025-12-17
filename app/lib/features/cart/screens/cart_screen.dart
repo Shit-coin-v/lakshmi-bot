@@ -84,7 +84,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
               const SizedBox(height: 20),
               _PaymentOption(
-                title: "Картой курьеру",
+                title: "Картой курьеру (карта или QR)",
                 icon: Icons.credit_card,
                 value: "card_courier",
                 groupValue: _paymentMethod,
@@ -93,22 +93,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   Navigator.pop(context);
                 },
               ),
+
               const SizedBox(height: 12),
               _PaymentOption(
                 title: "Наличными",
                 icon: Icons.payments_outlined,
                 value: "cash",
-                groupValue: _paymentMethod,
-                onChanged: (val) {
-                  setState(() => _paymentMethod = val!);
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 12),
-              _PaymentOption(
-                title: "СБП",
-                icon: Icons.qr_code_2,
-                value: "sbp",
                 groupValue: _paymentMethod,
                 onChanged: (val) {
                   setState(() => _paymentMethod = val!);
@@ -130,8 +120,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         return 'Картой курьеру';
       case 'cash':
         return 'Наличными';
-      case 'sbp':
-        return 'СБП';
       default:
         return 'Картой курьеру';
     }
@@ -143,8 +131,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         return Icons.credit_card;
       case 'cash':
         return Icons.payments_outlined;
-      case 'sbp':
-        return Icons.qr_code_2;
       default:
         return Icons.credit_card;
     }
@@ -218,7 +204,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
-    const double deliveryCost = 0.0;
+    const double deliveryCost = 150.0;
     final finalTotal = productsTotal + deliveryCost;
 
     return Scaffold(
@@ -412,7 +398,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           value: "${productsTotal.toStringAsFixed(0)} ₽",
                         ),
                         const SizedBox(height: 8),
-                        _SummaryRow(title: "Доставка", value: "Бесплатно"),
+                        _SummaryRow(
+                          title: "Доставка",
+                          value: "${deliveryCost.toStringAsFixed(0)} ₽",
+                        ),
+
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,

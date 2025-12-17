@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// 👇 1. ДОБАВЛЕНЫ ИМПОРТЫ ДЛЯ ИСПРАВЛЕНИЯ ОШИБКИ
+// Локализация
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -23,31 +23,30 @@ import 'features/loyalty/screens/loyalty_screen.dart';
 import 'features/address/screens/saved_addresses_screen.dart';
 import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
+
 import 'core/push_notification_service.dart';
 
-// 👇 2. MAIN ТЕПЕРЬ ASYNC И ЗАГРУЖАЕТ ДАТЫ
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // В фоне тоже нужна инициализация Firebase
   await Firebase.initializeApp();
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Обязательно перед асинхронным запуском
+  WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp();
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await initializeDateFormatting(
-    'ru',
-    null,
-  ); // Загружаем форматы дат для русского языка
+
+  await initializeDateFormatting('ru', null);
 
   runApp(const ProviderScope(child: LakshmiMarketApp()));
 }
 
 // Global Theme Colors
 const Color kPrimaryGreen = Color(0xFF4CAF50);
-const Color kLightGreen = Color(
-  0xFFC8E6C9,
-); // Lighter shade for secondary buttons
+const Color kLightGreen = Color(0xFFC8E6C9);
 const Color kBackground = Color(0xFFF9F9F9);
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -89,9 +88,7 @@ final _router = GoRouter(
       path: '/order-status/:id',
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
-
         final isNew = state.uri.queryParameters['new'] == 'true';
-
         return OrderStatusScreen(orderId: id, fromOrderCreation: isNew);
       },
     ),
@@ -129,17 +126,13 @@ class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> {
       title: 'Lakshmi Market',
       debugShowCheckedModeBanner: false,
 
-      // 👇 3. ПОДКЛЮЧАЕМ ЛОКАЛИЗАЦИЮ В САМО ПРИЛОЖЕНИЕ
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('ru'), // Включаем русский язык
-      ],
+      supportedLocales: const [Locale('ru')],
 
-      // ------------------------------------------------
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: kBackground,
@@ -176,7 +169,7 @@ class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> {
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
-            ), // Stadium/Capsule
+            ),
             padding: const EdgeInsets.symmetric(vertical: 16),
             textStyle: const TextStyle(
               fontSize: 16,
