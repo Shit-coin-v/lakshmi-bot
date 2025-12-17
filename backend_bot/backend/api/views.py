@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+import requests
 from datetime import datetime, timezone
 from decimal import Decimal as D, ROUND_HALF_UP
 from typing import Any
 
-import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction as db_tx
@@ -17,6 +17,8 @@ from django.utils import timezone as dj_tz
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from urllib.parse import urlparse
+
 from rest_framework import status
 from rest_framework.exceptions import ErrorDetail
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -666,9 +668,28 @@ def onec_customer_sync(request):
 
     user: CustomUser | None = None
     if qr_code:
-        user = CustomUser.objects.filter(qr_code=qr_code).first()
+        qr_norm = qr_code.strip()
+
+    # Если пришёл полный URL — оставляем только путь
+        if qr_norm.startswith("http://") or qr_norm.startswith("https://"):
+            try:
+                qr_norm = urlparse(qr_norm).path or qr_norm
+            except Exception:
+                pass
+
+    # Иногда приходит без ведущего "/"
+        if qr_norm.startswith("media/"):
+            qr_norm = "/" + qr_norm
+
+        user = CustomUser.objects.filter(qr_code=qr_norm).first()
+
+    # Фолбэк: если QR — это просто цифры (telegram_id)
+        if not user and qr_norm.isdigit():
+            user = CustomUser.objects.filter(telegram_id=int(qr_norm)).first()
+
         if not user:
             return JsonResponse({"detail": {"qr_code": ["Пользователь не найден"]}}, status=404)
+
 
     if telegram_id is not None:
         if user and user.telegram_id != telegram_id:
