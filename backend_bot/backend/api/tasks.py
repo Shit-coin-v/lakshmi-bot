@@ -107,10 +107,12 @@ def send_order_to_onec(self, order_id: int):
             "full_name": order.customer.full_name,
         },
         "delivery": {
+            "type": order.fulfillment_type,
             "address": order.address,
             "comment": order.comment,
         },
         "payment_method": order.payment_method,
+        "fulfillment_type": order.fulfillment_type,
         "prices": {
             "products_price": str(order.products_price),
             "delivery_price": str(order.delivery_price),

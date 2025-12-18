@@ -152,6 +152,8 @@ class OrderItemSerializer(serializers.Serializer):
         return attrs
 
 
+# backend/api/serializers.py
+
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
 
@@ -164,6 +166,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "phone",
             "comment",
             "payment_method",
+            "fulfillment_type",
             "total_price",
             "items",
         ]
@@ -171,18 +174,37 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         if isinstance(data, dict) and "customer" not in data and "customer_id" in data:
             data = {**data, "customer": data.get("customer_id")}
+
+        if isinstance(data, dict):
+            ft = (data.get("fulfillment_type") or "").strip()
+            addr = (data.get("address") or "").strip()
+
+            # ✅ Если фронт не прислал fulfillment_type, но адрес = "Самовывоз",
+            # считаем это самовывозом (чтобы не добавлялась доставка 150).
+            if not ft and addr.casefold() == "самовывоз":
+                data = {**data, "fulfillment_type": "pickup"}
+                ft = "pickup"
+
+            if ft == "pickup" and not addr:
+                data = {**data, "address": "Самовывоз"}
+
         return super().to_internal_value(data)
+
 
     def create(self, validated_data):
         items_data = validated_data.pop("items")
         validated_data.pop("total_price", None)
 
+        fulfillment_type = validated_data.get("fulfillment_type") or "delivery"
+        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else Decimal("150.00")
+
         order = Order.objects.create(
             products_price=Decimal("0.00"),
-            delivery_price=Decimal("150.00"),
+            delivery_price=delivery_price,
             total_price=Decimal("0.00"),
             **validated_data,
         )
+
 
         products_sum = Decimal("0.00")
 
@@ -251,6 +273,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "payment_method",
+            "fulfillment_type",
             "address",
             "phone",
             "comment",

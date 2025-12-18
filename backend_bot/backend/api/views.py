@@ -903,6 +903,7 @@ def onec_orders_pending(request):
                     "created_at": o.created_at.isoformat(),
                     "status": o.status,
                     "payment_method": o.payment_method,
+                    "fulfillment_type": o.fulfillment_type,
                     "customer": {
                         "id": o.customer_id,
                         "telegram_id": o.customer.telegram_id,

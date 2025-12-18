@@ -6,17 +6,11 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=100, blank=True, null=True)
-    
-    # Остатки и Магазин
     stock = models.IntegerField(blank=True, null=True)
     store_id = models.IntegerField()
-    
-    # --- НОВЫЕ ПОЛЯ ДЛЯ ПРИЛОЖЕНИЯ ---
     image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Фото")
     description = models.TextField(null=True, blank=True, verbose_name="Описание")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
-    # ---------------------------------
-
     is_promotional = models.BooleanField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
     one_c_guid = models.CharField(max_length=64, unique=True, blank=True, null=True)
@@ -92,6 +86,42 @@ class CustomerDevice(models.Model):
 
     def __str__(self):
         return f"{self.customer_id} | {self.platform}"
+    
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ("personal", "Персональное"),
+        ("broadcast", "Массовое"),
+    )
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        verbose_name="Клиент",
+    )
+    title = models.CharField(max_length=200, verbose_name="Заголовок")
+    body = models.TextField(verbose_name="Текст")
+    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Создано")
+    type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="personal",
+        db_index=True,
+        verbose_name="Тип",
+    )
+
+    class Meta:
+        db_table = "notifications"
+        verbose_name = "Уведомление"
+        verbose_name_plural = "Уведомления"
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="notif_user_created_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} | {self.type} | {self.title}"
 
 
 class Order(models.Model):
@@ -101,6 +131,11 @@ class Order(models.Model):
         ('delivery', 'Курьер едет'),
         ('completed', 'Доставлен'),
         ('canceled', 'Отменен'),
+    ]
+
+    FULFILLMENT_CHOICES = [
+    ("delivery", "Доставка"),
+    ("pickup", "Самовывоз"),
     ]
 
     PAYMENT_CHOICES = [
@@ -131,13 +166,19 @@ class Order(models.Model):
         verbose_name="Способ оплаты"
     )
 
+    fulfillment_type = models.CharField(
+        max_length=20,
+        choices=FULFILLMENT_CHOICES,
+        default="delivery",
+        verbose_name="Способ получения",
+    )
+
     # --- 1C sync ---
     onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")
     sync_status = models.CharField(max_length=20, default="new", db_index=True, verbose_name="Синхр. статус")
     sent_to_onec_at = models.DateTimeField(null=True, blank=True, verbose_name="Отправлен в 1С")
     last_sync_error = models.TextField(null=True, blank=True, verbose_name="Ошибка синхронизации")
     sync_attempts = models.IntegerField(default=0, verbose_name="Попыток синхронизации")
-    # --------------
 
 
     class Meta:
