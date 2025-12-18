@@ -68,76 +68,97 @@ class OrderService {
   }
 
   Future<int> repeatOrder(int orderId) async {
-    final authService = _ref.read(authServiceProvider);
-    final customerId = await authService.getSavedUserId();
-    if (customerId == null) {
-      throw Exception('Пользователь не авторизован');
-    }
-
-    final detailRes = await _dio.get('/api/orders/$orderId/');
-    if (detailRes.statusCode != 200) {
-      throw Exception('Не удалось получить заказ №$orderId');
-    }
-
-    final Map<String, dynamic> o = Map<String, dynamic>.from(detailRes.data);
-
-    final String address = (o['address'] ?? '').toString();
-    final String phone = (o['phone'] ?? '').toString();
-    final String paymentMethod = (o['payment_method'] ?? '').toString();
-    final String oldComment = (o['comment'] ?? '').toString();
-
-    final List<dynamic> orderItems = (o['items'] as List<dynamic>? ?? []);
-    if (orderItems.isEmpty) {
-      throw Exception('В заказе нет товаров — повторить нечего');
-    }
-
-    // ✅ ВАЖНО: product_id — это product_code (строка), потому что на бэке SlugRelatedField(product_code)
-    final List<Map<String, dynamic>> itemsPayload = orderItems.map((it) {
-      final m = Map<String, dynamic>.from(it as Map);
-
-      final code = (m['product_code'] ?? '').toString();
-      final qtyRaw = m['quantity'];
-      final priceRaw = m['price_at_moment'];
-
-      if (code.isEmpty) {
-        throw Exception('В одном из items отсутствует product_code');
+    try {
+      final authService = _ref.read(authServiceProvider);
+      final customerId = await authService.getSavedUserId();
+      if (customerId == null) {
+        throw Exception('Пользователь не авторизован');
       }
 
-      final int quantity = qtyRaw is int
-          ? qtyRaw
-          : int.parse(qtyRaw.toString());
-      final double price = double.tryParse(priceRaw.toString()) ?? 0.0;
+      final detailRes = await _dio.get('/api/orders/$orderId/');
+      if (detailRes.statusCode != 200) {
+        throw Exception('Не удалось получить заказ №$orderId');
+      }
 
-      return {
-        'product_id': code,
-        'quantity': quantity,
-        'price_at_moment': price.toStringAsFixed(2),
+      final Map<String, dynamic> o = Map<String, dynamic>.from(detailRes.data);
+
+      final String phone = (o['phone'] ?? '').toString();
+      final String paymentMethod = (o['payment_method'] ?? '').toString();
+      final String oldComment = (o['comment'] ?? '').toString();
+
+      final String addressRaw = (o['address'] ?? '').toString().trim();
+
+      // ✅ Ключевой фикс: при повторе всегда передаём fulfillment_type,
+      // иначе бэкенд может считать это доставкой и прибавить стоимость доставки.
+      String fulfillmentType = (o['fulfillment_type'] ?? '').toString().trim();
+
+      // ✅ Фолбэк (если вдруг API не отдаёт fulfillment_type)
+      if (fulfillmentType.isEmpty) {
+        fulfillmentType = addressRaw.toLowerCase() == 'самовывоз'
+            ? 'pickup'
+            : 'delivery';
+      }
+
+      // ✅ Нормализуем адрес для самовывоза
+      final String address = fulfillmentType == 'pickup'
+          ? 'Самовывоз'
+          : addressRaw;
+
+      final List<dynamic> orderItems = (o['items'] as List<dynamic>? ?? []);
+      if (orderItems.isEmpty) {
+        throw Exception('В заказе нет товаров — повторить нечего');
+      }
+
+      // ✅ ВАЖНО: product_id — это product_code (строка), потому что на бэке SlugRelatedField(product_code)
+      final List<Map<String, dynamic>> itemsPayload = orderItems.map((it) {
+        final m = Map<String, dynamic>.from(it as Map);
+
+        final code = (m['product_code'] ?? '').toString();
+        final qtyRaw = m['quantity'];
+        final priceRaw = m['price_at_moment'];
+
+        if (code.isEmpty) {
+          throw Exception('В одном из items отсутствует product_code');
+        }
+
+        final int quantity = qtyRaw is int
+            ? qtyRaw
+            : int.parse(qtyRaw.toString());
+        final double price = double.tryParse(priceRaw.toString()) ?? 0.0;
+
+        return {
+          'product_id': code,
+          'quantity': quantity,
+          'price_at_moment': price.toStringAsFixed(2),
+        };
+      }).toList();
+
+      final payload = {
+        'customer': customerId,
+        'fulfillment_type': fulfillmentType,
+        'address': address,
+        'phone': phone,
+        'comment': 'Повтор заказа №$orderId. $oldComment'.trim(),
+        'payment_method': paymentMethod,
+        'items': itemsPayload,
       };
-    }).toList();
 
-    final payload = {
-      'customer': customerId,
-      'address': address,
-      'phone': phone,
-      'comment': 'Повтор заказа №$orderId. $oldComment'.trim(),
-      'payment_method': paymentMethod,
-      'total_price':
-          o['total_price'], // можно оставить, бэк всё равно примет/перезапишет
-      'items': itemsPayload,
-    };
+      final createRes = await _dio.post('/api/orders/create/', data: payload);
 
-    final createRes = await _dio.post('/api/orders/create/', data: payload);
+      if (createRes.statusCode != 201 && createRes.statusCode != 200) {
+        throw Exception('Не удалось создать повтор заказа');
+      }
 
-    if (createRes.statusCode != 201 && createRes.statusCode != 200) {
-      throw Exception('Не удалось создать повтор заказа');
+      final Map<String, dynamic> created = Map<String, dynamic>.from(
+        createRes.data,
+      );
+
+      final newIdRaw = created['id'];
+      if (newIdRaw == null) throw Exception('В ответе нет id нового заказа');
+
+      return newIdRaw is int ? newIdRaw : int.parse(newIdRaw.toString());
+    } catch (e) {
+      throw Exception('Ошибка повтора заказа: $e');
     }
-
-    final Map<String, dynamic> created = Map<String, dynamic>.from(
-      createRes.data,
-    );
-    final newIdRaw = created['id'];
-    if (newIdRaw == null) throw Exception('В ответе нет id нового заказа');
-
-    return newIdRaw is int ? newIdRaw : int.parse(newIdRaw.toString());
   }
 }

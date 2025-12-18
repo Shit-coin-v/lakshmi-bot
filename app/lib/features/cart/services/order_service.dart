@@ -60,14 +60,19 @@ class OrderService {
     required double totalPrice,
     required List<CartItem> items,
     required int userId,
+    String fulfillmentType = "delivery",
   }) async {
     try {
+      final ft = (fulfillmentType.trim().isEmpty)
+          ? "delivery"
+          : fulfillmentType.trim();
       final orderData = {
         "customer": userId,
         "address": address,
         "phone": phone,
         "comment": comment,
         "payment_method": paymentMethod,
+        "fulfillment_type": ft,
         "total_price": totalPrice,
         "items": items
             .map(

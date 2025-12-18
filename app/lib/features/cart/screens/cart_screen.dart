@@ -19,6 +19,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isLoading = false;
   AddressModel? _selectedAddress;
 
+  bool _isPickup = false;
+
   // По умолчанию
   String _paymentMethod = 'card_courier';
 
@@ -93,7 +95,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   Navigator.pop(context);
                 },
               ),
-
               const SizedBox(height: 12),
               _PaymentOption(
                 title: "Наличными",
@@ -137,7 +138,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _submitOrder(double totalPrice, List<CartItem> items) async {
-    if (_selectedAddress == null) {
+    if (!_isPickup && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Пожалуйста, выберите адрес доставки')),
       );
@@ -151,16 +152,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final realUserId = await authService.getSavedUserId();
       final userIdToSend = realUserId ?? 1;
 
+      final addressToSend = _isPickup
+          ? "Самовывоз"
+          : _selectedAddress!.fullAddress;
+
       final orderId = await ref
           .read(orderServiceProvider)
           .createOrder(
-            address: _selectedAddress!.fullAddress,
+            address: addressToSend,
             phone: _phoneController.text,
             comment: _commentController.text,
             paymentMethod: _paymentMethod,
             totalPrice: totalPrice,
             items: items,
             userId: userIdToSend,
+            fulfillmentType: _isPickup ? "pickup" : "delivery",
           );
 
       if (orderId != null) {
@@ -204,7 +210,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
-    const double deliveryCost = 150.0;
+
+    final double deliveryCost = _isPickup ? 0.0 : 150.0;
     final finalTotal = productsTotal + deliveryCost;
 
     return Scaffold(
@@ -276,57 +283,88 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
+
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text(
+                              "Самовывоз",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: const Text(
+                              "Заберу заказ сам из магазина",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            value: _isPickup,
+                            onChanged: (v) {
+                              setState(() {
+                                _isPickup = v;
+                                if (_isPickup) {
+                                  _selectedAddress = null;
+                                }
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 12),
 
                           InkWell(
-                            onTap: _selectAddress,
+                            onTap: _isPickup ? null : _selectAddress,
                             borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on_outlined,
-                                    color: Colors.green,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _selectedAddress == null
-                                              ? "Выберите адрес"
-                                              : "Адрес доставки",
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _selectedAddress?.fullAddress ??
-                                              "Нажмите, чтобы выбрать",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                            child: Opacity(
+                              opacity: _isPickup ? 0.5 : 1,
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey[300]!),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_outlined,
+                                      color: Colors.green,
                                     ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey,
-                                  ),
-                                ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _isPickup
+                                                ? "Самовывоз"
+                                                : (_selectedAddress == null
+                                                      ? "Выберите адрес"
+                                                      : "Адрес доставки"),
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _isPickup
+                                                ? "Пункт выдачи: магазин"
+                                                : (_selectedAddress
+                                                          ?.fullAddress ??
+                                                      "Нажмите, чтобы выбрать"),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.grey,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -365,7 +403,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                           ),
 
-                          // 👇 МЫ УБРАЛИ ОТСЮДА СПИСОК ОПЛАТЫ, ЧТОБЫ ПОМЕСТИТЬ ЕГО ВНИЗ
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -400,9 +437,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         const SizedBox(height: 8),
                         _SummaryRow(
                           title: "Доставка",
-                          value: "${deliveryCost.toStringAsFixed(0)} ₽",
+                          value: _isPickup
+                              ? "Самовывоз"
+                              : "${deliveryCost.toStringAsFixed(0)} ₽",
                         ),
-
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -424,10 +462,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                           ],
                         ),
-
                         const Divider(height: 24),
 
-                        // 👇 ВОТ ЗДЕСЬ ТЕПЕРЬ ОПЛАТА (ВСЕГДА НА ВИДУ)
                         InkWell(
                           onTap: _showPaymentMethodPicker,
                           child: Row(
@@ -576,7 +612,6 @@ class _PaymentOption extends StatelessWidget {
 }
 
 // ... Остальные виджеты (_AddressPickerSheet, _CartItemRow, _CountBtn, _SummaryRow)
-// остаются БЕЗ ИЗМЕНЕНИЙ (скопируй из прошлого файла, они тут нужны!)
 class _AddressPickerSheet extends ConsumerWidget {
   final Function(AddressModel) onSelect;
   const _AddressPickerSheet({required this.onSelect});
