@@ -23,6 +23,7 @@ import 'features/loyalty/screens/loyalty_screen.dart';
 import 'features/address/screens/saved_addresses_screen.dart';
 import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
+import 'features/notifications/screens/notification_detail_screen.dart';
 
 import 'core/push_notification_service.dart';
 
@@ -75,6 +76,13 @@ final _router = GoRouter(
     GoRoute(
       path: '/notifications',
       builder: (context, state) => const NotificationsScreen(),
+    ),
+    GoRoute(
+      path: '/notifications/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return NotificationDetailScreen(notificationId: id);
+      },
     ),
     GoRoute(
       path: '/notification-settings',

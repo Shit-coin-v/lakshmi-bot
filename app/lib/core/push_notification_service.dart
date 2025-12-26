@@ -1,12 +1,14 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/material.dart';
+
 import '../features/auth/services/auth_service.dart';
+import '../features/notifications/providers/notifications_provider.dart';
 import '../features/notifications/services/push_api_service.dart';
 
-final pushNotificationServiceProvider = Provider(
+final pushNotificationServiceProvider = Provider<PushNotificationService>(
   (ref) => PushNotificationService(ref),
 );
 
@@ -104,7 +106,9 @@ class PushNotificationService {
   }
 
   void _listenForMessages(GoRouter router) {
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    FirebaseMessaging.onMessage.listen((message) {
+      _showForegroundNotification(message);
+    });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       _handleNavigation(router, message.data);
@@ -118,18 +122,25 @@ class PushNotificationService {
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final orderId = message.data['order_id'];
-    final status = message.data['status'];
+    final data = message.data;
 
-    final statusText =
-        _statusText(status) ??
+    final orderId = data['order_id']?.toString();
+    final status = data['status']?.toString();
+    final notificationId = data['notification_id']?.toString();
+
+    final title =
+        message.notification?.title ??
+        (orderId != null ? 'Статус заказа' : 'Уведомление');
+
+    final body =
         message.notification?.body ??
-        'Статус заказа обновлён';
+        _statusText(status) ??
+        'Новое уведомление';
 
     await _localNotifications.show(
       message.hashCode,
-      'Статус заказа',
-      statusText,
+      title,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,
@@ -139,8 +150,12 @@ class PushNotificationService {
           priority: Priority.high,
         ),
       ),
-      payload: orderId,
+      payload: orderId ?? notificationId ?? '',
     );
+
+    try {
+      await _ref.read(notificationsProvider.notifier).loadNotifications();
+    } catch (_) {}
   }
 
   Future<void> registerTokenForCurrentUser([String? overrideToken]) async {
@@ -171,7 +186,11 @@ class PushNotificationService {
     }
   }
 
-  void _handleNavigation(GoRouter router, Map<String, dynamic> data) {
+  void _handleNavigation(GoRouter router, Map<String, dynamic> data) async {
+    try {
+      await _ref.read(notificationsProvider.notifier).loadNotifications();
+    } catch (_) {}
+
     final orderId = data['order_id']?.toString();
     if (orderId != null && orderId.isNotEmpty) {
       _openOrderStatus(router, orderId);

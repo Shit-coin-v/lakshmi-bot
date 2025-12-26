@@ -79,3 +79,6 @@ app/android/app/profile
 app/android/app/release
 # Secrets
 backend_bot/backend/backend/firebase_service_account.json
+
+# Secrets
+backend_bot/backend/firebase_service_account.json

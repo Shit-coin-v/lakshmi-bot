@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../providers/products_provider.dart';
 import '../models/product.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../cart/models/cart_item.dart';
+import '../../notifications/providers/notifications_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -13,12 +15,18 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsyncValue = ref.watch(productsProvider);
 
+    final notificationsAsync = ref.watch(notificationsProvider);
+    final hasUnread = notificationsAsync.maybeWhen(
+      data: (items) => items.any((n) => n.isRead == false),
+      orElse: () => false,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false, // Выравнивание по левому краю
+        centerTitle: false,
         title: const Text(
           'Лакшми Маркет',
           style: TextStyle(
@@ -32,13 +40,30 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () {
               context.push('/notifications');
             },
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Colors.black,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Colors.black,
+                ),
+                if (hasUnread)
+                  Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
 
-          // Корзина
           Consumer(
             builder: (context, ref, child) {
               final cartCount = ref.watch(cartCountProvider);
@@ -59,12 +84,9 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-
       bottomSheet: const _CartTotalBar(),
-
       body: Column(
         children: [
-          // 👇 БЛОК ПОИСКА (Теперь здесь)
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -88,11 +110,9 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // 👇 СПИСОК ТОВАРОВ
           Expanded(
             child: productsAsyncValue.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-
               error: (err, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -106,7 +126,6 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-
               data: (products) {
                 if (products.isEmpty) {
                   return Center(
@@ -149,8 +168,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
-
-// ... Остальные виджеты остаются без изменений ...
 
 class _ProductCard extends ConsumerWidget {
   final Product product;

@@ -13,6 +13,8 @@ from .models import (
     Transaction,
     Order, 
     OrderItem,
+    Notification,
+    NotificationOpenEvent,
 )
 from .tasks import broadcast_send_task
 
@@ -78,6 +80,23 @@ class TransactionAdmin(admin.ModelAdmin):
     list_filter = ('is_promotional', 'store_id')
     search_fields = ('customer__full_name', 'product__name')
     date_hierarchy = 'purchase_date'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "type", "title", "is_read", "created_at")
+    list_filter = ("type", "is_read", "created_at")
+    search_fields = ("title", "body", "user__full_name", "user__telegram_id")
+    readonly_fields = ("created_at",)
+    fields = ("user", "type", "title", "body", "is_read", "created_at")
+
+
+@admin.register(NotificationOpenEvent)
+class NotificationOpenEventAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "notification", "source", "occurred_at")
+    list_filter = ("source", "occurred_at")
+    search_fields = ("user__full_name", "user__telegram_id", "notification__title")
+    readonly_fields = ("occurred_at",)
 
 
 @admin.register(BroadcastMessage)

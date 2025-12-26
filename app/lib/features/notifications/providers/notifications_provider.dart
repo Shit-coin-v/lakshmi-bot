@@ -1,64 +1,76 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/notification_model.dart';
 
-class NotificationsNotifier extends StateNotifier<List<NotificationModel>> {
-  NotificationsNotifier() : super([]) {
+import '../../auth/services/auth_service.dart';
+import '../models/notification_model.dart';
+import '../services/notifications_api_service.dart';
+
+final notificationsApiServiceProvider = Provider<NotificationsApiService>(
+  (ref) => NotificationsApiService(),
+);
+
+class NotificationsNotifier
+    extends StateNotifier<AsyncValue<List<NotificationModel>>> {
+  NotificationsNotifier(this._ref) : super(const AsyncValue.loading()) {
     loadNotifications();
   }
 
-  Future<void> loadNotifications() async {
-    // Имитация задержки сети
-    await Future.delayed(const Duration(milliseconds: 500));
+  final Ref _ref;
 
-    state = [
-      NotificationModel(
-        id: '1',
-        title: 'Заказ #12345 собран',
-        body:
-            'Ваш заказ готов к передаче курьеру. Ожидайте доставку в течение часа.',
-        date: DateTime.now().subtract(const Duration(minutes: 15)),
-        isRead: false,
-        type: 'order',
-      ),
-      NotificationModel(
-        id: '2',
-        title: 'Скидка 20% на фрукты',
-        body:
-            'Только сегодня! Успейте заказать свежие фрукты со скидкой. Акция действует до 22:00.',
-        date: DateTime.now().subtract(const Duration(days: 1)),
-        isRead: true,
-        type: 'promo',
-      ),
-      NotificationModel(
-        id: '3',
-        title: 'Добро пожаловать!',
-        body:
-            'Рады видеть вас в Lakshmi Market. Ваш QR-код для скидок уже готов.',
-        date: DateTime.now().subtract(const Duration(days: 5)),
-        isRead: true,
-        type: 'system',
-      ),
-    ];
+  Future<void> loadNotifications() async {
+    state = const AsyncValue.loading();
+    try {
+      final authService = _ref.read(authServiceProvider);
+      final userId = await authService.getSavedUserId();
+
+      if (userId == null) {
+        state = AsyncValue.error(
+          Exception('Пользователь не авторизован: нет сохранённого userId'),
+          StackTrace.current,
+        );
+        return;
+      }
+
+      final api = _ref.read(notificationsApiServiceProvider);
+      final items = await api.fetchNotifications(userId: userId);
+
+      state = AsyncValue.data(items);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
   }
 
-  void markAsRead(String id) {
-    state = [
-      for (final notification in state)
-        if (notification.id == id)
-          notification.copyWith(isRead: true)
-        else
-          notification,
-    ];
+  Future<void> markAsRead(String id) async {
+    final current = state;
+    if (current is! AsyncData<List<NotificationModel>>) return;
+
+    final notifId = int.tryParse(id);
+    if (notifId == null) return;
+
+    final authService = _ref.read(authServiceProvider);
+    final userId = await authService.getSavedUserId();
+    if (userId == null) return;
+
+    try {
+      final api = _ref.read(notificationsApiServiceProvider);
+      await api.markAsRead(notificationId: notifId, userId: userId);
+
+      final updated = [
+        for (final n in current.value)
+          if (n.id == id) n.copyWith(isRead: true) else n,
+      ];
+      state = AsyncValue.data(updated);
+    } catch (_) {
+      state = current;
+    }
   }
 
   void clearAll() {
-    state = [];
+    state = const AsyncValue.data([]);
   }
 }
 
 final notificationsProvider =
-    StateNotifierProvider<NotificationsNotifier, List<NotificationModel>>((
-      ref,
-    ) {
-      return NotificationsNotifier();
-    });
+    StateNotifierProvider<
+      NotificationsNotifier,
+      AsyncValue<List<NotificationModel>>
+    >((ref) => NotificationsNotifier(ref));

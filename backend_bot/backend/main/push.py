@@ -6,6 +6,7 @@ import os
 from typing import Iterable
 
 from django.core.exceptions import ImproperlyConfigured
+from .models import Notification as DBNotification
 
 try:  # firebase-admin is optional until configured
     import firebase_admin
@@ -121,6 +122,15 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
     message_text = _STATUS_MESSAGES.get(order.status)
     if not message_text:
         return
+    
+    notif = DBNotification(
+        user=order.customer,
+        title="Статус заказа",
+        body=message_text,
+        type="personal",
+    )
+    notif._skip_push = True  # чтобы сигнал Notification не отправил второй пуш
+    notif.save()
 
     tokens = _order_tokens(order)
     if not tokens:
@@ -208,3 +218,25 @@ def send_test_push_to_customer(
 
 
 __all__ = ["notify_order_status_change", "send_test_push_to_customer"]
+
+
+def notify_notification_created(notification) -> dict:
+    tokens = list(
+        notification.user.devices.exclude(fcm_token__isnull=True)
+        .exclude(fcm_token="")
+        .values_list("fcm_token", flat=True)
+    )
+    if not tokens:
+        return {"sent": 0, "success": 0, "failure": 0}
+
+    title = notification.title or "Уведомление"
+    body = notification.body or ""
+
+    data = {
+        "notification_id": str(notification.id),
+        "type": str(notification.type or "personal"),
+    }
+
+    app = _get_app()
+    return _send_to_tokens(tokens=tokens, title=title, body=body, data=data, app=app)
+

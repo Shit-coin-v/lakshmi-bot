@@ -11,7 +11,7 @@ class PushApiService {
     String platform = 'android',
   }) async {
     await _dio.post(
-      '/api/push/register/',
+      '/api/fcm/token/',
       data: {
         'customer_id': customerId,
         'fcm_token': fcmToken,

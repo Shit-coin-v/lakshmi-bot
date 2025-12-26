@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../providers/notifications_provider.dart';
+
 import '../models/notification_model.dart';
+import '../providers/notifications_provider.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifications = ref.watch(notificationsProvider);
-
-    // Группируем уведомления перед отображением
-    final groupedNotifications = _groupNotifications(notifications);
+    final notificationsAsync = ref.watch(notificationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF9FAFB,
-      ), // Очень светлый фон как на макете
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text(
           'Уведомления',
@@ -32,36 +29,58 @@ class NotificationsScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: notifications.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              itemCount: groupedNotifications.length,
-              itemBuilder: (context, index) {
-                final item = groupedNotifications[index];
-                if (item is String) {
-                  return _DateHeader(text: item);
-                } else if (item is NotificationModel) {
-                  return _NotificationCard(notification: item);
-                }
-                return const SizedBox.shrink();
-              },
+      body: notificationsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Ошибка загрузки уведомлений: $e',
+              textAlign: TextAlign.center,
             ),
+          ),
+        ),
+        data: (notifications) {
+          final groupedNotifications = _groupNotifications(notifications);
+
+          return notifications.isEmpty
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: () => ref
+                      .read(notificationsProvider.notifier)
+                      .loadNotifications(),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    itemCount: groupedNotifications.length,
+                    itemBuilder: (context, index) {
+                      final item = groupedNotifications[index];
+                      if (item is String) {
+                        return _DateHeader(text: item);
+                      } else if (item is NotificationModel) {
+                        return _NotificationCard(notification: item);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                );
+        },
+      ),
     );
   }
 
-  // Логика группировки списка для UI
   List<dynamic> _groupNotifications(List<NotificationModel> notifications) {
     if (notifications.isEmpty) return [];
 
-    // Сортируем по дате (сначала новые)
     final sorted = List<NotificationModel>.from(notifications)
       ..sort((a, b) => b.date.compareTo(a.date));
 
     final groupedList = <dynamic>[];
     String? lastHeader;
 
-    for (var notification in sorted) {
+    for (final notification in sorted) {
       final header = _getDateHeader(notification.date);
       if (header != lastHeader) {
         groupedList.add(header);
@@ -69,6 +88,7 @@ class NotificationsScreen extends ConsumerWidget {
       }
       groupedList.add(notification);
     }
+
     return groupedList;
   }
 
@@ -78,14 +98,10 @@ class NotificationsScreen extends ConsumerWidget {
     final yesterday = today.subtract(const Duration(days: 1));
     final checkDate = DateTime(date.year, date.month, date.day);
 
-    if (checkDate == today) {
-      return 'СЕГОДНЯ';
-    } else if (checkDate == yesterday) {
-      return 'ВЧЕРА';
-    } else {
-      // Формат "25 МАЯ 2024"
-      return DateFormat('d MMMM yyyy', 'ru').format(date).toUpperCase();
-    }
+    if (checkDate == today) return 'СЕГОДНЯ';
+    if (checkDate == yesterday) return 'ВЧЕРА';
+
+    return DateFormat('d MMMM yyyy', 'ru').format(date).toUpperCase();
   }
 
   Widget _buildEmptyState() {
@@ -109,7 +125,6 @@ class NotificationsScreen extends ConsumerWidget {
   }
 }
 
-// Виджет заголовка даты
 class _DateHeader extends StatelessWidget {
   final String text;
   const _DateHeader({required this.text});
@@ -131,21 +146,18 @@ class _DateHeader extends StatelessWidget {
   }
 }
 
-// Виджет карточки уведомления
-class _NotificationCard extends ConsumerWidget {
+class _NotificationCard extends StatelessWidget {
   final NotificationModel notification;
 
   const _NotificationCard({required this.notification});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          20,
-        ), // Сильное скругление как на фото
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -159,58 +171,70 @@ class _NotificationCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            ref
-                .read(notificationsProvider.notifier)
-                .markAsRead(notification.id);
-            // Можно добавить открытие деталей, если нужно
-          },
+          onTap: () => context.push('/notifications/${notification.id}'),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                // Круглая иконка
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9), // Светло-зеленый фон
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _getIconForType(notification.type),
-                    color: const Color(0xFF2E7D32), // Темно-зеленая иконка
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Текстовая часть
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                          height: 1.2,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8F5E9),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        notification.body,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          height: 1.4,
-                        ),
+                      child: Icon(
+                        _getIconForType(notification.type),
+                        color: const Color(0xFF2E7D32),
+                        size: 24,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            notification.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            notification.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                if (!notification.isRead)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -220,16 +244,18 @@ class _NotificationCard extends ConsumerWidget {
   }
 
   IconData _getIconForType(String? type) {
-    // Подбор иконок под макет
     switch (type) {
-      case 'order': // "Заказ в пути", "Доставлен"
-        return Icons.local_shipping_outlined; // Или Icons.shopping_bag_outlined
-      case 'promo': // "Новый купон"
-        return Icons.confirmation_number_outlined; // Похоже на купон
-      case 'bonus': // "Начислены баллы"
+      case 'order':
+        return Icons.local_shipping_outlined;
+      case 'promo':
+        return Icons.confirmation_number_outlined;
+      case 'bonus':
         return Icons.card_giftcard;
-      case 'news': // "Свежие поступления"
-        return Icons.campaign_outlined; // Рупор
+      case 'news':
+      case 'broadcast':
+        return Icons.campaign_outlined;
+      case 'personal':
+        return Icons.notifications_none_outlined;
       default:
         return Icons.notifications_none_outlined;
     }

@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class Product(models.Model):
     product_code = models.CharField(max_length=50, unique=True, blank=True, null=True)
     name = models.CharField(max_length=200)
@@ -122,6 +123,52 @@ class Notification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} | {self.type} | {self.title}"
+    
+
+class NotificationOpenEvent(models.Model):
+    SOURCE_CHOICES = (
+        ("inapp", "In-app"),
+        ("push", "Push"),
+    )
+
+    notification = models.ForeignKey(
+        Notification,
+        on_delete=models.CASCADE,
+        related_name="open_events",
+        verbose_name="Уведомление",
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="notification_open_events",
+        verbose_name="Клиент",
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default="inapp",
+        db_index=True,
+        verbose_name="Источник",
+    )
+    occurred_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="Открыто",
+    )
+
+    class Meta:
+        db_table = "notification_open_events"
+        verbose_name = "Открытие уведомления"
+        verbose_name_plural = "Открытия уведомлений"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["notification"],
+                name="uniq_notification_open_once",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} | notif={self.notification_id} | {self.source}"
 
 
 class Order(models.Model):

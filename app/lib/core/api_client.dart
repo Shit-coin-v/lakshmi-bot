@@ -2,9 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiClient {
-  // Для Linux используем localhost (127.0.0.1)
-  // Для Эмулятора Android используйте 'http://10.0.2.2:8000'
-  static const String _baseUrl = 'http://127.0.0.1:8000';
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000',
+  );
 
   // ВАШ СЕКРЕТНЫЙ КЛЮЧ
   static const String _apiKey = 'my_secret_mobile_key_2025';
