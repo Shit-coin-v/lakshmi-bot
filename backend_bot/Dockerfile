@@ -13,13 +13,12 @@ RUN apt-get update \
         bash \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
-COPY src/ ./src/
-COPY entrypoint.sh ./entrypoint.sh
+COPY backend/entrypoint.sh ./entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh \
     && addgroup --system app \

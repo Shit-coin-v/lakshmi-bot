@@ -30,18 +30,25 @@ __pycache__/
 *.sqlite3
 
 # Environments & Secrets
+backend/.env
+backend/.env.*
+backend/*.env
+backend/venv/
+backend/.venv/
 backend_bot/.env
 backend_bot/.env.*
 backend_bot/*.env
 backend_bot/venv/
 backend_bot/.venv/
-backend_bot/backend/venv/
 
 # Django specific
+backend/media/
+backend/staticfiles/
+backend/collected_static/
+backend/backend/collected_static/
+backend/backend/media/
 backend_bot/media/
 backend_bot/staticfiles/
-backend_bot/backend/collected_static/
-backend_bot/backend/media/
 
 # Development specific
 
@@ -82,7 +89,7 @@ mobile/flutter_app/android/app/profile
 mobile/flutter_app/android/app/release
 
 # Secrets
-backend_bot/backend/firebase_service_account.json
+backend/firebase_service_account.json
 
 # Python venv
 backend_bot/venv/

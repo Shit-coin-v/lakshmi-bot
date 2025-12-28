@@ -68,9 +68,9 @@
 ## C) Таблица переноса путей
 | FROM | TO | Тип | Риск | Причина |
 | --- | --- | --- | --- | --- |
-| `backend_bot/backend/` | `backend/` | backend | высокий | Django настройки и импорты привязаны к прежним путям, плюс manage.py расположение в docker-compose. |
-| `backend_bot/requirements.txt` | `backend/requirements.txt` | backend | средний | Путь зависимостей используется в Dockerfile и CI. |
-| `backend_bot/entrypoint.sh` | `backend/entrypoint.sh` | backend | средний | Скрипт стартует Django/Celery; жёстко привязан к путям. |
+| `backend_bot/backend/` | `backend/` | backend | высокий | **ВЫПОЛНЕНО в dev**. Django настройки и импорты привязаны к прежним путям, плюс manage.py расположение в docker-compose. |
+| `backend_bot/requirements.txt` | `backend/requirements.txt` | backend | средний | **ВЫПОЛНЕНО в dev**. Путь зависимостей используется в Dockerfile и CI. |
+| `backend_bot/entrypoint.sh` | `backend/entrypoint.sh` | backend | средний | **ВЫПОЛНЕНО в dev**. Скрипт стартует Django/Celery; жёстко привязан к путям. |
 | `backend_bot/src/` | `bots/customer_bot/` | bot | высокий | **ВЫПОЛНЕНО в dev**. Импорты и файлы данных перенесены в новый корень бота. |
 | `backend_bot/blocked_ids.txt` | `bots/customer_bot/config/blocked_ids.txt` | bot | низкий | **ВЫПОЛНЕНО в dev**. Файл перенесён рядом с исходниками бота. |
 | `backend_bot/Dockerfile` | `infra/docker/backend/Dockerfile` | infra | высокий | В Dockerfile зашиты относительные пути к исходникам; нужен апдейт контекста. |
@@ -90,7 +90,7 @@
 2. **PR2 (выполнено)**: Документация перенесена в `docs/backend/`; ссылки в документах обновлены.
 3. **PR3 (выполнено)**: Flutter-проект перенесён в `mobile/flutter_app/`, пути сборки/CI обновлены на новый корень.
 4. **PR4 (выполнено)**: Перенести исходники бота `backend_bot/src/` + `blocked_ids.txt` в `bots/customer_bot/`, поправить импорт-пути и entrypoint.
-5. **PR5**: Перенести Django код `backend_bot/backend/` и вспомогательные файлы (`requirements.txt`, `entrypoint.sh`) в `backend/`, обновить импорты, manage.py пути и Celery конфигурацию.
+5. **PR5 (выполнено)**: Перенести Django код в `backend/` вместе с `requirements.txt` и `entrypoint.sh`, обновить зависимые пути и конфигурацию.
 6. **PR6**: Перенести инфраструктурные файлы (`Dockerfile`, `docker-compose*.yml`, `nginx/`, `grafana/`, `prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`) в `infra/` и обновить пути сборки/volume, после чего проверить запуск через docker-compose.
 
 ## E) Чек-лист проверок после каждого PR
