@@ -82,3 +82,13 @@ backend_bot/backend/backend/firebase_service_account.json
 
 # Secrets
 backend_bot/backend/firebase_service_account.json
+
+# Flutter
+app/build/
+
+# Python venv
+backend_bot/venv/
+
+# Python cache
+**/__pycache__/
+*.pyc
