@@ -41,9 +41,12 @@ backend_bot/backend/venv/
 backend_bot/media/
 backend_bot/staticfiles/
 backend_bot/backend/collected_static/
+backend_bot/backend/media/
 
 # Development specific
-backend_bot/src/qr_codes/
+
+# Telegram bots
+bots/customer_bot/qr_codes/
 
 # Исключение для примера (если нужно, чтобы .env.example был виден)
 !backend_bot/.env.example

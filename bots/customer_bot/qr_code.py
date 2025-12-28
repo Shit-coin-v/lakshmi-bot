@@ -8,7 +8,11 @@ try:
 except Exception as e:
     raise RuntimeError("qrcode package is required: pip install qrcode[pil]") from e
 
-MEDIA_ROOT = (Path(__file__).resolve().parents[1] / "backend" / "media").resolve()
+REPO_ROOT = Path(__file__).resolve().parents[2]  # <repo>/
+MEDIA_ROOT = REPO_ROOT / "backend" / "media"
+if not MEDIA_ROOT.exists():
+    MEDIA_ROOT = REPO_ROOT / "backend_bot" / "backend" / "media"
+MEDIA_ROOT = MEDIA_ROOT.resolve()
 QR_DIR = MEDIA_ROOT / "qr_codes"
 QR_DIR.mkdir(parents=True, exist_ok=True)
 
