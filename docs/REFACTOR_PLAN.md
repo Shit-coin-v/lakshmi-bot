@@ -81,13 +81,13 @@
 | `backend_bot/prometheus.yml` | `infra/observability/prometheus.yml` | infra | средний | Путь к scrape targets требует обновления после переноса. |
 | `backend_bot/loki-config.yaml` | `infra/observability/loki-config.yaml` | infra | низкий | Файл конфигурации, пути к логам нужно сверить. |
 | `backend_bot/promtail-config.yaml` | `infra/observability/promtail-config.yaml` | infra | низкий | Путь к логам и docker labels может потребовать правок. |
-| `backend_bot/README.md` | `docs/backend/README.md` | docs | низкий | Только документация, перенос без изменения содержимого. |
+| `docs/backend/README.md` | `docs/backend/README.md` | docs | низкий | **ВЫПОЛНЕНО в dev**. Документация перенесена из старого корня бэкенда без изменений. |
 | `app/` | `mobile/flutter_app/` | mobile | средний | Выполнено: Flutter-проект перенесён, CI/скрипты теперь должны использовать путь `mobile/flutter_app/`. |
 | `docs/ARCHITECTURE.md` | `docs/ARCHITECTURE.md` | docs | низкий | Уже на месте; перенос не требуется, но остаётся в репозитории. |
 
 ## D) Порядок PR (минимально безопасные шаги)
 1. **PR1**: Создать каркас папок `infra/`, `infra/docker/`, `infra/observability/`, `backend/`, `bots/customer_bot/`, `mobile/flutter_app/`, `docs/backend/` с `.gitkeep`, не перемещая код.
-2. **PR2**: Перенести иерархию документации (`backend_bot/README.md`) в `docs/backend/`; убедиться, что ссылки в документах обновлены.
+2. **PR2 (выполнено)**: Документация перенесена в `docs/backend/`; ссылки в документах обновлены.
 3. **PR3 (выполнено)**: Flutter-проект перенесён в `mobile/flutter_app/`, пути сборки/CI обновлены на новый корень.
 4. **PR4 (выполнено)**: Перенести исходники бота `backend_bot/src/` + `blocked_ids.txt` в `bots/customer_bot/`, поправить импорт-пути и entrypoint.
 5. **PR5**: Перенести Django код `backend_bot/backend/` и вспомогательные файлы (`requirements.txt`, `entrypoint.sh`) в `backend/`, обновить импорты, manage.py пути и Celery конфигурацию.
