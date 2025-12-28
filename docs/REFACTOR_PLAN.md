@@ -73,14 +73,14 @@
 | `backend_bot/entrypoint.sh` | `backend/entrypoint.sh` | backend | средний | **ВЫПОЛНЕНО в dev**. Скрипт стартует Django/Celery; жёстко привязан к путям. |
 | `backend_bot/src/` | `bots/customer_bot/` | bot | высокий | **ВЫПОЛНЕНО в dev**. Импорты и файлы данных перенесены в новый корень бота. |
 | `backend_bot/blocked_ids.txt` | `bots/customer_bot/config/blocked_ids.txt` | bot | низкий | **ВЫПОЛНЕНО в dev**. Файл перенесён рядом с исходниками бота. |
-| `backend_bot/Dockerfile` | `infra/docker/backend/Dockerfile` | infra | высокий | В Dockerfile зашиты относительные пути к исходникам; нужен апдейт контекста. |
-| `backend_bot/docker-compose.yml` | `infra/docker/docker-compose.yml` | infra | высокий | Содержит volume-пути и build-контексты на старые директории. |
-| `backend_bot/docker-compose.override.yml` | `infra/docker/docker-compose.override.yml` | infra | высокий | Дублирует пути, влияет на локальную разработку. |
-| `backend_bot/nginx/` | `infra/docker/nginx/` | infra | средний | Конфиги nginx завязаны на пути статики и сокетов. |
-| `backend_bot/grafana/` | `infra/observability/grafana/` | infra | средний | Дашборды/конфиги ссылаются на источники; нужно проверить пути. |
-| `backend_bot/prometheus.yml` | `infra/observability/prometheus.yml` | infra | средний | Путь к scrape targets требует обновления после переноса. |
-| `backend_bot/loki-config.yaml` | `infra/observability/loki-config.yaml` | infra | низкий | Файл конфигурации, пути к логам нужно сверить. |
-| `backend_bot/promtail-config.yaml` | `infra/observability/promtail-config.yaml` | infra | низкий | Путь к логам и docker labels может потребовать правок. |
+| `backend_bot/Dockerfile` | `infra/docker/backend/Dockerfile` | infra | высокий | **ВЫПОЛНЕНО (PR6)**. В Dockerfile зашиты относительные пути к исходникам; нужен апдейт контекста. |
+| `backend_bot/docker-compose.yml` | `infra/docker/docker-compose.yml` | infra | высокий | **ВЫПОЛНЕНО (PR6)**. Содержит volume-пути и build-контексты на старые директории. |
+| `backend_bot/docker-compose.override.yml` | `infra/docker/docker-compose.override.yml` | infra | высокий | **ВЫПОЛНЕНО (PR6)**. Дублирует пути, влияет на локальную разработку. |
+| `backend_bot/nginx/` | `infra/docker/nginx/` | infra | средний | **ВЫПОЛНЕНО (PR6)**. Конфиги nginx завязаны на пути статики и сокетов. |
+| `backend_bot/grafana/` | `infra/observability/grafana/` | infra | средний | **ВЫПОЛНЕНО (PR6)**. Дашборды/конфиги ссылаются на источники; нужно проверить пути. |
+| `backend_bot/prometheus.yml` | `infra/observability/prometheus.yml` | infra | средний | **ВЫПОЛНЕНО (PR6)**. Путь к scrape targets требует обновления после переноса. |
+| `backend_bot/loki-config.yaml` | `infra/observability/loki-config.yaml` | infra | низкий | **ВЫПОЛНЕНО (PR6)**. Файл конфигурации, пути к логам нужно сверить. |
+| `backend_bot/promtail-config.yaml` | `infra/observability/promtail-config.yaml` | infra | низкий | **ВЫПОЛНЕНО (PR6)**. Путь к логам и docker labels может потребовать правок. |
 | `docs/backend/README.md` | `docs/backend/README.md` | docs | низкий | **ВЫПОЛНЕНО в dev**. Документация перенесена из старого корня бэкенда без изменений. |
 | `app/` | `mobile/flutter_app/` | mobile | средний | Выполнено: Flutter-проект перенесён, CI/скрипты теперь должны использовать путь `mobile/flutter_app/`. |
 | `docs/ARCHITECTURE.md` | `docs/ARCHITECTURE.md` | docs | низкий | Уже на месте; перенос не требуется, но остаётся в репозитории. |
@@ -91,7 +91,7 @@
 3. **PR3 (выполнено)**: Flutter-проект перенесён в `mobile/flutter_app/`, пути сборки/CI обновлены на новый корень.
 4. **PR4 (выполнено)**: Перенести исходники бота `backend_bot/src/` + `blocked_ids.txt` в `bots/customer_bot/`, поправить импорт-пути и entrypoint.
 5. **PR5 (выполнено)**: Перенести Django код в `backend/` вместе с `requirements.txt` и `entrypoint.sh`, обновить зависимые пути и конфигурацию.
-6. **PR6**: Перенести инфраструктурные файлы (`Dockerfile`, `docker-compose*.yml`, `nginx/`, `grafana/`, `prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`) в `infra/` и обновить пути сборки/volume, после чего проверить запуск через docker-compose.
+6. **PR6 (выполнено)**: Перенести инфраструктурные файлы (`Dockerfile`, `docker-compose*.yml`, `nginx/`, `grafana/`, `prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`) в `infra/` и обновить пути сборки/volume, после чего проверить запуск через docker-compose.
 
 ## E) Чек-лист проверок после каждого PR
 - Backend запускается: `python manage.py check` / запуск dev-сервера.
