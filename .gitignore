@@ -50,41 +50,36 @@ backend_bot/src/qr_codes/
 
 # ========================
 # APP (Flutter / Dart)
-# Пути относительно папки app/
+# Пути относительно папки mobile/flutter_app/
 # ========================
-app/.dart_tool/
-app/.flutter-plugins-dependencies
-app/.pub-cache/
-app/.pub/
-app/build/
-app/coverage/
-app/migrate_working_dir/
+mobile/flutter_app/.dart_tool/
+mobile/flutter_app/.flutter-plugins-dependencies
+mobile/flutter_app/.pub-cache/
+mobile/flutter_app/.pub/
+mobile/flutter_app/build/
+mobile/flutter_app/coverage/
+mobile/flutter_app/migrate_working_dir/
 
 # iOS / Mac specific in Flutter
-app/.atom/
-app/.build/
-app/.buildlog/
-app/.swiftpm/
-app/**/*.class
-app/**/doc/api/
-app/**/ios/Flutter/.last_build_id
+mobile/flutter_app/.atom/
+mobile/flutter_app/.build/
+mobile/flutter_app/.buildlog/
+mobile/flutter_app/.swiftpm/
+mobile/flutter_app/**/*.class
+mobile/flutter_app/**/doc/api/
+mobile/flutter_app/**/ios/Flutter/.last_build_id
 
 # Symbolication & Obfuscation
-app/app.*.symbols
-app/app.*.map.json
+mobile/flutter_app/app.*.symbols
+mobile/flutter_app/app.*.map.json
 
 # Android Studio artifacts
-app/android/app/debug
-app/android/app/profile
-app/android/app/release
-# Secrets
-backend_bot/backend/backend/firebase_service_account.json
+mobile/flutter_app/android/app/debug
+mobile/flutter_app/android/app/profile
+mobile/flutter_app/android/app/release
 
 # Secrets
 backend_bot/backend/firebase_service_account.json
-
-# Flutter
-app/build/
 
 # Python venv
 backend_bot/venv/
