@@ -18,7 +18,7 @@
 
 # ========================
 # BACKEND (Python / Django)
-# Пути относительно папки backend_bot/
+# Пути относительно папки backend/
 # ========================
 # Byte-compiled / Optimized / DLL files
 __pycache__/
@@ -35,11 +35,6 @@ backend/.env.*
 backend/*.env
 backend/venv/
 backend/.venv/
-backend_bot/.env
-backend_bot/.env.*
-backend_bot/*.env
-backend_bot/venv/
-backend_bot/.venv/
 
 # Django specific
 backend/media/
@@ -47,8 +42,6 @@ backend/staticfiles/
 backend/collected_static/
 backend/backend/collected_static/
 backend/backend/media/
-backend_bot/media/
-backend_bot/staticfiles/
 
 # Development specific
 
@@ -56,7 +49,7 @@ backend_bot/staticfiles/
 bots/customer_bot/qr_codes/
 
 # Исключение для примера (если нужно, чтобы .env.example был виден)
-!backend_bot/.env.example
+!backend/.env.example
 
 # ========================
 # APP (Flutter / Dart)
@@ -90,9 +83,6 @@ mobile/flutter_app/android/app/release
 
 # Secrets
 backend/firebase_service_account.json
-
-# Python venv
-backend_bot/venv/
 
 # Python cache
 **/__pycache__/

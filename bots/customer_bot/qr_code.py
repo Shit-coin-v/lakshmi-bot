@@ -11,7 +11,25 @@ except Exception as e:
 REPO_ROOT = Path(__file__).resolve().parents[2]  # <repo>/
 MEDIA_ROOT = REPO_ROOT / "backend" / "media"
 if not MEDIA_ROOT.exists():
-    MEDIA_ROOT = REPO_ROOT / "backend_bot" / "backend" / "media"
+    excluded = {
+        "backend",
+        "infra",
+        "bots",
+        "mobile",
+        "docs",
+        "shared",
+        ".git",
+        ".github",
+        "venv",
+        ".venv",
+    }
+    for candidate in REPO_ROOT.iterdir():
+        if not candidate.is_dir() or candidate.name in excluded:
+            continue
+        legacy_media = candidate / "backend" / "media"
+        if legacy_media.exists():
+            MEDIA_ROOT = legacy_media
+            break
 MEDIA_ROOT = MEDIA_ROOT.resolve()
 QR_DIR = MEDIA_ROOT / "qr_codes"
 QR_DIR.mkdir(parents=True, exist_ok=True)
