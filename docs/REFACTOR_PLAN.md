@@ -15,40 +15,39 @@
 └── shared/
 ```
 
-## B) Целевое дерево (кратко) из ARCHITECTURE.md
+## B) Target Tree V1 (структурный, безопасный)
 ```
 /
 ├── infra/
-│   ├── docker/
-│   ├── k8s/
-│   └── ci/
+│   └── docker/ (docker-compose.yml и связанное)
 ├── backend/
 │   ├── manage.py
 │   ├── requirements.txt
+│   ├── entrypoint.sh
+│   ├── backend/        (django project: settings/urls/asgi/wsgi/celery)
 │   └── apps/
-│       ├── orders/
-│       ├── loyalty/
-│       ├── notifications/
-│       ├── integrations/
-│       │   ├── onec/
-│       │   ├── payments/
-│       │   └── delivery/
-│       └── common/
+│       ├── api/
+│       └── main/
 ├── bots/
-│   ├── customer_bot/
-│   ├── courier_bot/
-│   └── picker_bot/
 ├── shared/
-│   ├── dto/
-│   ├── clients/
-│   └── config/
 ├── mobile/
-│   └── flutter_app/
 └── docs/
-    └── ARCHITECTURE.md
 ```
 
-## C) Таблица переноса путей
+## C) Target Tree V2 (архитектурная цель)
+```
+/
+├── infra/{docker,k8s,ci}/
+├── backend/{manage.py,requirements.txt,apps/...}/
+├── bots/{customer_bot,courier_bot,picker_bot}/
+├── shared/{dto,clients,config}/
+├── mobile/flutter_app/
+└── docs/ARCHITECTURE.md
+```
+
+**Правило:** V2 — НЕ структурный рефакторинг. Это отдельная стадия, требующая переносов кода/моделей/urls/migrations и потенциально затрагивающая API. Выполнять отдельно позже.
+
+## D) Таблица переноса путей
 `legacy_root/` — исторический корень до переноса, сейчас удалён.
 | FROM (legacy_root) | TO | Тип | Риск | Причина |
 | --- | --- | --- | --- | --- |
@@ -69,7 +68,7 @@
 | `app/` | `mobile/flutter_app/` | mobile | средний | Выполнено: Flutter-проект перенесён, CI/скрипты теперь должны использовать путь `mobile/flutter_app/`. |
 | `docs/ARCHITECTURE.md` | `docs/ARCHITECTURE.md` | docs | низкий | Уже на месте; перенос не требуется, но остаётся в репозитории. |
 
-## D) Порядок PR (минимально безопасные шаги)
+## E) Порядок PR (минимально безопасные шаги)
 1. **PR1**: Создать каркас папок `infra/`, `infra/docker/`, `infra/observability/`, `backend/`, `bots/customer_bot/`, `mobile/flutter_app/`, `docs/backend/` с `.gitkeep`, не перемещая код.
 2. **PR2 (выполнено)**: Документация перенесена в `docs/backend/`; ссылки в документах обновлены.
 3. **PR3 (выполнено)**: Flutter-проект перенесён в `mobile/flutter_app/`, пути сборки/CI обновлены на новый корень.
@@ -78,7 +77,7 @@
 6. **PR6 (выполнено)**: Перенести инфраструктурные файлы из `legacy_root/` (`Dockerfile`, `docker-compose*.yml`, `nginx/`, `grafana/`, `prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`) в `infra/` и обновить пути сборки/volume, после чего проверить запуск через docker-compose.
 7. **PR7 (выполнено)**: Удаление legacy директории `legacy_root/` из репозитория и актуализация документации по текущему дереву.
 
-## E) Чек-лист проверок после каждого PR
+## F) Чек-лист проверок после каждого PR
 - Backend запускается: `python manage.py check` / запуск dev-сервера.
 - Celery стартует (если используется): `celery -A <project> worker -l info`.
 - Бот стартует: команда/entrypoint запуска бота в новом пути.
