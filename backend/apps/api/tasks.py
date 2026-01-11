@@ -12,7 +12,7 @@ from django.utils import timezone as dj_tz
 from celery import shared_task
 from dotenv import load_dotenv
 
-from main.models import CustomUser, Order
+from apps.main.models import CustomUser, Order
 
 logger = logging.getLogger(__name__)
 

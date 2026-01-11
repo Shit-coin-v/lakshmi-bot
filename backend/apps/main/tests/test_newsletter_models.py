@@ -1,7 +1,7 @@
 from django.db import IntegrityError
 from django.test import TestCase
 
-from main.models import (
+from apps.main.models import (
     BroadcastMessage,
     CustomUser,
     NewsletterDelivery,

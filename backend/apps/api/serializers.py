@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
-from main.models import Product, Order, OrderItem, CustomUser, Notification
+from apps.main.models import Product, Order, OrderItem, CustomUser, Notification
 
 
 class PurchaseSerializer(serializers.Serializer):
@@ -152,7 +152,7 @@ class OrderItemSerializer(serializers.Serializer):
         return attrs
 
 
-# backend/api/serializers.py
+# backend/apps/api/serializers.py
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)

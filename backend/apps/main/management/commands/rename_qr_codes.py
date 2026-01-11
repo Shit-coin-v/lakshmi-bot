@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand
 
-from src.qr_code import (
+from bots.customer_bot.qr_code import (
     QR_DIR,
     QR_EXTENSION,
     QR_LEGACY_PREFIX,

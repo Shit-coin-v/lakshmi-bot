@@ -1,5 +1,5 @@
 from django.db import models
-from main.models import CustomUser
+from apps.main.models import CustomUser
 
 
 class OneCClientMap(models.Model):

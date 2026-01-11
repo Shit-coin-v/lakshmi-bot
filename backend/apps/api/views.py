@@ -28,12 +28,12 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 
-from main.models import (
+from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
-from main.push import notify_order_status_change
-from src import config
+from apps.main.push import notify_order_status_change
+from bots.customer_bot import config
 
 from .permissions import ApiKeyPermission
 from .models import OneCClientMap

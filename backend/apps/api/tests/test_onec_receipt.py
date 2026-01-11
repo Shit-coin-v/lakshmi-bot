@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import Client, TestCase
 
 from api import security
-from main.models import CustomUser, Transaction
+from apps.main.models import CustomUser, Transaction
 
 
 class OneCReceiptTests(TestCase):
@@ -251,7 +251,7 @@ class OneCReceiptTests(TestCase):
             telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
         )
 
-        with self.assertLogs("backend.api.views", level="WARNING") as cm:
+        with self.assertLogs("apps.api.views", level="WARNING") as cm:
             response = self._post_receipt(
                 payload,
                 api_key=security.API_KEY,

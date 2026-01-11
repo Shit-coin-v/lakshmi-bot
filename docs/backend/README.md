@@ -57,7 +57,7 @@ object; the server will allocate the receipt to the configured guest user.
 3. To execute tests that cover the tracking flow:
    ```bash
    DJANGO_SETTINGS_MODULE=backend.test_settings pytest bots/customer_bot/tests/test_newsletter_tracking.py
-   SECRET_KEY=dummy python backend/manage.py test main.tests --settings=backend.test_settings
+   SECRET_KEY=dummy python backend/manage.py test apps.main.tests --settings=backend.test_settings
    ```
 4. Run the Celery workers that handle broadcast delivery:
    ```bash
