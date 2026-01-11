@@ -12,18 +12,7 @@
 │       ├── macos/
 │       ├── web/
 │       └── windows/
-├── backend_bot/
-│   ├── backend/
-│   ├── grafana/
-│   ├── nginx/
-│   ├── Dockerfile
-│   ├── README.md
-│   ├── docker-compose.override.yml
-│   ├── docker-compose.yml
-│   ├── entrypoint.sh
-│   ├── loki-config.yaml
-│   ├── promtail-config.yaml
-│   └── prometheus.yml
+├── backend_bot/  (удалено)
 ├── bots/
 │   ├── customer_bot/
 │   ├── courier_bot/
