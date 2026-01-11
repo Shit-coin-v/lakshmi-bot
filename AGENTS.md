@@ -25,7 +25,8 @@
 - Update paths as directories move—do not guess future layouts without verifying the tree/plan.
 
 ## PR Workflow
-- PRs are created via the Codex UI "Создать PR" button; avoid instructions about manual `git push`/PR creation unless explicitly requested.
+- PRs are created via the GitHub Pull Request UI (web interface).
+- Avoid instructions about manual `git push`/PR creation unless explicitly requested.
 
 ## Testing
 - Do not claim Docker Compose validation was run if Docker is unavailable.
