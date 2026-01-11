@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 from django.test import TransactionTestCase
 
-from main.models import BroadcastMessage, CustomUser, NewsletterDelivery
+from apps.main.models import BroadcastMessage, CustomUser, NewsletterDelivery
 
 os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
 
-from src import broadcast  # noqa: E402  pylint: disable=wrong-import-position
+from bots.customer_bot import broadcast  # noqa: E402  pylint: disable=wrong-import-position
 
 
 class DummyTelegramBot:

@@ -5,8 +5,8 @@ import json
 from django.test import Client, TestCase
 
 from api import security
-from api.models import OneCClientMap
-from main.models import CustomUser
+from apps.api.models import OneCClientMap
+from apps.main.models import CustomUser
 
 
 class OneCCustomerSyncTests(TestCase):

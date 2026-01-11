@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.database.models import (
+from .database.models import (
     SessionLocal,
     BroadcastMessage as SqlBroadcastMessage,
     CustomUser,
@@ -259,7 +259,7 @@ async def _send_with_django(message_id: int, bot_instance: Bot) -> None:
         from asgiref.sync import sync_to_async
         from django.core.exceptions import ObjectDoesNotExist
         from django.db import transaction
-        from main.models import (
+        from apps.main.models import (
             BroadcastMessage as DjangoBroadcastMessage,
             CustomUser as DjangoCustomUser,
             NewsletterDelivery as DjangoNewsletterDelivery,

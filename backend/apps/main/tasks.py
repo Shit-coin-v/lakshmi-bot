@@ -1,4 +1,4 @@
-# backend/main/tasks.py
+# backend/apps/main/tasks.py
 import asyncio
 import logging
 from celery import shared_task
@@ -16,7 +16,7 @@ def broadcast_send_task(self, message_id: int) -> None:
     from aiogram.enums import ParseMode
     from aiogram.client.default import DefaultBotProperties
 
-    from src.broadcast import _send_with_django, BOT_TOKEN
+    from bots.customer_bot.broadcast import _send_with_django, BOT_TOKEN
 
     async def runner():
         bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -26,4 +26,3 @@ def broadcast_send_task(self, message_id: int) -> None:
             await bot.session.close()
 
     asyncio.run(runner())
-
