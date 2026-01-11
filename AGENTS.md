@@ -14,6 +14,8 @@
 - Final layout removes `backend_bot/`.
 - Backend lives in `/backend/`.
 - Docker Compose file resides at `/infra/docker/docker-compose.yml`.
+- Current agent goal is V1 only (paths/structure stabilization).
+- Do not start V2 (domain app decomposition) without explicit permission.
 
 ## Docker Compose Rules
 - In `infra/docker/docker-compose.yml`, use `env_file: ../../backend/.env` as the final path.
