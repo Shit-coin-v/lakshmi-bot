@@ -91,7 +91,7 @@ services:
       dockerfile: infra/docker/backend/Dockerfile
     env_file: ../../backend/.env
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app:/app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
     working_dir: /app
     depends_on:
@@ -130,7 +130,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       POSTGRES_HOST: db
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app:/app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
     command: ["-A", "backend.celery", "worker", "--loglevel=info"]
@@ -160,7 +160,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       POSTGRES_HOST: db
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app:/app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
     command: ["-A", "backend.celery", "beat", "--loglevel=info"]
