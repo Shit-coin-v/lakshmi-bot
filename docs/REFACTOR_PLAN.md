@@ -3,22 +3,16 @@
 ## A) Текущее дерево (2 уровня)
 ```
 /
-├── mobile/
-│   └── flutter_app/
-│       ├── android/
-│       ├── ios/
-│       ├── lib/
-│       ├── linux/
-│       ├── macos/
-│       ├── web/
-│       └── windows/
-├── backend_bot/  (удалено)
+├── AGENTS.md
+├── backend/
 ├── bots/
 │   ├── customer_bot/
 │   ├── courier_bot/
 │   └── picker_bot/
-└── docs/
-    └── ARCHITECTURE.md
+├── docs/
+├── infra/
+├── mobile/
+└── shared/
 ```
 
 ## B) Целевое дерево (кратко) из ARCHITECTURE.md
@@ -81,6 +75,7 @@
 4. **PR4 (выполнено)**: Перенести исходники бота `backend_bot/src/` + `blocked_ids.txt` в `bots/customer_bot/`, поправить импорт-пути и entrypoint.
 5. **PR5 (выполнено)**: Перенести Django код в `backend/` вместе с `requirements.txt` и `entrypoint.sh`, обновить зависимые пути и конфигурацию.
 6. **PR6 (выполнено)**: Перенести инфраструктурные файлы (`Dockerfile`, `docker-compose*.yml`, `nginx/`, `grafana/`, `prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`) в `infra/` и обновить пути сборки/volume, после чего проверить запуск через docker-compose.
+7. **PR7 (выполнено)**: Удаление legacy директории `backend_bot/` из репозитория и актуализация документации по текущему дереву.
 
 ## E) Чек-лист проверок после каждого PR
 - Backend запускается: `python manage.py check` / запуск dev-сервера.
