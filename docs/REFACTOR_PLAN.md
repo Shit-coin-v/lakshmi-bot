@@ -208,3 +208,45 @@ Flutter:
 flutter test
 
 при необходимости flutter build ... в mobile/flutter_app/
+
+## Журнал выполнения V1 (проверки и изменения)
+
+### Выполненные проверки без изменений
+
+p.1 infra/docker/docker-compose.override.yml — изменений не потребовалось.
+
+p.2 infra/docker/backend/Dockerfile — изменений не потребовалось.
+
+p.3 backend/entrypoint.sh — изменений не потребовалось.
+
+### Проверки, потребовавшие правок
+
+p.4 согласованность nginx ↔ volumes (статика/медиа): выровнены пути статики/медиа между infra/docker/nginx/nginx.conf, infra/docker/docker-compose.yml и настройками Django (STATIC_URL/MEDIA_ROOT).
+
+p.5 финальный rg-скан “старых следов” — совпадения только в документации/настройках, без правок кода/infra.
+Найденные файлы:
+- docs/REFACTOR_PLAN.md
+- docs/ARCHITECTURE.md
+- .gitignore
+
+### Изменения, которые были внесены
+
+3de976d Align media mounts with Django settings
+infra/docker/docker-compose.yml и infra/docker/nginx/nginx.conf: выровнены пути/маунты media в конфигурации.
+
+a451600 Fix Django static URL
+backend/backend/settings.py: обновлено значение STATIC_URL.
+
+### Проверки, которые выполнялись
+
+python -m compileall backend
+
+DJANGO_SETTINGS_MODULE=backend.settings python backend/manage.py check
+
+rg -n --hidden --glob '!.git/**' "(backend_bot|backend-bot|/backend_bot\b|backend_bot/|backend_bot\.|backend_bot-|infra/docker-compose\.yml|backend_bot/docker-compose\.yml|docker-compose\.override\.yml|flutter_app|mobile/app\b|app/(pubspec\.yaml|lib/|android/|ios/))" .
+
+docker compose -f infra/docker/docker-compose.yml config — не выполнялось (docker недоступен в среде).
+
+### Неподтверждённый гейт V1
+
+p.6 (docker compose -f infra/docker/docker-compose.yml config) остаётся непроверенным в текущей среде.
