@@ -13,7 +13,8 @@ def main():
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+    if not os.environ.get('DJANGO_SETTINGS_MODULE'):
+        os.environ['DJANGO_SETTINGS_MODULE'] = 'backend.settings'
 
     try:
         from django.core.management import execute_from_command_line
