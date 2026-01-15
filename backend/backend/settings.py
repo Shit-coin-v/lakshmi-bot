@@ -39,7 +39,7 @@ DEBUG = _env_bool("DEBUG", False)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    if any(cmd in sys.argv for cmd in {"test", "collectstatic"}):
+    if any(cmd in sys.argv for cmd in {"test", "collectstatic", "check"}):
         SECRET_KEY = "test-secret-key"
     elif DEBUG:
         SECRET_KEY = "insecure-development-key"
