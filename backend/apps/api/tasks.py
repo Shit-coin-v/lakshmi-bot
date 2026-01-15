@@ -9,15 +9,9 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as dj_tz
 
-from celery import shared_task
-from dotenv import load_dotenv
-
 from apps.main.models import CustomUser, Order
 
 logger = logging.getLogger(__name__)
-
-
-load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
