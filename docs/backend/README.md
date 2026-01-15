@@ -1,5 +1,16 @@
 # 1C Integration Endpoints
 
+## Environment setup (Docker Compose)
+
+1. Copy the env template:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+2. Start the stack from the repo root:
+   ```bash
+   docker compose -f infra/docker/docker-compose.yml up -d
+   ```
+
 ## `/onec/receipt`
 
 `POST /onec/receipt` accepts a minimal JSON payload describing the receipt and
