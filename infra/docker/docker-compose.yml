@@ -101,7 +101,7 @@ services:
     container_name: app
     volumes:
       - static:/app/backend/collected_static
-      - media:/app/media
+      - media:/app/backend/media
     healthcheck:
       test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:8000/healthz/ || exit 1" ]
       interval: 30s
@@ -136,7 +136,7 @@ services:
         max-size: "20m"
         max-file: "3"
     volumes:
-      - media:/app/media
+      - media:/app/backend/media
 
   celery_beat:
     build:
@@ -162,7 +162,7 @@ services:
         max-size: "20m"
         max-file: "3"
     volumes:
-      - media:/app/media
+      - media:/app/backend/media
 
   redis:
     image: redis:7
@@ -194,7 +194,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - static:/app/backend/collected_static
-      - media:/app/media
+      - media:/app/backend/media
     logging:
       driver: json-file
       options:
