@@ -7,12 +7,6 @@ from pathlib import Path
 
 def main():
     """Run administrative tasks."""
-    # Добавляем корень репозитория (~/lakshmi_bot) в PYTHONPATH,
-    # чтобы импорты вида `from bots.customer_bot...` работали при запуске из backend/.
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent  # ~/lakshmi_bot
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-
     if not os.environ.get('DJANGO_SETTINGS_MODULE'):
         os.environ['DJANGO_SETTINGS_MODULE'] = 'backend.settings'
 
