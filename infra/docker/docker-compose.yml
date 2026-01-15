@@ -66,7 +66,8 @@ services:
 
   db:
     image: postgres:17
-    env_file: ../../backend/.env
+    env_file:
+      - ../../backend/.env
     restart: always
     container_name: db
     # ports:
@@ -89,7 +90,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: ../../backend/.env
+    env_file:
+      - ../../backend/.env
     environment:
       PYTHONPATH: /app:/app/backend
       DJANGO_SETTINGS_MODULE: backend.settings
@@ -118,7 +120,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: ../../backend/.env
+    env_file:
+      - ../../backend/.env
     container_name: celery_worker
     restart: always
     depends_on:
@@ -142,7 +145,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: ../../backend/.env
+    env_file:
+      - ../../backend/.env
     container_name: celery_beat
     restart: always
     depends_on:
