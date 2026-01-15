@@ -21,7 +21,7 @@
 
 ## Критерии готовности к V2
 - Тесты проходят.
-- `docker compose -f infra/docker/docker-compose.yml config` валиден.
+- Из корня репозитория валиден запуск: `docker compose -f infra/docker/docker-compose.yml config`.
 - Django проверка выполняется: `python manage.py check`.
 
 ## Границы и правила

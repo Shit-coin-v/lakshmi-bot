@@ -70,10 +70,10 @@ object; the server will allocate the receipt to the configured guest user.
    DJANGO_SETTINGS_MODULE=backend.test_settings pytest bots/customer_bot/tests/test_newsletter_tracking.py
    SECRET_KEY=dummy python backend/manage.py test apps.main.tests --settings=backend.test_settings
    ```
-4. Run the Celery workers that handle broadcast delivery:
+4. Run the Celery workers that handle broadcast delivery from the repo root:
    ```bash
-   # Using docker-compose
-   docker-compose up celery_worker
+   # Using Docker Compose
+   docker compose -f infra/docker/docker-compose.yml up celery_worker
 
    # Or locally
    celery -A backend.celery worker --loglevel=info
