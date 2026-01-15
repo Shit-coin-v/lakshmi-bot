@@ -127,11 +127,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
       POSTGRES_HOST: db
-      PYTHONPATH: /app:/app/backend
-      DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
     command: ["-A", "backend.celery", "worker", "--loglevel=info"]
     logging:
@@ -157,11 +153,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
       POSTGRES_HOST: db
-      PYTHONPATH: /app:/app/backend
-      DJANGO_SETTINGS_MODULE: backend.settings
     entrypoint: ["celery"]
     command: ["-A", "backend.celery", "beat", "--loglevel=info"]
     logging:
