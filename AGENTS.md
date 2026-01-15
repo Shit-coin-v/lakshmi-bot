@@ -11,7 +11,7 @@
 - For local runs, users create `.env` from `.env.example`; never commit the resulting `.env`.
 
 ## Target Structure
-- Final layout removes `backend_bot/`.
+- Final layout uses `backend/` as the backend root.
 - Backend lives in `/backend/`.
 - Docker Compose file resides at `/infra/docker/docker-compose.yml`.
 - Current agent goal is V1 only (paths/structure stabilization).
