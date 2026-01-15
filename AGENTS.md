@@ -1,35 +1,45 @@
-# Agent Instructions for `lakshmi-bot`
+# Инструкции для агента по `lakshmi-bot`
 
-## Scope
-- Repo: `lakshmi-bot`.
-- Do **not** change business logic, model semantics, or API contracts.
-- Structural refactors only: file/directory moves, path updates, infra config tweaks, and documentation clarifications.
+## Область применения
+- Репозиторий: `lakshmi-bot`.
+- **Не** изменять бизнес-логику, семантику моделей или API-контракты.
+- Только структурные рефакторинги: перенос файлов/директорий, обновление путей, правки конфигов инфраструктуры и уточнение документации.
 
-## .env Handling
-- The secret `.env` is not stored in git; do not expect it to exist in the repo.
-- Keep only `*.env.example` files in version control.
-- For local runs, users create `.env` from `.env.example`; never commit the resulting `.env`.
+## Обращение с .env
+- Секретный `.env` не хранится в git; не ожидайте его наличия в репозитории.
+- В системе контроля версий хранить только файлы `*.env.example`.
+- Для локального запуска пользователи создают `.env` из `.env.example`; никогда не коммитьте получившийся `.env`.
 
-## Target Structure
-- Final layout uses `backend/` as the backend root.
-- Backend lives in `/backend/`.
-- Docker Compose file resides at `/infra/docker/docker-compose.yml`.
-- Current agent goal is V1 only (paths/structure stabilization).
-- Do not start V2 (domain app decomposition) without explicit permission.
+## Целевая структура
+- Итоговая структура использует `backend/` как корень бэкенда.
+- Бэкенд расположен в `/backend/`.
+- Файл Docker Compose находится по пути `/infra/docker/docker-compose.yml`.
+- Текущая цель агента — только V1 (стабилизация путей/структуры).
+- Не начинать V2 (декомпозицию доменного приложения) без явного разрешения.
 
-## Docker Compose Rules
-- In `infra/docker/docker-compose.yml`, use `env_file: ../../backend/.env` as the final path.
-- Do **not** use long-form `env_file` syntax with `path`/`required` keys.
-- If `.env` is missing locally, the correct flow is copying from `backend/.env.example` to `backend/.env` (the `.env` remains untracked).
+## Правила Docker Compose
+- В `infra/docker/docker-compose.yml` использовать `env_file: ../../backend/.env` как итоговый путь.
+- **Не** использовать развернутый синтаксис `env_file` с ключами `path`/`required`.
+- Если локально отсутствует `.env`, правильный порядок действий — скопировать `backend/.env.example` в `backend/.env` (файл `.env` остается неотслеживаемым).
 
-## Path Guidance
-- All paths should be correct relative to `infra/docker/docker-compose.yml`.
-- Update paths as directories move—do not guess future layouts without verifying the tree/plan.
+## Правила путей
+- Все пути должны быть корректными относительно `infra/docker/docker-compose.yml`.
+- Обновляйте пути при переносе директорий — не угадывайте будущие раскладки без проверки дерева/плана.
 
-## PR Workflow
-- PRs are created via the GitHub Pull Request UI (web interface).
-- Avoid instructions about manual `git push`/PR creation unless explicitly requested.
+## PR-воркфлоу
+- PR создаются через интерфейс GitHub Pull Request (веб-интерфейс).
+- Избегайте инструкций о ручном `git push`/создании PR, если это не запрошено явно.
 
-## Testing
-- Do not claim Docker Compose validation was run if Docker is unavailable.
-- If Docker is available, the minimal check is `docker compose -f infra/docker/docker-compose.yml config`.
+## Тестирование
+- Не утверждать, что проверка Docker Compose была выполнена, если Docker недоступен.
+- Если Docker доступен, минимальная проверка — `docker compose -f infra/docker/docker-compose.yml config`.
+
+## Ведение журнала изменений (обязательно)
+- После каждого изменения в репозитории (любой правки файлов/конфигов/доков) агент обязан зафиксировать факт изменения в файле docs/AGENT_WORKLOG.md.
+- Записи вести на русском языке.
+- Формат каждой записи (минимум):
+  - Дата/время
+  - Кратко что сделано (1–2 строки)
+  - Какие файлы изменены (список путей)
+  - Какие проверки/команды запускались и результат (успех/ошибка)
+  - Итоговый git commit hash (если был коммит)
