@@ -5,7 +5,6 @@ IFS=$'\n\t'
 
 GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
 GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-60}
-ENABLE_TELEGRAM_BOT=${ENABLE_TELEGRAM_BOT:-false}
 
 echo "Applying database migrations..."
 python backend/manage.py migrate --noinput
