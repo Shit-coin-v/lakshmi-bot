@@ -20,3 +20,13 @@
   - fallback `rg -n --no-heading "(^\\s*services:|^\\s*env_file:|^\\s*build:|dockerfile:|MB_SITE_URL|STATIC_URL|MEDIA)" infra/docker/docker-compose.yml || true` -> найдены `env_file: ../../backend/.env`, `dockerfile: infra/docker/backend/Dockerfile`, `MB_SITE_URL...`
   - `TAB_COUNT: 0`
 - Итоговый git commit hash: нет
+
+- Дата/время: 2026-01-22T05:38:54+00:00
+- Кратко что сделано: Аудит infra/docker/nginx/nginx.conf по X-Forwarded-Proto, без правок.
+- Какие файлы изменены: без изменений (кроме AGENT_WORKLOG.md)
+- Какие проверки/команды запускались и результат:
+  - `ls -la infra/docker/nginx/nginx.conf` -> файл существует
+  - `sed -n '1,240p' infra/docker/nginx/nginx.conf` -> просмотр конфига
+  - `rg -n "map\\s+\\$http_x_forwarded_proto|\\$forwarded_proto|X-Forwarded-Proto|http_x_forwarded_proto|X-Forwarded-Host|X-Forwarded-Port" infra/docker/nginx/nginx.conf` -> найдено: set $forwarded_proto, но в proxy_set_header используется $http_x_forwarded_proto
+  - `nl -ba infra/docker/nginx/nginx.conf` -> подтверждены строки set/proxy_set_header
+- Итоговый git commit hash: нет
