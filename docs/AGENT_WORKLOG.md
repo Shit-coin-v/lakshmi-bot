@@ -30,3 +30,37 @@
   - `rg -n "map\\s+\\$http_x_forwarded_proto|\\$forwarded_proto|X-Forwarded-Proto|http_x_forwarded_proto|X-Forwarded-Host|X-Forwarded-Port" infra/docker/nginx/nginx.conf` -> найдено: set $forwarded_proto, но в proxy_set_header используется $http_x_forwarded_proto
   - `nl -ba infra/docker/nginx/nginx.conf` -> подтверждены строки set/proxy_set_header
 - Итоговый git commit hash: нет
+
+- Дата/время: 2026-01-22T06:56:43+00:00
+- Кратко что сделано: Приведена в порядок история и запись worklog для правок X-Forwarded-Proto в Nginx
+- Какие файлы изменены: infra/docker/nginx/nginx.conf, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git diff origin/dev...HEAD --name-only`
+    fatal: ambiguous argument 'origin/dev...HEAD': unknown revision or path not in the working tree.
+    Use '--' to separate paths from revisions, like this:
+    'git <command> [<revision>...] -- [<file>...]'
+  - `rg -n '\$http_x_forwarded_proto|\$forwarded_proto' infra/docker/nginx/nginx.conf`
+    13:    set $forwarded_proto $scheme;
+    14:    if ($http_x_forwarded_proto != "") {
+    15:        set $forwarded_proto $http_x_forwarded_proto;
+    60:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    73:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    95:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    116:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+  - `rg -n 'proxy_set_header X-Forwarded-Proto' infra/docker/nginx/nginx.conf`
+    60:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    73:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    95:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    116:        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+  - `python - <<'PY'`
+    from pathlib import Path
+    p = Path("infra/docker/nginx/nginx.conf")
+    txt = p.read_text(encoding="utf-8", errors="replace")
+    print("TAB_COUNT:", txt.count("	"))
+    PY
+    TAB_COUNT: 0
+  - `git diff -- infra/docker/nginx/nginx.conf`
+  - `git status -sb`
+    ## HEAD (no branch)
+     M docs/AGENT_WORKLOG.md
+- Итоговый git commit hash: cdc3598
