@@ -1,0 +1,22 @@
+- Дата/время: не зафиксировано (внесено задним числом)
+- Кратко что сделано: Аудит остатков backend_bot, без правок.
+- Какие файлы изменены: без изменений
+- Какие проверки/команды запускались и результат:
+  - `ls -la backend_bot || true` -> каталога нет
+  - `find . -maxdepth 3 -type d -name "backend_bot" -print` -> нет вывода
+  - `git grep -n "backend_bot" || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
+  - `git grep -n "backend_bot/" || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
+  - `git grep -n "backend_bot" infra backend bots docs || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
+- Итоговый git commit hash: нет
+
+- Дата/время: не зафиксировано (внесено задним числом)
+- Кратко что сделано: Статическая валидация infra/docker/docker-compose.yml без Docker, без правок.
+- Какие файлы изменены: без изменений
+- Какие проверки/команды запускались и результат:
+  - `git rev-parse --abbrev-ref HEAD` -> `work`
+  - `git rev-parse --short HEAD` -> `53d93f4`
+  - `ls -la infra/docker/docker-compose.yml` -> файл существует
+  - попытка Python+PyYAML -> `NO_PYYAML: ModuleNotFoundError("No module named 'yaml'")`
+  - fallback `rg -n --no-heading "(^\\s*services:|^\\s*env_file:|^\\s*build:|dockerfile:|MB_SITE_URL|STATIC_URL|MEDIA)" infra/docker/docker-compose.yml || true` -> найдены `env_file: ../../backend/.env`, `dockerfile: infra/docker/backend/Dockerfile`, `MB_SITE_URL...`
+  - `TAB_COUNT: 0`
+- Итоговый git commit hash: нет
