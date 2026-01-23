@@ -101,3 +101,13 @@
   - `rg -n '^(from\s+\.)|(import\s+\.)' backend/apps/api/security.py backend/apps/api/permissions.py || true` -> нет вывода
   - `rg -n 'from\s+\.security\s+import' backend/apps/api/permissions.py || true` -> нет вывода
   - `python -m compileall backend` -> успех
+
+
+- Дата/время: 2026-01-23T11:07:34Z
+- Кратко что сделано: Итог/Resolution — серия проверок и правок по переносу security/permissions завершена; актуальное состояние зафиксировано, старые промежуточные записи не редактируются.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - Итог: `backend/apps/common/security.py` и `backend/apps/common/permissions.py` содержат реализацию; `backend/apps/api/security.py` и `backend/apps/api/permissions.py` — прокси-обёртки (реэкспорт).
+  - Итог: в прокси-модулях `apps/api` отсутствуют относительные импорты (`from .security import ...`) — проверено через `rg`.
+  - `python -m compileall backend` -> успех
+- Примечание: далее worklog пополняется только по факту новых изменений/проверок; косметические “уточнения формулировок” не коммитятся.
