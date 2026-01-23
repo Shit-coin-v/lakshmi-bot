@@ -111,3 +111,20 @@
   - Итог: в прокси-модулях `apps/api` отсутствуют относительные импорты (`from .security import ...`) — проверено через `rg`.
   - `python -m compileall backend` -> успех
 - Примечание: далее worklog пополняется только по факту новых изменений/проверок; косметические “уточнения формулировок” не коммитятся.
+
+- Дата/время: 2026-01-23T11:37:39Z
+- Кратко что сделано: Явный реэкспорт в прокси apps/api для security/permissions, удалены wildcard-импорты.
+- Какие файлы изменены: backend/apps/api/security.py, backend/apps/api/permissions.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "from\\s+apps\\.common\\.(security|permissions)\\s+import\\s+\\*" backend/apps/api/security.py backend/apps/api/permissions.py || true` -> нет вывода
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T12:01:08Z
+- Кратко что сделано: Проверены импорты apps.api.security/permissions и подтверждено отсутствие мест использования; выполнены проверки импорта и compileall.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "apps\.api\.(security|permissions)" backend` -> нет вывода
+  - `PYTHONPATH=backend python -c "from apps.api.security import API_KEY, require_onec_auth; from apps.api.permissions import ApiKeyPermission; print('ok')"` -> ok
+  - `python -m compileall backend` -> успех
