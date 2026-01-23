@@ -136,3 +136,11 @@
   - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
   - `rg -n "backend_bot" docs || true` -> найдено только в docs/AGENT_WORKLOG.md после правки
   - `nl -ba docs/REFACTOR_PLAN.md | sed -n '230,270p'` -> просмотр контекста
+
+- Дата/время: 2026-01-23T12:15:31Z
+- Кратко что сделано: Проверены wildcard-импорты из apps.common в backend, совпадений нет.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "from\s+apps\.common\.[A-Za-z0-9_]+\s+import\s+\*" backend || true` -> нет вывода
+  - `python -m compileall backend` -> успех
