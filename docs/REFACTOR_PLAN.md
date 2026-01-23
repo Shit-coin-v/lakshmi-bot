@@ -243,7 +243,7 @@ python -m compileall backend
 
 DJANGO_SETTINGS_MODULE=backend.settings python backend/manage.py check
 
-rg -n --hidden --glob '!.git/**' "(backend_bot|backend-bot|/backend_bot\b|backend_bot/|backend_bot\.|backend_bot-|infra/docker-compose\.yml|backend_bot/docker-compose\.yml|docker-compose\.override\.yml|flutter_app|mobile/app\b|app/(pubspec\.yaml|lib/|android/|ios/))" .
+rg -n --hidden --glob '!.git/**' "(infra/docker-compose\.yml|docker-compose\.override\.yml|flutter_app|mobile/app\b|app/(pubspec\.yaml|lib/|android/|ios/))" .
 
 docker compose -f infra/docker/docker-compose.yml config — не выполнялось (docker недоступен в среде).
 
