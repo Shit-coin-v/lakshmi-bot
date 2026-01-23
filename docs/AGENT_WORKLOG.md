@@ -64,3 +64,15 @@
     ## HEAD (no branch)
      M docs/AGENT_WORKLOG.md
 - Итоговый git commit hash: cdc3598
+
+- Дата/время: 2026-01-23T09:32:26Z
+- Кратко что сделано: Создан каркас доменных приложений V2 в backend/apps/ с пустыми пакетами и AppConfig.
+- Какие файлы изменены: backend/apps/common/__init__.py, backend/apps/common/apps.py, backend/apps/integrations/__init__.py, backend/apps/integrations/delivery/__init__.py, backend/apps/integrations/delivery/apps.py, backend/apps/integrations/onec/__init__.py, backend/apps/integrations/onec/apps.py, backend/apps/integrations/payments/__init__.py, backend/apps/integrations/payments/apps.py, backend/apps/loyalty/__init__.py, backend/apps/loyalty/apps.py, backend/apps/notifications/__init__.py, backend/apps/notifications/apps.py, backend/apps/orders/__init__.py, backend/apps/orders/apps.py
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T09:39:54Z
+- Кратко что сделано: Перенес default_auto_field в атрибуты AppConfig для V2 каркасных приложений.
+- Какие файлы изменены: backend/apps/orders/apps.py, backend/apps/loyalty/apps.py, backend/apps/notifications/apps.py, backend/apps/common/apps.py, backend/apps/integrations/onec/apps.py, backend/apps/integrations/payments/apps.py, backend/apps/integrations/delivery/apps.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
