@@ -128,3 +128,11 @@
   - `rg -n "apps\.api\.(security|permissions)" backend` -> нет вывода
   - `PYTHONPATH=backend python -c "from apps.api.security import API_KEY, require_onec_auth; from apps.api.permissions import ApiKeyPermission; print('ok')"` -> ok
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T12:08:33Z
+- Кратко что сделано: Уточнено упоминание backend_bot в плане рефакторинга, чтобы соответствовало текущей структуре.
+- Какие файлы изменены: docs/REFACTOR_PLAN.md, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "backend_bot" docs || true` -> найдено только в docs/AGENT_WORKLOG.md после правки
+  - `nl -ba docs/REFACTOR_PLAN.md | sed -n '230,270p'` -> просмотр контекста
