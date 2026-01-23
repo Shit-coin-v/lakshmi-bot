@@ -76,3 +76,38 @@
 - Какие файлы изменены: backend/apps/orders/apps.py, backend/apps/loyalty/apps.py, backend/apps/notifications/apps.py, backend/apps/common/apps.py, backend/apps/integrations/onec/apps.py, backend/apps/integrations/payments/apps.py, backend/apps/integrations/delivery/apps.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T10:32:48Z
+- Кратко что сделано: Проверена безопасность переноса security/permissions; найден относительный импорт, перенос остановлен.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n '^(from\s+\.)|(import\s+\.)' backend/apps/api/security.py backend/apps/api/permissions.py || true` -> найдено: `backend/apps/api/permissions.py:7:from .security import API_KEY`
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T10:53:17Z
+- Кратко что сделано: Перенес security/permissions в apps/common и добавил прокси в apps/api.
+- Какие файлы изменены: backend/apps/common/security.py, backend/apps/common/permissions.py, backend/apps/api/security.py, backend/apps/api/permissions.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n '^(from\s+\.)|(import\s+\.)' backend/apps/api/security.py backend/apps/api/permissions.py || true` -> найдено: `backend/apps/api/permissions.py:7:from .security import API_KEY`
+  - `rg -n 'apps\.api\.(security|permissions)' backend || true` -> нет вывода
+  - `rg -n '\.security\b' backend/apps/api/permissions.py || true` -> найдено: `7:from .security import API_KEY`
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T11:07:34Z
+- Кратко что сделано: После переноса перепроверены прокси-модули в apps/api на отсутствие относительных импортов.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n '^(from\s+\.)|(import\s+\.)' backend/apps/api/security.py backend/apps/api/permissions.py || true` -> нет вывода
+  - `rg -n 'from\s+\.security\s+import' backend/apps/api/permissions.py || true` -> нет вывода
+  - `python -m compileall backend` -> успех
+
+
+- Дата/время: 2026-01-23T11:07:34Z
+- Кратко что сделано: Итог/Resolution — серия проверок и правок по переносу security/permissions завершена; актуальное состояние зафиксировано, старые промежуточные записи не редактируются.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - Итог: `backend/apps/common/security.py` и `backend/apps/common/permissions.py` содержат реализацию; `backend/apps/api/security.py` и `backend/apps/api/permissions.py` — прокси-обёртки (реэкспорт).
+  - Итог: в прокси-модулях `apps/api` отсутствуют относительные импорты (`from .security import ...`) — проверено через `rg`.
+  - `python -m compileall backend` -> успех
+- Примечание: далее worklog пополняется только по факту новых изменений/проверок; косметические “уточнения формулировок” не коммитятся.
