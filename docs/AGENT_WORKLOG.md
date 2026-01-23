@@ -144,3 +144,22 @@
   - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
   - `rg -n "from\s+apps\.common\.[A-Za-z0-9_]+\s+import\s+\*" backend || true` -> нет вывода
   - `python -m compileall backend` -> успех
+- Дата/время: 2026-01-23T12:39:28Z
+- Кратко что сделано: Заменён wildcard-импорт в backend/backend/test_settings.py на явный список публичных имён из settings.
+- Какие файлы изменены: backend/backend/test_settings.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "^\s*from\s+[A-Za-z0-9_\.]+\s+import\s+\*" backend || true` -> найдено: `backend/backend/test_settings.py:1:from .settings import *`
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-23T12:58:23Z
+- Кратко что сделано: Попытка локального отката непушеного коммита через reset --hard заблокирована политикой; рабочее дерево чистое, compileall успешен.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## work`
+  - `git log --oneline -n 5` -> текущее состояние истории до отката
+  - `git reset --hard HEAD~1` -> ошибка: команда заблокирована политикой
+  - `git status -sb` -> `## work`
+  - `git diff` -> нет вывода
+  - `git log --oneline -n 5` -> история без изменений
+  - `python -m compileall backend` -> успех
