@@ -2,6 +2,6 @@ from __future__ import annotations
 
 
 def broadcast_send_task(message_id: int) -> None:
-    from apps.main.tasks import broadcast_send_task as _task
+    from apps.main import tasks
 
-    _task.delay(message_id)
+    tasks.broadcast_send_task.delay(message_id)
