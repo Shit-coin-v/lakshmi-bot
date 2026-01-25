@@ -312,3 +312,20 @@
   - `git status -sb` -> `## work; M backend/apps/main/signals.py`
   - `git diff --name-only` -> `backend/apps/main/signals.py`
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:07:47Z
+- Кратко что сделано: views.py переключён на notifications.push_contract.
+- Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:11:34Z
+- Кратко что сделано: Дополнение лога по переключению views.py на notifications.push_contract.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## work`
+  - `git diff --name-only` -> нет вывода
+  - `git log --oneline -n 3` ->
+    - `bcc25f3 Use push contract in api views`
+    - `389c400 Merge pull request #80 from Shit-coin-v/codex/refactor-signals.py-to-use-push_contract`
+    - `6fc0368 Use push contract in signals`
