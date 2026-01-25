@@ -361,3 +361,9 @@
   - `rg -n "broadcast_send_task\.delay\(" backend` -> нет вывода
   - `rg -n "from\s+\.tasks\s+import\s+broadcast_send_task|from\s+apps\.main\.tasks\s+import\s+broadcast_send_task" backend` -> найдено: `backend/apps/notifications/task_contract.py:5`
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T10:05:38Z
+- Кратко что сделано: добавлена tasks.py с контрактной задачей; Celery Beat переключён на apps.notifications.tasks.send_birthday_congratulations.
+- Какие файлы изменены: backend/apps/notifications/tasks.py, backend/backend/celery.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
