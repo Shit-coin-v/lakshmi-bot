@@ -329,3 +329,9 @@
     - `bcc25f3 Use push contract in api views`
     - `389c400 Merge pull request #80 from Shit-coin-v/codex/refactor-signals.py-to-use-push_contract`
     - `6fc0368 Use push contract in signals`
+
+- Дата/время: 2026-01-25T09:21:30+00:00
+- Кратко что сделано: Добавлен контрактный прокси для задачи send_order_to_onec и переключён вызов в сериализаторе.
+- Какие файлы изменены: backend/apps/integrations/onec/task_contract.py, backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех

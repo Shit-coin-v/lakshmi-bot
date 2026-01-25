@@ -226,8 +226,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         )
         order.save(update_fields=["products_price", "total_price"])
 
-        from .tasks import send_order_to_onec
-        send_order_to_onec.delay(order.id)
+        from apps.integrations.onec.task_contract import send_order_to_onec
+
+        send_order_to_onec(order.id)
 
         return order
     
