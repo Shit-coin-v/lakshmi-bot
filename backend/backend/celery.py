@@ -18,7 +18,7 @@ app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
     'send-birthday-congratulations-every-day': {
-        'task': 'apps.api.tasks.send_birthday_congratulations',
+        'task': 'apps.notifications.tasks.send_birthday_congratulations',
         'schedule': crontab(hour=9, minute=0),
     },
 }
