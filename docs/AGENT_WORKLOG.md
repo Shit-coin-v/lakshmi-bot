@@ -163,3 +163,25 @@
   - `git diff` -> нет вывода
   - `git log --oneline -n 5` -> история без изменений
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25
+- Этап: V1 (стабилизация структуры и инфраструктуры) — ЗАКРЫТ
+- Кратко что сделано:
+  - Убрана зависимость backend от bots (ModuleNotFoundError: bots).
+  - Backend больше не импортирует bots.customer_bot.config — используется settings.BOT_TOKEN.
+  - Локально полностью поднят стек через Docker Compose (app, celery_worker, celery_beat, db, redis, nginx, metabase).
+  - Metabase успешно подключён к PostgreSQL и синхронизировал схему.
+- Какие файлы изменены:
+  - backend/apps/api/views.py
+- Какие проверки/команды запускались и результат:
+  - docker compose -f infra/docker/docker-compose.yml config → успешно
+  - docker compose -f infra/docker/docker-compose.yml up -d --build app celery_worker celery_beat → успешно
+  - docker compose -f infra/docker/docker-compose.yml ps → app healthy, celery_worker/beat up
+  - docker compose -f infra/docker/docker-compose.yml logs --tail=120 app celery_worker celery_beat → ошибок импорта bots нет, gunicorn стартует
+  - curl -i http://127.0.0.1:8000/healthz/ → 200 OK, {"status":"ok"}
+  - Metabase: подключение к PostgreSQL успешно, таблицы отображаются
+- Итог:
+  - Цели V1 выполнены полностью.
+  - Структура проекта стабилизирована.
+  - Инфраструктура проверена локально.
+  - Проект готов к переходу на V2 (декомпозиция домена / развитие функциональности).
