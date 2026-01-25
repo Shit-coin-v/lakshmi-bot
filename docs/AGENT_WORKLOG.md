@@ -341,3 +341,9 @@
 - Какие файлы изменены: backend/apps/notifications/task_contract.py, backend/apps/main/admin.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:38:49Z
+- Кратко что сделано: удалён дублирующий импорт ReceiptSerializer в views.py
+- Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
