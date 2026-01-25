@@ -373,3 +373,24 @@
 - Какие файлы изменены: backend/apps/notifications/push.py, backend/apps/main/push.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T10:22:46Z
+- Кратко что сделано: Аудит готовности к PR12 (остатки временных прокси/старых путей) по backend, без правок кода.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "apps\.main\.push" backend` -> найдено 3 совпадения:
+    - backend/apps/notifications/push_contract.py:5
+    - backend/apps/notifications/push_contract.py:11
+    - backend/apps/notifications/push_contract.py:24
+  - `rg -n "apps\.api\.tasks\.send_birthday_congratulations" backend` -> нет вывода
+  - `rg -n "apps\.api\.tasks" backend` -> найдено 2 совпадения:
+    - backend/apps/integrations/onec/task_contract.py:2
+    - backend/apps/notifications/tasks.py:8
+  - `rg -n "apps\.notifications\.push_contract|apps\.notifications\.push\b" backend` -> найдено 3 совпадения:
+    - backend/apps/main/push.py:1
+    - backend/apps/main/signals.py:7
+    - backend/apps/api/views.py:35
+  - `rg -n "apps\.notifications\.task_contract|apps\.integrations\.onec\.task_contract" backend` -> найдено 2 совпадения:
+    - backend/apps/main/admin.py:19
+    - backend/apps/api/serializers.py:229
+- Итог: готовы к PR12 — обнаружены только ожидаемые контрактные ссылки и прокси (legacy/временные пути не выявлены вне контрактов).
