@@ -1,0 +1,48 @@
+import json
+
+from django.http import JsonResponse
+
+from apps.api.serializers import ProductUpdateSerializer
+from apps.main.models import Product
+
+
+def onec_product_sync_impl(request):
+    raw_body = request.body or b"{}"
+    if isinstance(raw_body, (bytes, bytearray)):
+        raw_body = raw_body.decode("utf-8")
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "invalid_json"}, status=400)
+
+    serializer = ProductUpdateSerializer(data=payload)
+    if not serializer.is_valid():
+        return JsonResponse({"detail": serializer.errors}, status=400)
+    data = serializer.validated_data
+
+    defaults = {
+        "one_c_guid": data.get("one_c_guid"),
+        "name": data["name"],
+        "price": data["price"],
+        "category": data["category"],
+        "is_promotional": data["is_promotional"],
+    }
+    if hasattr(Product, "store_id"):
+        defaults.setdefault("store_id", 0)
+
+    product, created = Product.objects.update_or_create(
+        product_code=data["product_code"], defaults=defaults
+    )
+
+    resp = {
+        "status": "created" if created else "updated",
+        "product": {
+            "product_code": product.product_code,
+            "one_c_guid": product.one_c_guid,
+            "name": product.name,
+            "price": float(product.price),
+            "category": product.category,
+            "is_promotional": product.is_promotional,
+        },
+    }
+    return JsonResponse(resp, status=201 if created else 200)
