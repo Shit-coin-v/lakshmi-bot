@@ -367,3 +367,9 @@
 - Какие файлы изменены: backend/apps/notifications/tasks.py, backend/backend/celery.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T10:13:33Z
+- Кратко что сделано: перенесён push.py в notifications, apps/main/push.py стал прокси.
+- Какие файлы изменены: backend/apps/notifications/push.py, backend/apps/main/push.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
