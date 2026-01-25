@@ -113,7 +113,7 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
     def send_broadcast(self, request, queryset):
         queued = 0
         for msg in queryset:
-            broadcast_send_task.delay(msg.id)
+            broadcast_send_task(msg.id)
             queued += 1
 
         if queued:

@@ -347,3 +347,9 @@
 - Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:44:49Z
+- Кратко что сделано: admin.py вызывает broadcast_send_task через контракт без .delay
+- Какие файлы изменены: backend/apps/main/admin.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
