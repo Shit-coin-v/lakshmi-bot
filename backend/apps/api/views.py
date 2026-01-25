@@ -45,7 +45,6 @@ from .serializers import (
     ProductListSerializer,
     ProductUpdateSerializer,
     PurchaseSerializer,
-    ReceiptSerializer,
     NotificationSerializer,
     NotificationReadSerializer,
     ReceiptSerializer,
