@@ -304,3 +304,11 @@
 - Какие файлы изменены: backend/apps/notifications/push_contract.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T08:56:15Z
+- Кратко что сделано: signals.py переключён на notifications.push_contract.
+- Какие файлы изменены: backend/apps/main/signals.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## work; M backend/apps/main/signals.py`
+  - `git diff --name-only` -> `backend/apps/main/signals.py`
+  - `python -m compileall backend` -> успех
