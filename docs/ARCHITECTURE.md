@@ -1,4 +1,3 @@
-/
 ├── infra/
 │   ├── docker/
 │   │   ├── docker-compose.yml
@@ -18,7 +17,7 @@
 │   ├── manage.py
 │   ├── requirements.txt
 │   ├── entrypoint.sh
-│   ├── backend/                 # Django project (settings, urls, celery)
+│   ├── backend/          # Django project (settings, urls, celery)
 │   │   ├── __init__.py
 │   │   ├── asgi.py
 │   │   ├── celery.py
@@ -26,8 +25,8 @@
 │   │   ├── urls.py
 │   │   └── wsgi.py
 │   └── apps/
-│       ├── api/                  # legacy API layer (V1, будет разобран в V2)
-│       ├── main/                 # legacy core (V1, будет разобран в V2)
+│       ├── api/           # legacy API layer (V1, будет разобран в V2)
+│       ├── main/          # legacy core (V1, будет разобран в V2)
 │       ├── orders/
 │       ├── loyalty/
 │       ├── notifications/
@@ -35,7 +34,7 @@
 │       │   ├── onec/
 │       │   ├── payments/
 │       │   └── delivery/
-│       └── common/               # shared backend utils (без бизнес-логики)
+│       └── common/        # backend utils без бизнес-логики
 │
 ├── bots/
 │   ├── customer_bot/
