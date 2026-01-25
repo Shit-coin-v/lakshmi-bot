@@ -16,7 +16,7 @@ from .models import (
     Notification,
     NotificationOpenEvent,
 )
-from .tasks import broadcast_send_task
+from apps.notifications.task_contract import broadcast_send_task
 
 logger = logging.getLogger(__name__)
 

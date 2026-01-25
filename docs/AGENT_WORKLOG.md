@@ -335,3 +335,9 @@
 - Какие файлы изменены: backend/apps/integrations/onec/task_contract.py, backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:30:09Z
+- Кратко что сделано: добавлен контракт broadcast_send_task и admin переключён на контракт.
+- Какие файлы изменены: backend/apps/notifications/task_contract.py, backend/apps/main/admin.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
