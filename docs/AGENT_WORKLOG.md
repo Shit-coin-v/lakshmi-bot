@@ -353,3 +353,11 @@
 - Какие файлы изменены: backend/apps/main/admin.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T09:53:51Z
+- Кратко что сделано: найдено использование broadcast_send_task через tasks/.delay; один файл переключён на контракт.
+- Какие файлы изменены: backend/apps/notifications/task_contract.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "broadcast_send_task\.delay\(" backend` -> нет вывода
+  - `rg -n "from\s+\.tasks\s+import\s+broadcast_send_task|from\s+apps\.main\.tasks\s+import\s+broadcast_send_task" backend` -> найдено: `backend/apps/notifications/task_contract.py:5`
+  - `python -m compileall backend` -> успех
