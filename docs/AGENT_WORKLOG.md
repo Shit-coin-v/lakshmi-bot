@@ -394,3 +394,10 @@
     - backend/apps/main/admin.py:19
     - backend/apps/api/serializers.py:229
 - Итог: готовы к PR12 — обнаружены только ожидаемые контрактные ссылки и прокси (legacy/временные пути не выявлены вне контрактов).
+
+- Дата/время: 2026-01-25T10:33:29Z
+- Кратко что сделано: Вынесена реализация send_order_to_onec в integrations/onec/order_sync.py; apps/api/tasks.py оставлен как прокси-задача.
+- Какие файлы изменены: backend/apps/integrations/onec/order_sync.py, backend/apps/api/tasks.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "apps\.api\.tasks\.send_order_to_onec" backend || true` -> нет вывода
+  - `python -m compileall backend` -> успех
