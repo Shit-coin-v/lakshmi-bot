@@ -32,6 +32,7 @@ from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
+from apps.integrations.onec.product_sync import onec_product_sync_impl
 from apps.notifications.push_contract import notify_order_status_change
 
 from .permissions import ApiKeyPermission
@@ -43,7 +44,6 @@ from .serializers import (
     OrderDetailSerializer,
     OrderListSerializer,
     ProductListSerializer,
-    ProductUpdateSerializer,
     PurchaseSerializer,
     NotificationSerializer,
     NotificationReadSerializer,
@@ -818,45 +818,7 @@ def onec_customer_sync(request):
 @require_POST
 @require_onec_auth
 def onec_product_sync(request):
-    raw_body = request.body or b"{}"
-    if isinstance(raw_body, (bytes, bytearray)):
-        raw_body = raw_body.decode("utf-8")
-    try:
-        payload = json.loads(raw_body)
-    except json.JSONDecodeError:
-        return JsonResponse({"detail": "invalid_json"}, status=400)
-
-    serializer = ProductUpdateSerializer(data=payload)
-    if not serializer.is_valid():
-        return JsonResponse({"detail": serializer.errors}, status=400)
-    data = serializer.validated_data
-
-    defaults = {
-        "one_c_guid": data.get("one_c_guid"),
-        "name": data["name"],
-        "price": data["price"],
-        "category": data["category"],
-        "is_promotional": data["is_promotional"],
-    }
-    if hasattr(Product, "store_id"):
-        defaults.setdefault("store_id", 0)
-
-    product, created = Product.objects.update_or_create(
-        product_code=data["product_code"], defaults=defaults
-    )
-
-    resp = {
-        "status": "created" if created else "updated",
-        "product": {
-            "product_code": product.product_code,
-            "one_c_guid": product.one_c_guid,
-            "name": product.name,
-            "price": float(product.price),
-            "category": product.category,
-            "is_promotional": product.is_promotional,
-        },
-    }
-    return JsonResponse(resp, status=201 if created else 200)
+    return onec_product_sync_impl(request)
 
 
 @csrf_exempt

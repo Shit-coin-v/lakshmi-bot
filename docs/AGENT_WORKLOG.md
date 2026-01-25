@@ -401,3 +401,9 @@
 - Какие проверки/команды запускались и результат:
   - `rg -n "apps\.api\.tasks\.send_order_to_onec" backend || true` -> нет вывода
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-25T10:44:58Z
+- Кратко что сделано: вынесена реализация onec_product_sync в integrations/onec; views.py оставлен прокси.
+- Какие файлы изменены: backend/apps/integrations/onec/product_sync.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
