@@ -4,7 +4,10 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from .models import Order, Notification
-from .push import notify_order_status_change, notify_notification_created
+from apps.notifications.push_contract import (
+    notify_order_status_change,
+    notify_notification_created,
+)
 
 
 logger = logging.getLogger(__name__)
