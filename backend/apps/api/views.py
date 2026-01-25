@@ -32,7 +32,7 @@ from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
-from apps.main.push import notify_order_status_change
+from apps.notifications.push_contract import notify_order_status_change
 
 from .permissions import ApiKeyPermission
 from .models import OneCClientMap
