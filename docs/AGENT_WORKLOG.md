@@ -185,3 +185,122 @@
   - Структура проекта стабилизирована.
   - Инфраструктура проверена локально.
   - Проект готов к переходу на V2 (декомпозиция домена / развитие функциональности).
+
+- Дата/время: 2026-01-25T08:12:59Z
+- Кратко что сделано: Откат коммита 8db22e3 (перенос push) через git revert; в текущей ветке откачен коммит 76f56b9.
+- Какие файлы изменены: backend/apps/main/push.py, backend/apps/notifications/push.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## dev`
+  - `git diff` -> нет вывода
+  - `git log --oneline -n 3` -> `03cf427 Revert "Move push module to notifications domain with proxy re-export"; 76f56b9 Move push module to notifications domain with proxy re-export; 30b4be5 Update repository structure in ARCHITECTURE.md`
+
+- Дата/время: 2026-01-25T08:28:16Z
+- Кратко что сделано: PR10 закрыт анализом: лёгких кандидатов для переноса не найдено; переходим к PR11.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## dev`
+  - `git diff` -> нет вывода
+  - просмотрены каталоги: backend/apps/api, backend/apps/main, backend/apps/common, shared; итог: лёгких кандидатов по критериям PR10 не выявлено
+
+- Дата/время: 2026-01-25T08:32:57Z
+- Кратко что сделано: Инвентаризация кандидатов для PR11 (без переносов).
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## dev`
+  - `git diff` -> нет вывода
+  - `find backend/apps/api backend/apps/main -maxdepth 2 -type f` -> список файлов для инвентаризации (без миграций)
+  - `rg -n "^(from|import) " backend/apps/api/views.py backend/apps/api/serializers.py backend/apps/api/tasks.py backend/apps/api/models.py backend/apps/api/apps.py backend/apps/api/security.py backend/apps/api/permissions.py backend/apps/main/models.py backend/apps/main/tasks.py backend/apps/main/signals.py backend/apps/main/push.py backend/apps/main/admin.py backend/apps/main/apps.py backend/apps/main/management/__init__.py` -> собраны ключевые импорты
+  - `sed -n '1,200p' backend/apps/api/urls.py` -> подтверждено, что urls.py импортирует views
+- Кандидаты PR11:
+  1) backend/apps/api/views.py
+     - Тип: view
+     - Зависимости: DRF (viewsets/APIView/permissions/parsers), ORM/models, settings, requests.
+     - Домен: orders / notifications / integrations/onec (спорно)
+     - Риск: высокий — используется в urls.py и тянет много моделей/DRF.
+  2) backend/apps/api/serializers.py
+     - Тип: serializer
+     - Зависимости: DRF serializers, ORM/models (apps.main.models).
+     - Домен: orders / notifications (спорно)
+     - Риск: высокий — сериализаторы связаны с models и используются во views.
+  3) backend/apps/api/tasks.py
+     - Тип: task
+     - Зависимости: Celery, ORM/models, settings, requests.
+     - Домен: integrations/onec
+     - Риск: высокий — celery task + ORM + внешние HTTP.
+  4) backend/apps/api/models.py
+     - Тип: model
+     - Зависимости: ORM/models (django.db.models), связь с apps.main.models.
+     - Домен: integrations/onec
+     - Риск: высокий — модели и связи.
+  5) backend/apps/api/urls.py
+     - Тип: urls
+     - Зависимости: django.urls + импорт views.
+     - Домен: спорно (привязано к apps.api)
+     - Риск: высокий — изменение локации влияет на URL конфигурацию.
+  6) backend/apps/main/models.py
+     - Тип: model
+     - Зависимости: ORM/models.
+     - Домен: orders / loyalty / notifications (спорно)
+     - Риск: высокий — основной набор моделей.
+  7) backend/apps/main/tasks.py
+     - Тип: task
+     - Зависимости: Celery, ORM/models, django.db connections.
+     - Домен: notifications / orders (спорно)
+     - Риск: высокий — celery task + ORM.
+  8) backend/apps/main/signals.py
+     - Тип: signal
+     - Зависимости: ORM/models, django signals, push.
+     - Домен: notifications / orders
+     - Риск: высокий — сигналы инициализации + модели.
+  9) backend/apps/main/push.py
+     - Тип: util/service
+     - Зависимости: Django exceptions, ORM/models, firebase-admin.
+     - Домен: notifications
+     - Риск: высокий — внешняя зависимость + модели.
+  10) backend/apps/main/admin.py
+      - Тип: admin
+      - Зависимости: django.contrib.admin, ORM/models, tasks.
+      - Домен: orders / notifications (спорно)
+      - Риск: средний — admin связан с моделями и задачами.
+
+- Дата/время: 2026-01-25T08:39:11Z
+- Кратко что сделано: Аудит ссылок на Celery tasks (строковые/импортные) для подготовки PR11.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## dev`
+  - `git diff` -> нет вывода
+  - `rg -n "apps\.api\.tasks|apps\.main\.tasks" backend` -> найдено: backend/backend/celery.py:21 (строковая ссылка на apps.api.tasks.send_birthday_congratulations)
+  - `rg -n "celery\.send_task|send_task\(" backend` -> найдено: backend/apps/main/tasks.py:10 (def broadcast_send_task)
+  - `rg -n "CELERY_BEAT|beat|crontab|CELERY_IMPORTS|CELERY_TASK_ROUTES|task_routes" backend/backend` -> найдено: backend/backend/settings.py:62, backend/backend/celery.py:5,19,22
+  - `rg -n "send_order_to_onec|broadcast_send_task|send_birthday_congratulations" backend` -> найдено: backend/backend/celery.py:21; backend/apps/api/tasks.py:21,50,152; backend/apps/api/serializers.py:229-230; backend/apps/main/tasks.py:10; backend/apps/main/admin.py:19,116
+  - `rg -n "\.delay\(|\.apply_async\(" backend` -> найдено: backend/apps/api/serializers.py:230; backend/apps/main/admin.py:116
+  - `rg -n "from\s+apps\.(api|main)\.tasks\s+import|import\s+apps\.(api|main)\.tasks" backend` -> нет вывода
+- Итог аудита:
+  - Строковые ссылки на задачи: да (backend/backend/celery.py:21 -> apps.api.tasks.send_birthday_congratulations).
+  - .delay/.apply_async: backend/apps/api/serializers.py:230 (send_order_to_onec.delay), backend/apps/main/admin.py:116 (broadcast_send_task.delay).
+  - Импорты apps.api.tasks/apps.main.tasks: не найдены (rg без вывода).
+  - Риск переноса tasks: высокий — есть строковая ссылка в celery beat и прямые .delay вызовы.
+
+- Дата/время: 2026-01-25T08:43:59Z
+- Кратко что сделано: Аудит backend/apps/main/push.py для PR11 (без переносов).
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `git status -sb` -> `## dev`
+  - `git diff` -> нет вывода
+  - `sed -n '1,260p' backend/apps/main/push.py` -> просмотрены зависимости/модели/вызовы
+  - `rg -n "apps\.main\.push|from\s+\.push\s+import|import\s+\.push" backend` -> найдено: backend/apps/api/views.py:35; backend/apps/main/signals.py:7
+  - `rg -n "notify_order_status_change|notify_notification_created|send_test_push_to_customer" backend` -> найдено: backend/apps/api/views.py:35,1041; backend/apps/main/signals.py:7,35,50; backend/apps/main/push.py:116,174,220,223
+  - `rg -n "\.delay\(|\.apply_async\(" backend/apps/main/push.py` -> нет вывода
+  - `rg -n "firebase_admin|firebase_admin" backend/apps/main/push.py` -> найдено: import firebase_admin и вызовы get_app/initialize_app
+- Итог аудита push.py:
+  - Внешние зависимости: firebase_admin (credentials, messaging), django.core.exceptions.ImproperlyConfigured, стандартные json/logging/os/typing.
+  - Импорт моделей: Notification (как DBNotification) и CustomerDevice из apps.main.models (через .models).
+  - Celery вызовов нет (.delay/.apply_async отсутствуют).
+  - Точки использования: backend/apps/main/signals.py (import notify_order_status_change, notify_notification_created); backend/apps/api/views.py (import notify_order_status_change и вызов).
+  - Вывод: кандидат на выделение в notifications как сервис, но риск высокий из-за зависимостей на модели apps.main и использования в signals/views.
+
+- Дата/время: 2026-01-25T08:47:28Z
+- Кратко что сделано: Создан контракт push-сервиса в notifications; логика не менялась, добавлен прокси-слой.
+- Какие файлы изменены: backend/apps/notifications/push_contract.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
