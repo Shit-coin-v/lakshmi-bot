@@ -1,72 +1,147 @@
 # Архитектура монорепозитория
 
 ## Карта системы
-- **Backend**: Django + Django REST Framework, хранит бизнес-логику и REST API.
-- **Асинхронные задачи**: Celery для фоновых джобов.
-- **Интеграция 1С**: изолированный модуль OneC для обмена данными.
-- **Telegram-боты**: три бота (клиентский, курьерский, сборщик) обращаются к backend через API.
-- **Мобильное приложение**: Flutter-клиент, общается с backend API.
+- **Backend**: Django + Django REST Framework — основной API и бизнес-логика.
+- **Асинхронные задачи**: Celery (worker + beat) для фоновых задач.
+- **Интеграция 1С**: изолированный слой интеграции, доступ только через backend.
+- **Telegram-боты**: клиентский, курьерский и сборщик; работают **только** через HTTP API backend.
+- **Мобильное приложение**: Flutter-клиент, общается с backend по REST API.
+- **Observability**: Prometheus, Grafana, Loki, Promtail (инфраструктурный слой).
 
-## Назначение директорий
-- `infra/` — инфраструктура и окружения (Docker/K8s, CI/CD, observability).
-- `backend/` — Django/DRF приложение, Celery, бизнес-правила и интеграции.
-- `bots/` — исходники Telegram-ботов, обвязка и клиентские адаптеры.
-- `shared/` — общие DTO, клиенты и конфигурация, которые переиспользуются между компонентами без бизнес-логики.
+---
+
+## Назначение директорий (актуально)
+
+- `infra/` — инфраструктура и окружение:
+  - Docker Compose
+  - nginx
+  - observability (Prometheus / Grafana / Loki)
+- `backend/` — Django/DRF backend, Celery, бизнес-логика и интеграции.
+- `bots/` — исходники Telegram-ботов (UI-логика и сценарии).
+- `shared/` — общий код без бизнес-логики (DTO, клиенты, конфигурация).
 - `mobile/` — Flutter-приложение.
-- `docs/` — документация по архитектуре, процессам и соглашениям.
+- `docs/` — архитектура, правила, план рефакторинга, журнал работ.
 
-## V1 vs V2: цель и границы
-- **V1** — стабилизация путей и структуры без изменения бизнес-логики, моделей и API-контрактов.
-- **V2** — доменная декомпозиция приложений (orders, loyalty, notifications, integrations/*, common) и структурные переносы, которые могут затронуть код, миграции и API.
+---
 
-## Критерии готовности к V2
-- Тесты проходят.
-- Из корня репозитория валиден запуск: `docker compose -f infra/docker/docker-compose.yml config`.
-- Django проверка выполняется: `python manage.py check`.
+## V1 и V2: статус и границы
 
-## Границы и правила
-- Боты не ходят в базу напрямую, только через HTTP API backend.
-- Бизнес-логика живёт в `backend/apps/*/services.py`; вьюхи, сериализаторы и модели тонкие.
-- Интеграция с 1С изолирована в `backend/apps/integrations/onec`.
-- `shared/` содержит только общий код (DTO, клиенты, конфиги), без бизнес-логики.
+### V1 — **завершён**
+Цель: стабилизация структуры проекта, путей, Docker/infra **без изменения бизнес-логики и API-контрактов**.
 
-## Куда добавлять новую фичу
-- **Заказ/корзина/оплата** — `backend/apps/orders` (сервисы) + API слой там же; фронты/боты используют существующие клиенты из `shared/`.
-- **Лояльность/бонусы/промокоды** — `backend/apps/loyalty` (сервисы) + необходимые API; фронты/боты через API.
-- **Уведомления (push/SMS/email/Telegram)** — `backend/apps/notifications` + Celery таски; клиенты/боты инициируют запросы в API.
-- **Интеграции (1С/платежи/доставки)** — `backend/apps/integrations/*` (например, `onec`, `payments`, `delivery`) с четкой изоляцией адаптеров.
-- **Боты** — `bots/<bot_name>`: UI-логика/команды; общение с backend только через REST клиенты из `shared/`.
-- **Мобилка** — `mobile/` (Flutter): экранная логика + обращения к backend API через клиенты/DTO из `shared/`.
+Факты:
+- Docker Compose валиден
+- Проект поднимается локально
+- `healthz` отвечает `200 OK`
+- Backend не зависит от `bots`
+- Все изменения и проверки зафиксированы в `docs/AGENT_WORKLOG.md`
 
-## Целевое дерево проекта (V2)
-```
-/ 
+Повторять задачи V1 запрещено.
+
+### V2 — **в процессе**
+Цель: доменная декомпозиция backend-кода и постепенный перенос логики **без изменения внешнего поведения API**.
+
+---
+
+## Границы и правила архитектуры
+
+- Боты **не имеют прямого доступа** к БД — только HTTP API backend.
+- Бизнес-логика живёт в сервисах доменных приложений.
+- View / Serializer / Model — тонкие.
+- Интеграции (1С, платежи, доставка) строго изолированы.
+- `shared/` **не содержит бизнес-логики**.
+- Любые переносы делаются маленькими PR.
+- API-контракты (эндпоинты, поля, форматы, статусы) не меняются без явного разрешения владельца проекта.
+
+---
+
+## Куда добавлять новую функциональность
+
+- **Заказы / корзина / оплата**  
+  `backend/apps/orders`
+
+- **Лояльность / бонусы / промокоды**  
+  `backend/apps/loyalty`
+
+- **Уведомления (push / Telegram / email / SMS)**  
+  `backend/apps/notifications` + Celery
+
+- **Интеграции**  
+  `backend/apps/integrations/*`
+  - `onec`
+  - `payments`
+  - `delivery`
+
+- **Общий backend-код (без доменной логики)**  
+  `backend/apps/common`
+
+- **Telegram-боты**  
+  `bots/<bot_name>` — только UI и сценарии, работа через API
+
+- **Мобильное приложение**  
+  `mobile/flutter_app`
+
+/
 ├── infra/
-│   ├── docker/
-│   ├── k8s/
-│   └── ci/
+│ ├── docker/
+│ │ ├── docker-compose.yml
+│ │ ├── docker-compose.override.yml
+│ │ ├── nginx/
+│ │ │ ├── Dockerfile
+│ │ │ └── nginx.conf
+│ │ └── backend/
+│ │ └── Dockerfile
+│ └── observability/
+│ ├── grafana/
+│ ├── prometheus.yml
+│ ├── loki-config.yaml
+│ └── promtail-config.yaml
+│
 ├── backend/
-│   ├── manage.py
-│   ├── requirements.txt
-│   └── apps/
-│       ├── orders/
-│       ├── loyalty/
-│       ├── notifications/
-│       ├── integrations/
-│       │   ├── onec/
-│       │   ├── payments/
-│       │   └── delivery/
-│       └── common/  # base models, utils без бизнес-логики
+│ ├── manage.py
+│ ├── requirements.txt
+│ ├── entrypoint.sh
+│ ├── backend/ # Django project (settings, urls, wsgi, asgi, celery)
+│ └── apps/
+│ ├── api/ # текущий API слой (будет постепенно разбираться)
+│ ├── main/ # легаси-логика (постепенный перенос)
+│ ├── orders/ # V2
+│ ├── loyalty/ # V2
+│ ├── notifications/ # V2
+│ ├── integrations/ # V2
+│ │ ├── onec/
+│ │ ├── payments/
+│ │ └── delivery/
+│ └── common/ # общие модели/утилиты без бизнес-логики
+│
 ├── bots/
-│   ├── customer_bot/
-│   ├── courier_bot/
-│   └── picker_bot/
+│ ├── customer_bot/
+│ ├── courier_bot/
+│ └── picker_bot/
+│
 ├── shared/
-│   ├── dto/
-│   ├── clients/
-│   └── config/
+│ ├── dto/
+│ ├── clients/
+│ └── config/
+│
 ├── mobile/
-│   └── flutter_app/
+│ └── flutter_app/
+│
 └── docs/
-    └── ARCHITECTURE.md
-```
+├── ARCHITECTURE.md
+├── REFACTOR_PLAN.md
+└── AGENT_WORKLOG.md
+
+---
+
+## Источник актуального контекста
+
+- `docs/AGENT_WORKLOG.md` — **обязателен к прочтению перед началом любой работы**.  
+  Фиксирует:
+  - что уже сделано
+  - какие гейты закрыты
+  - какие шаги повторять нельзя
+
+Этот файл является единственным источником истины по статусу рефакторинга.
+## Актуальное дерево проекта (на данный момент)
+
