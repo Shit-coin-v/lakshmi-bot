@@ -549,3 +549,13 @@
   - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
   - `ruff check backend/apps/api/urls.py` -> успех
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-28T06:33:53Z
+- Кратко что сделано: Удалены реэкспорт-импорты healthz/onec_* из apps/api/views.py, так как urls.py импортирует их напрямую.
+- Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "from\s+apps\.api\.views\s+import\s+(healthz|onec_)" backend || true` -> нет вывода
+  - `rg -n "\b(healthz|onec_customer_sync|onec_health|onec_order_create|onec_order_status|onec_orders_pending|onec_product_sync|onec_receipt)\b" backend/apps/api/urls.py || true` -> найдены прямые импорты/использования
+  - `ruff check backend/apps/api/views.py backend/apps/api/urls.py` -> успех
+  - `python -m compileall backend` -> успех
+  - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> ok
