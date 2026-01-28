@@ -504,3 +504,30 @@
     - Все доменные элементы выше (DRF + ORM + бизнес-логика + побочные эффекты).
     - `SendMessageAPIView` как интеграция с внешним сервисом (риски доступности/контрактов).
   - Явный вывод: переносы не выполнялись.
+
+- Дата/время: 2026-01-28T05:38:53Z
+- Кратко что сделано: Удалены неиспользуемые импорты из backend/apps/api/views.py по результатам ruff.
+- Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `ruff check backend/apps/api/views.py` -> найдены F401 (unused imports)
+  - `python -m compileall backend` -> успех
+- Удалено:
+  - `from apps.common.health import healthz`
+  - `from apps.integrations.onec.customer_sync import onec_customer_sync`
+  - `from apps.integrations.onec.health import onec_health`
+  - `from apps.integrations.onec.order_create import onec_order_create`
+  - `from apps.integrations.onec.order_status import onec_order_status`
+  - `from apps.integrations.onec.orders_pending import onec_orders_pending`
+  - `from apps.integrations.onec.product_sync_endpoint import onec_product_sync`
+  - `from apps.integrations.onec.receipt import onec_receipt`
+  - `from apps.notifications.push_contract import notify_order_status_change`
+
+- Дата/время: 2026-01-28T05:48:22Z
+- Кратко что сделано: Восстановлены re-export импорты в backend/apps/api/views.py для корректных импортов из urls.py и добавлены noqa для F401.
+- Какие файлы изменены: backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Что было сломано: удалили re-export импорты из views.py, при этом backend/apps/api/urls.py продолжает импортировать эти эндпоинты.
+- Что сделано: вернул re-export импорты и пометил их `# noqa: F401`.
+- Какие проверки/команды запускались и результат:
+  - `ruff check backend/apps/api/views.py` -> успех
+  - `python -m compileall backend` -> успех
+  - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> ошибка: ImproperlyConfigured (Django settings не настроены)
