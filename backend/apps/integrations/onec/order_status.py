@@ -11,8 +11,6 @@ from django.views.decorators.http import require_POST
 
 from apps.api.security import require_onec_auth
 from apps.integrations.onec.order_create import _onec_error
-from apps.main.models import Order
-from apps.notifications.push_contract import notify_order_status_change
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +19,9 @@ logger = logging.getLogger(__name__)
 @require_POST
 @require_onec_auth
 def onec_order_status(request):
+    from apps.main.models import Order
+    from apps.notifications.push_contract import notify_order_status_change
+
     raw = request.body or b"{}"
     if isinstance(raw, (bytes, bytearray)):
         raw = raw.decode("utf-8")
