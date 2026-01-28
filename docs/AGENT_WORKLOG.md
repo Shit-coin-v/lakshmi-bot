@@ -559,3 +559,12 @@
   - `ruff check backend/apps/api/views.py backend/apps/api/urls.py` -> успех
   - `python -m compileall backend` -> успех
   - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> ok
+
+- Дата/время: 2026-01-28T06:38:56Z
+- Кратко что сделано: Прогнан ruff по 1C-модулям, F401 не обнаружены; выполнены запрошенные проверки.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `ruff check backend/apps/integrations/onec/customer_sync.py backend/apps/integrations/onec/order_status.py backend/apps/integrations/onec/orders_pending.py backend/apps/integrations/onec/product_sync_endpoint.py backend/apps/integrations/onec/receipt.py` -> успех (All checks passed!)
+  - `ruff check backend/apps/integrations/onec/customer_sync.py backend/apps/integrations/onec/order_status.py backend/apps/integrations/onec/orders_pending.py backend/apps/integrations/onec/product_sync_endpoint.py backend/apps/integrations/onec/receipt.py` -> успех (All checks passed!)
+  - `python -m compileall backend` -> успех
+  - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
