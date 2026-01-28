@@ -18,19 +18,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 
-from apps.common.health import healthz
+from apps.common.health import healthz  # noqa: F401
+from apps.integrations.onec.customer_sync import onec_customer_sync  # noqa: F401
+from apps.integrations.onec.health import onec_health  # noqa: F401
+from apps.integrations.onec.order_create import onec_order_create  # noqa: F401
+from apps.integrations.onec.order_status import onec_order_status  # noqa: F401
+from apps.integrations.onec.orders_pending import onec_orders_pending  # noqa: F401
+from apps.integrations.onec.product_sync_endpoint import onec_product_sync  # noqa: F401
+from apps.integrations.onec.receipt import onec_receipt  # noqa: F401
 from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
-from apps.integrations.onec.customer_sync import onec_customer_sync
-from apps.integrations.onec.health import onec_health
-from apps.integrations.onec.order_create import onec_order_create
-from apps.integrations.onec.order_status import onec_order_status
-from apps.integrations.onec.orders_pending import onec_orders_pending
-from apps.integrations.onec.product_sync_endpoint import onec_product_sync
-from apps.integrations.onec.receipt import onec_receipt
-from apps.notifications.push_contract import notify_order_status_change
 
 from .permissions import ApiKeyPermission
 from .security import require_onec_auth
