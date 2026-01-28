@@ -407,3 +407,18 @@
 - Какие файлы изменены: backend/apps/integrations/onec/product_sync.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-28T03:49:38Z
+- Кратко что сделано: выбран безопасный кандидат на перенос из backend/apps/api/views.py (healthz) и проверены точки входа/зависимости; перенос не выполнялся.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `sed -n '290,320p' backend/apps/api/views.py` -> просмотр блока healthz/onec_health
+  - `rg -n 'healthz' backend/apps/api/urls.py backend/backend/urls.py backend` -> подтверждены точки входа и наличие only в apps/api/urls.py
+- Кандидат на перенос:
+  - `backend/apps/api/views.py::healthz` (функция)
+  - Целевой домен: `apps.common` (временно); целевое имя в финальной структуре: `apps.core.health`
+  - Причины безопасности: не использует ORM/модели/внешние сервисы, только `JsonResponse` и декораторы `require_GET`/`csrf_exempt`; не использует settings напрямую и доменных объектов.
+  - Проверены точки входа: `backend/apps/api/urls.py` содержит `path("healthz/", healthz, name="healthz")`; других импортов/строковых ссылок не выявлено.
+  - Риски переноса: потребуется обновить импорт в `backend/apps/api/urls.py` и убедиться, что не нарушен путь URL `/healthz/`; дополнительных string-ссылок (Celery/сигналы) для healthz не найдено.
+  - Вывод: перенос не выполнялся.
