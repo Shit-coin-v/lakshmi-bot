@@ -450,3 +450,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL/метод/ответ не менялись.
+
+- Дата/время: 2026-01-28T04:38:58Z
+- Кратко что сделано: Вынесен onec_order_status в integrations/onec с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/integrations/onec/order_status.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL/HTTP-метод/ответ не менялись.
