@@ -531,3 +531,13 @@
   - `ruff check backend/apps/api/views.py` -> успех
   - `python -m compileall backend` -> успех
   - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> ошибка: ImproperlyConfigured (Django settings не настроены)
+
+- Дата/время: 2026-01-28T05:58:08Z
+- Кратко что сделано: Исправлен импорт urls за счёт ленивых обёрток для view/viewset, чтобы исключить загрузку DRF/Django настроек на import-time.
+- Что было: ImproperlyConfigured при импорте apps.api.urls из-за раннего импорта DRF views.
+- Что сделано: В backend/apps/api/urls.py внедрены ленивые _lazy_view/_lazy_viewset для отложенного импорта apps.api.views и инициализации as_view.
+- Какие файлы изменены: backend/apps/api/urls.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
+  - `ruff check backend/apps/api/urls.py backend/apps/api/views.py` -> успех
+  - `python -m compileall backend` -> успех
