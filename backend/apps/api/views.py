@@ -33,6 +33,7 @@ from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
+from apps.integrations.onec.health import onec_health
 from apps.integrations.onec.order_create import onec_order_create
 from apps.integrations.onec.product_sync import onec_product_sync_impl
 from apps.notifications.push_contract import notify_order_status_change
@@ -296,13 +297,6 @@ class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
     permission_classes = [AllowAny]
-
-
-@csrf_exempt
-@require_POST
-@require_onec_auth
-def onec_health(_request):
-    return JsonResponse({"status": "ok"})
 
 
 @csrf_exempt
