@@ -12,9 +12,7 @@ from django.utils import timezone as dj_tz
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from apps.api.models import OneCClientMap
 from apps.api.security import require_onec_auth
-from apps.main.models import CustomUser
 
 
 def _as_decimal(value: Any) -> D:
@@ -27,6 +25,9 @@ def _as_decimal(value: Any) -> D:
 @require_POST
 @require_onec_auth
 def onec_customer_sync(request):
+    from apps.api.models import OneCClientMap
+    from apps.main.models import CustomUser
+
     raw = request.body or b""
     if not raw:
         return JsonResponse({"detail": "empty_body"}, status=400)

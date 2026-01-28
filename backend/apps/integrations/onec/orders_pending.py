@@ -10,13 +10,14 @@ from django.views.decorators.http import require_GET
 
 from apps.api.security import require_onec_auth
 from apps.integrations.onec.order_create import _onec_error
-from apps.main.models import Order
 
 
 @csrf_exempt
 @require_GET
 @require_onec_auth
 def onec_orders_pending(request):
+    from apps.main.models import Order
+
     after_raw = (request.GET.get("after") or "").strip()
     limit_raw = (request.GET.get("limit") or "50").strip()
 

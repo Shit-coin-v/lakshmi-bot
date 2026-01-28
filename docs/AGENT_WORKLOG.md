@@ -541,3 +541,11 @@
   - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
   - `ruff check backend/apps/api/urls.py backend/apps/api/views.py` -> успех
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-28T06:25:36Z
+- Кратко что сделано: Обновлены импорты function-based эндпоинтов в urls.py на прямые и отложены ORM/DRF импорты в 1C-эндпоинтах для безопасного import-time без настроек.
+- Какие файлы изменены: backend/apps/api/urls.py, backend/apps/integrations/onec/customer_sync.py, backend/apps/integrations/onec/order_status.py, backend/apps/integrations/onec/orders_pending.py, backend/apps/integrations/onec/product_sync_endpoint.py, backend/apps/integrations/onec/receipt.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
+  - `ruff check backend/apps/api/urls.py` -> успех
+  - `python -m compileall backend` -> успех

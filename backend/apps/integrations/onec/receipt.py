@@ -15,13 +15,7 @@ from django.utils import timezone as dj_tz
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from rest_framework.exceptions import ErrorDetail
-from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-
-from apps.api.models import OneCClientMap
 from apps.api.security import require_onec_auth
-from apps.api.serializers import ReceiptSerializer
-from apps.main.models import CustomUser, Product, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +44,9 @@ def _onec_error(
 
 
 def _find_first_error_code(errors: Any) -> str | None:
+    from rest_framework.exceptions import ErrorDetail
+    from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+
     if isinstance(errors, ErrorDetail):
         return str(errors.code)
     if isinstance(errors, (list, tuple, ReturnList)):
@@ -75,6 +72,10 @@ class DuplicateReceiptLineError(Exception):
 @require_POST
 @require_onec_auth
 def onec_receipt(request):
+    from apps.api.models import OneCClientMap
+    from apps.api.serializers import ReceiptSerializer
+    from apps.main.models import CustomUser, Product, Transaction
+
     raw_body = request.body or b"{}"
     if isinstance(raw_body, (bytes, bytearray)):
         raw_body = raw_body.decode("utf-8")
