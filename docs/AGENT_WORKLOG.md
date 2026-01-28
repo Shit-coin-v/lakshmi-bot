@@ -429,3 +429,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL /healthz/, метод и формат ответа не изменялись.
+
+- Дата/время: 2026-01-28T04:15:37Z
+- Кратко что сделано: Вынесен onec_order_create в integrations/onec с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/integrations/onec/order_create.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL, HTTP-метод и формат ответа не менялись.

@@ -33,6 +33,7 @@ from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
     )
+from apps.integrations.onec.order_create import onec_order_create
 from apps.integrations.onec.product_sync import onec_product_sync_impl
 from apps.notifications.push_contract import notify_order_status_change
 
@@ -813,33 +814,6 @@ def onec_customer_sync(request):
 @require_onec_auth
 def onec_product_sync(request):
     return onec_product_sync_impl(request)
-
-
-@csrf_exempt
-@require_POST
-@require_onec_auth
-def onec_order_create(request):
-    raw = request.body or b"{}"
-    if isinstance(raw, (bytes, bytearray)):
-        raw = raw.decode("utf-8")
-
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        return _onec_error("invalid_json", "Request body must be valid JSON.")
-
-    order_id = payload.get("order_id")
-    if not order_id:
-        return _onec_error("missing_field", "order_id is required.", details={"order_id": ["required"]})
-
-    return JsonResponse(
-        {
-            "status": "ok",
-            "order_id": order_id,
-            "onec_guid": payload.get("onec_guid") or None,
-        },
-        status=200,
-    )
 
 
 @csrf_exempt
