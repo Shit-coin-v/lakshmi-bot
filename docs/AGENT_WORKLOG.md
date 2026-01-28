@@ -457,3 +457,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL/HTTP-метод/ответ не менялись.
+
+- Дата/время: 2026-01-28T05:01:10Z
+- Кратко что сделано: вынесен onec_product_sync (thin-wrapper) в integrations/onec с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/integrations/onec/product_sync_endpoint.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL/HTTP-метод/ответ не менялись.

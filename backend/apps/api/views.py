@@ -37,7 +37,7 @@ from apps.integrations.onec.health import onec_health
 from apps.integrations.onec.order_create import onec_order_create
 from apps.integrations.onec.order_status import onec_order_status
 from apps.integrations.onec.orders_pending import onec_orders_pending
-from apps.integrations.onec.product_sync import onec_product_sync_impl
+from apps.integrations.onec.product_sync_endpoint import onec_product_sync
 from apps.notifications.push_contract import notify_order_status_change
 
 from .permissions import ApiKeyPermission
@@ -803,13 +803,6 @@ def onec_customer_sync(request):
             },
         }
     )
-
-
-@csrf_exempt
-@require_POST
-@require_onec_auth
-def onec_product_sync(request):
-    return onec_product_sync_impl(request)
 
 
 class ProductListView(generics.ListAPIView):
