@@ -443,3 +443,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL/HTTP-метод/формат ответа не менялись.
+
+- Дата/время: 2026-01-28T04:31:20Z
+- Кратко что сделано: вынесен onec_orders_pending в integrations/onec с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/integrations/onec/orders_pending.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL/метод/ответ не менялись.
