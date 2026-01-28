@@ -1,36 +1,48 @@
-## Актуальная структура репозитория
+## Целевая структура репозитория (ориентир для V2, не текущее состояние)
 
 ```text
 /
+project_root/
+├── README.md
+├── .gitignore
+├── .editorconfig
+├── .env.example
+├── docker-compose.yml                 # тонкий entrypoint -> включает infra/docker/*
+├── docker-compose.prod.yml
+├── Makefile
+├── scripts/
+│   ├── init_dev.sh
+│   ├── migrate.sh
+│   └── collectstatic.sh
+│
 ├── infra/
 │   ├── docker/
 │   │   ├── docker-compose.yml
 │   │   ├── docker-compose.override.yml
-│   │   ├── nginx/
-│   │   │   ├── Dockerfile
-│   │   │   └── nginx.conf
 │   │   └── backend/
 │   │       └── Dockerfile
-│   └── observability/
-│       ├── grafana/
-│       ├── prometheus.yml
-│       ├── loki-config.yaml
-│       └── promtail-config.yaml
+│   ├── nginx/
+│   │   ├── nginx.conf
+│   │   └── sites/
+│   │       └── backend.conf
+│   ├── postgres/
+│   │   └── init.sql
+│   └── redis/
+│       └── redis.conf
 │
 ├── backend/
 │   ├── manage.py
 │   ├── requirements.txt
 │   ├── entrypoint.sh
-│   ├── backend/          # Django project (settings, urls, celery)
-│   │   ├── __init__.py
-│   │   ├── asgi.py
-│   │   ├── celery.py
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── celery.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── wsgi.py
 │   └── apps/
-│       ├── api/           # legacy API layer (V1, будет разобран в V2)
-│       ├── main/          # legacy core (V1, будет разобран в V2)
+│       ├── api/
+│       ├── main/
 │       ├── orders/
 │       ├── loyalty/
 │       ├── notifications/
@@ -38,7 +50,7 @@
 │       │   ├── onec/
 │       │   ├── payments/
 │       │   └── delivery/
-│       └── common/        # backend utils без бизнес-логики
+│       └── common/
 │
 ├── bots/
 │   ├── customer_bot/
