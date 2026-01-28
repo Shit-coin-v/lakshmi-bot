@@ -436,3 +436,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL, HTTP-метод и формат ответа не менялись.
+
+- Дата/время: 2026-01-28T04:23:54Z
+- Кратко что сделано: Вынесен onec_health в integrations/onec с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/integrations/onec/health.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL/HTTP-метод/формат ответа не менялись.
