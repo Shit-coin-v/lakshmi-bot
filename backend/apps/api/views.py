@@ -28,6 +28,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 
+from apps.common.health import healthz
 from apps.main.models import (
     CustomUser, Product, Transaction, Order, 
     CustomerDevice, Notification, NotificationOpenEvent
@@ -294,13 +295,6 @@ class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
     permission_classes = [AllowAny]
-
-
-@require_GET
-@csrf_exempt
-def healthz(_request):
-    """Public health-check endpoint for container orchestration."""
-    return JsonResponse({"status": "ok"})
 
 
 @csrf_exempt

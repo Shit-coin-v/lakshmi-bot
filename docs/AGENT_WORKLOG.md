@@ -422,3 +422,10 @@
   - Проверены точки входа: `backend/apps/api/urls.py` содержит `path("healthz/", healthz, name="healthz")`; других импортов/строковых ссылок не выявлено.
   - Риски переноса: потребуется обновить импорт в `backend/apps/api/urls.py` и убедиться, что не нарушен путь URL `/healthz/`; дополнительных string-ссылок (Celery/сигналы) для healthz не найдено.
   - Вывод: перенос не выполнялся.
+
+- Дата/время: 2026-01-28T04:07:39Z
+- Кратко что сделано: Реализация healthz перенесена из apps/api/views.py в apps/common/health.py с сохранением API-контракта.
+- Какие файлы изменены: backend/apps/common/health.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+- Примечание: URL /healthz/, метод и формат ответа не изменялись.
