@@ -478,3 +478,29 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
 - Примечание: URL/HTTP-метод/ответ не менялись.
+
+- Дата/время: 2026-01-28T05:31:10Z
+- Кратко что сделано: Проведён аудит backend/apps/api/views.py после переносов; составлены категории thin-wrapper/инфраструктура/домен, переносы не выполнялись.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `cat docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `sed -n '1,260p' backend/apps/api/views.py` -> просмотр начала файла
+  - `sed -n '260,620p' backend/apps/api/views.py` -> просмотр второй части файла
+  - `sed -n '620,1200p' backend/apps/api/views.py` -> конец файла (пусто)
+  - `python -m compileall backend` -> успех
+- Итог аудита backend/apps/api/views.py:
+  - Thin-wrapper (кандидаты на будущий перенос/очистку views.py):
+    - re-export/прокси эндпоинты, импортируемые из других модулей и пробрасываемые через views.py: `healthz`, `onec_customer_sync`, `onec_health`, `onec_order_create`, `onec_order_status`, `onec_orders_pending`, `onec_product_sync`, `onec_receipt`.
+  - Инфраструктурные/интеграционные элементы:
+    - `SendMessageAPIView` (внешний Telegram API, requests, BOT_TOKEN).
+  - Явно доменные элементы (ORM/DRF/бизнес-логика):
+    - `PurchaseAPIView` (начисления/транзакции/модели заказов и товаров).
+    - `PushRegisterView`, `UpdateFCMTokenView` (модели CustomerDevice/CustomUser, регистрация токенов).
+    - `OrderDetailView`, `OrderCreateView`, `OrderListUserView` (работа с Order/ORM).
+    - `ProductListView` (Product/ORM + фильтры).
+    - `CustomerProfileView` (CustomUser/ORM).
+    - `NotificationViewSet` (Notification/NotificationOpenEvent/ORM, API ключи, чтение/подсчёт).
+  - Высокорисковые и не трогаются сейчас:
+    - Все доменные элементы выше (DRF + ORM + бизнес-логика + побочные эффекты).
+    - `SendMessageAPIView` как интеграция с внешним сервисом (риски доступности/контрактов).
+  - Явный вывод: переносы не выполнялись.
