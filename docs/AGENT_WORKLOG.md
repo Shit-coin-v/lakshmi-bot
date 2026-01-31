@@ -691,3 +691,14 @@
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/notifications/views.py` -> ошибка (F401: unused import CustomerDevice и ApiKeyPermission в backend/apps/api/views.py)
   - `ruff check backend/apps/api/views.py backend/apps/notifications/views.py` -> успех
+
+- Дата/время: 2026-01-31T06:16:27Z
+- Кратко что сделано: Инвентаризация OrderDetailView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class OrderDetailView" backend/apps/api/views.py` -> найдено: `152:class OrderDetailView(generics.RetrieveAPIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '152,260p'` -> просмотр класса OrderDetailView
+  - `rg -n "OrderDetailView" backend/apps/api/urls.py` -> найдено: `55:    path("api/orders/<int:pk>/", _lazy_view("OrderDetailView"), name="order-detail"),`
+  - `python -m compileall backend` -> успех
+- Сериализаторы и модели в OrderDetailView: OrderDetailSerializer; Order (apps.main.models).
