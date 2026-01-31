@@ -618,3 +618,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/serializers.py backend/apps/orders/serializers.py` -> успех
+
+- Дата/время: 2026-01-31T04:14:12Z
+- Кратко что сделано: OrderItemDetailSerializer перенесён в домен orders; в apps/api добавлен прокси-реэкспорт и удалена локальная реализация.
+- Какие файлы изменены: backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/serializers.py backend/apps/orders/serializers.py` -> успех
