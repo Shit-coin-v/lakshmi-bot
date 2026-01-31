@@ -776,3 +776,10 @@
   - `rg -n "SendMessageAPIView" backend/apps/api/urls.py` -> найдено: `49:    path("api/send-message/", _lazy_view("SendMessageAPIView"), name="send-message"),`
   - `python -m compileall backend` -> успех
 - Внешние зависимости эндпоинта: requests (HTTP вызов), settings.BOT_TOKEN, внешний URL https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage.
+
+- Дата/время: 2026-01-31T07:34:42Z
+- Кратко что сделано: SendMessageAPIView перенесён в apps/main с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/main/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/main/views.py` -> ошибка, затем успех после удаления неиспользуемого импорта
