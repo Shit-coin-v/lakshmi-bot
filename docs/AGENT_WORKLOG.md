@@ -158,7 +158,16 @@
   - `git status -sb` -> `## work`
   - `git diff` -> нет вывода
   - `git log --oneline -n 5` -> история без изменений
-  - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-31T04:44:06Z
+- Кратко что сделано: Инвентаризация NotificationViewSet без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,160p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class NotificationViewSet|NotificationViewSet" backend/apps/api/views.py` -> найдено: `268:class NotificationViewSet(viewsets.ViewSet):`
+  - `sed -n '1,220p' backend/apps/api/views.py` -> просмотр начала файла
+  - `sed -n '220,520p' backend/apps/api/views.py` -> просмотр блока NotificationViewSet
+  - `rg -n "^from apps" backend/apps/api/views.py` -> найдено: `apps.main.models`, `apps.orders.views`
 
 - Дата/время: 2026-01-25
 - Этап: V1 (стабилизация структуры и инфраструктуры) — ЗАКРЫТ
