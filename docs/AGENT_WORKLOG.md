@@ -625,3 +625,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/serializers.py backend/apps/orders/serializers.py` -> успех
+
+- Дата/время: 2026-01-31T04:23:30Z
+- Кратко что сделано: Перенесён UpdateFCMTokenSerializer в домен notifications и добавлен прокси-реэкспорт в apps/api.
+- Какие файлы изменены: backend/apps/notifications/serializers.py, backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/serializers.py backend/apps/notifications/serializers.py` -> успех
