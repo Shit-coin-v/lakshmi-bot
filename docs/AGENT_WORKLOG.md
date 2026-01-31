@@ -632,3 +632,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/serializers.py backend/apps/notifications/serializers.py` -> успех
+
+- Дата/время: 2026-01-31T04:29:17Z
+- Кратко что сделано: Перенесены NotificationSerializer и NotificationReadSerializer в домен notifications, добавлены реэкспорты в apps/api.
+- Какие файлы изменены: backend/apps/notifications/serializers.py, backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/serializers.py backend/apps/notifications/serializers.py` -> успех

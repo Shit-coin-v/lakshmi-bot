@@ -2,8 +2,12 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
-from apps.main.models import Product, Order, OrderItem, CustomUser, Notification
-from apps.notifications.serializers import UpdateFCMTokenSerializer  # noqa: F401
+from apps.main.models import Product, Order, OrderItem, CustomUser
+from apps.notifications.serializers import (  # noqa: F401
+    NotificationReadSerializer,
+    NotificationSerializer,
+    UpdateFCMTokenSerializer,
+)
 from apps.orders.serializers import (  # noqa: F401
     OrderDetailSerializer,
     OrderItemDetailSerializer,
@@ -231,16 +235,4 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'avatar'
         ]
         read_only_fields = ['id', 'telegram_id', 'bonuses', 'qr_code']
-
-
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = ("id", "user_id", "title", "body", "is_read", "created_at", "type")
-        read_only_fields = fields
-
-
-class NotificationReadSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField()
-    source = serializers.ChoiceField(choices=["inapp", "push"], required=False, default="inapp")
 
