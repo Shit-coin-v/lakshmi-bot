@@ -765,3 +765,14 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/main/views.py` -> успех
+
+- Дата/время: 2026-01-31T07:21:16Z
+- Кратко что сделано: Инвентаризация SendMessageAPIView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class SendMessageAPIView" backend/apps/api/views.py` -> найдено: `103:class SendMessageAPIView(APIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '103,220p'` -> просмотр класса
+  - `rg -n "SendMessageAPIView" backend/apps/api/urls.py` -> найдено: `49:    path("api/send-message/", _lazy_view("SendMessageAPIView"), name="send-message"),`
+  - `python -m compileall backend` -> успех
+- Внешние зависимости эндпоинта: requests (HTTP вызов), settings.BOT_TOKEN, внешний URL https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage.
