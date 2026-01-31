@@ -21,10 +21,10 @@ from apps.main.models import CustomUser, Product, Transaction, Order
 from .security import require_onec_auth
 from .serializers import (
     CustomerProfileSerializer,
-    OrderCreateSerializer,
     OrderListSerializer,
     PurchaseSerializer,
 )
+from apps.orders.views import OrderCreateView  # noqa: F401
 from apps.orders.views import OrderDetailView  # noqa: F401
 from apps.orders.views import ProductListView  # noqa: F401
 from apps.notifications.views import NotificationViewSet  # noqa: F401
@@ -147,12 +147,6 @@ class SendMessageAPIView(APIView):
             )
 
         return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
-
-
-class OrderCreateView(generics.CreateAPIView):
-    queryset = Order.objects.all()
-    serializer_class = OrderCreateSerializer
-    permission_classes = [AllowAny]
 
 
 class OrderListUserView(generics.ListAPIView):

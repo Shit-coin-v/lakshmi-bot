@@ -3,6 +3,7 @@ from __future__ import annotations
 from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
 
+from apps.api.serializers import OrderCreateSerializer
 from apps.orders.serializers import OrderDetailSerializer, ProductListSerializer
 from apps.main.models import Order, Product
 
@@ -14,6 +15,12 @@ class ProductListView(generics.ListAPIView):
 
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "description"]
+
+
+class OrderCreateView(generics.CreateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderCreateSerializer
+    permission_classes = [AllowAny]
 
 
 class OrderDetailView(generics.RetrieveAPIView):

@@ -722,3 +722,10 @@
   - `rg -n "OrderCreateView" backend/apps/api/urls.py` -> найдено: `53:    path("api/orders/create/", _lazy_view("OrderCreateView"), name="order-create"),`
   - `python -m compileall backend` -> успех
 - Сериализаторы/модели в OrderCreateView: OrderCreateSerializer; Order (apps.main.models).
+
+- Дата/время: 2026-01-31T06:50:19Z
+- Кратко что сделано: OrderCreateView перенесён в apps/orders с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/orders/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
