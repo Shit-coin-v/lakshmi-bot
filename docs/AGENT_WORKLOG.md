@@ -666,3 +666,10 @@
   - `nl -ba backend/apps/api/views.py | sed -n '197,260p'` -> просмотр класса
   - `rg -n "UpdateFCMTokenView" backend/apps/api/urls.py` -> найдено: `51:    path("api/fcm/token/", _lazy_view("UpdateFCMTokenView"), name="fcm-token"),`
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-31T06:01:37Z
+- Кратко что сделано: UpdateFCMTokenView перенесён в домен notifications с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/notifications/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/notifications/views.py` -> успех

@@ -4,10 +4,15 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.api.permissions import ApiKeyPermission
-from apps.main.models import Notification, NotificationOpenEvent
-from apps.notifications.serializers import NotificationReadSerializer, NotificationSerializer
+from apps.main.models import CustomUser, CustomerDevice, Notification, NotificationOpenEvent
+from apps.notifications.serializers import (
+    NotificationReadSerializer,
+    NotificationSerializer,
+    UpdateFCMTokenSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -124,3 +129,36 @@ class NotificationViewSet(viewsets.ViewSet):
 
         cnt = Notification.objects.filter(user_id=user_id, is_read=False).count()
         return Response({"status": "ok", "unread_count": cnt}, status=200)
+
+
+class UpdateFCMTokenView(APIView):
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request):
+        perm = ApiKeyPermission()
+        if not perm.has_permission(request, self):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        s = UpdateFCMTokenSerializer(data=request.data)
+        if not s.is_valid():
+            return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        customer_id = int(s.validated_data["customer_id"])
+        fcm_token = s.validated_data["fcm_token"].strip()
+        platform = s.validated_data.get("platform", "android")
+
+        try:
+            customer = CustomUser.objects.get(id=customer_id)
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        device, created = CustomerDevice.objects.update_or_create(
+            fcm_token=fcm_token,
+            defaults={"customer": customer, "platform": platform},
+        )
+
+        return Response(
+            {"status": "ok", "device_id": device.id, "created": created},
+            status=status.HTTP_200_OK,
+        )
