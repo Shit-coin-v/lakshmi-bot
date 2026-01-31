@@ -794,3 +794,10 @@
   - `rg -n "PurchaseAPIView" backend/apps/api/urls.py` -> найдено: `48:    path("api/purchase/", _lazy_view("PurchaseAPIView"), name="purchase"),`
   - `python -m compileall backend` -> успех
 - Используемые сериализаторы/модели в PurchaseAPIView: PurchaseSerializer; модели CustomUser, Product, Transaction.
+
+- Дата/время: 2026-01-31T07:58:58Z
+- Кратко что сделано: PurchaseAPIView перенесён в apps/loyalty с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/loyalty/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/loyalty/views.py` -> успех
