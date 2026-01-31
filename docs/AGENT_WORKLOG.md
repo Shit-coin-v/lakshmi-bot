@@ -729,3 +729,14 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
+
+- Дата/время: 2026-01-31T06:55:56Z
+- Кратко что сделано: Инвентаризация OrderListUserView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class OrderListUserView" backend/apps/api/views.py` -> найдено: `152:class OrderListUserView(generics.ListAPIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '120,220p'` -> просмотр блока OrderListUserView
+  - `rg -n "OrderListUserView" backend/apps/api/urls.py` -> найдено: `54:    path("api/orders/", _lazy_view("OrderListUserView"), name="order-history"),`
+  - `python -m compileall backend` -> успех
+- Используемые сериализаторы и модели в OrderListUserView: OrderListSerializer; Order (через Order.objects.filter/none).
