@@ -218,6 +218,7 @@
   - `sed -n '1,200p' backend/apps/api/urls.py` -> подтверждено, что urls.py импортирует views
 - Кандидаты PR11:
   1) backend/apps/api/views.py
+
      - Тип: view
      - Зависимости: DRF (viewsets/APIView/permissions/parsers), ORM/models, settings, requests.
      - Домен: orders / notifications / integrations/onec (спорно)
@@ -710,3 +711,14 @@
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
   - `PYTHONPATH=backend python -c "from apps.api.views import OrderDetailView; print(OrderDetailView)"` -> ошибка (django.core.exceptions.ImproperlyConfigured: settings не настроены)
+
+- Дата/время: 2026-01-31T06:43:39Z
+- Кратко что сделано: Инвентаризация OrderCreateView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class OrderCreateView" backend/apps/api/views.py` -> найдено: `152:class OrderCreateView(generics.CreateAPIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '140,230p'` -> просмотр блока OrderCreateView
+  - `rg -n "OrderCreateView" backend/apps/api/urls.py` -> найдено: `53:    path("api/orders/create/", _lazy_view("OrderCreateView"), name="order-create"),`
+  - `python -m compileall backend` -> успех
+- Сериализаторы/модели в OrderCreateView: OrderCreateSerializer; Order (apps.main.models).
