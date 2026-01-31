@@ -589,3 +589,11 @@
   - `sed -n '1,240p' backend/apps/api/urls.py` -> просмотр
   - `rg -n '_lazy_view|_lazy_viewset|urlpatterns|path\(' backend/apps/api/urls.py` -> найдено совпадений
   - `rg -n '\.delay\(|\.apply_async\(' backend/apps/api/views.py backend/apps/api/serializers.py backend/apps/api/tasks.py backend/apps/main/admin.py` -> совпадений нет
+
+- Дата/время: 2026-01-31T03:26:43Z
+- Кратко что сделано: ProductListView перенесён в apps/orders/views.py с сохранением API-контракта и добавлен реэкспорт в apps/api/views.py.
+- Какие файлы изменены: backend/apps/orders/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> ошибка (F401: unused import rest_framework.filters в backend/apps/api/views.py)
+  - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
