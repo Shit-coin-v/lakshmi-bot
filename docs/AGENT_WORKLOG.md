@@ -580,3 +580,12 @@
   - `rg -n "Итоговый git commit hash:" docs/AGENT_WORKLOG.md` -> найдено 4 строки до удаления
   - `git diff` -> показаны удаления строк с "Итоговый git commit hash"
   - `git status -sb` -> `## work`, изменён `docs/AGENT_WORKLOG.md`
+
+- Дата/время: 2026-01-31T03:10:57Z
+- Кратко что сделано: Инвентаризация backend/apps/api/views.py и подключений в backend/apps/api/urls.py; собраны зависимости и точки использования, без правок кода.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n '^(class|def)\s+' backend/apps/api/views.py` -> найдено 10 классов
+  - `sed -n '1,240p' backend/apps/api/urls.py` -> просмотр
+  - `rg -n '_lazy_view|_lazy_viewset|urlpatterns|path\(' backend/apps/api/urls.py` -> найдено совпадений
+  - `rg -n '\.delay\(|\.apply_async\(' backend/apps/api/views.py backend/apps/api/serializers.py backend/apps/api/tasks.py backend/apps/main/admin.py` -> совпадений нет
