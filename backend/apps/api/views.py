@@ -16,16 +16,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.main.models import CustomUser, Product, Transaction, Order
+from apps.main.models import CustomUser, Product, Transaction
 
 from .security import require_onec_auth
 from .serializers import (
     CustomerProfileSerializer,
-    OrderListSerializer,
     PurchaseSerializer,
 )
 from apps.orders.views import OrderCreateView  # noqa: F401
 from apps.orders.views import OrderDetailView  # noqa: F401
+from apps.orders.views import OrderListUserView  # noqa: F401
 from apps.orders.views import ProductListView  # noqa: F401
 from apps.notifications.views import NotificationViewSet  # noqa: F401
 from apps.notifications.views import PushRegisterView  # noqa: F401
@@ -147,19 +147,6 @@ class SendMessageAPIView(APIView):
             )
 
         return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
-
-
-class OrderListUserView(generics.ListAPIView):
-    serializer_class = OrderListSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        user_id = self.request.query_params.get("user_id")
-
-        if user_id:
-            return Order.objects.filter(customer_id=user_id).order_by("-created_at")
-
-        return Order.objects.none()
 
 
 class CustomerProfileView(generics.RetrieveUpdateAPIView):

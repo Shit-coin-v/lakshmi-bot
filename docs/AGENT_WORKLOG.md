@@ -740,3 +740,10 @@
   - `rg -n "OrderListUserView" backend/apps/api/urls.py` -> найдено: `54:    path("api/orders/", _lazy_view("OrderListUserView"), name="order-history"),`
   - `python -m compileall backend` -> успех
 - Используемые сериализаторы и модели в OrderListUserView: OrderListSerializer; Order (через Order.objects.filter/none).
+
+- Дата/время: 2026-01-31T07:01:08Z
+- Кратко что сделано: OrderListUserView перенесён в apps/orders с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/orders/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
