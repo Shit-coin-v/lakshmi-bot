@@ -61,3 +61,19 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "total_price",
             "items",
         ]
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    items_count = serializers.IntegerField(source='items.count', read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            'id', 
+            'created_at', 
+            'total_price', 
+            'status', 
+            'status_display', 
+            'items_count'
+        ]

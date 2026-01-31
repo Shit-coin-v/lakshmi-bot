@@ -3,7 +3,7 @@ from typing import Any
 
 from rest_framework import serializers
 from apps.main.models import Product, Order, OrderItem, CustomUser, Notification
-from apps.orders.serializers import OrderDetailSerializer, ProductListSerializer  # noqa: F401
+from apps.orders.serializers import OrderDetailSerializer, OrderListSerializer, ProductListSerializer  # noqa: F401
 
 
 class PurchaseSerializer(serializers.Serializer):
@@ -210,21 +210,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         return order
     
-
-class OrderListSerializer(serializers.ModelSerializer):
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    items_count = serializers.IntegerField(source='items.count', read_only=True)
-
-    class Meta:
-        model = Order
-        fields = [
-            'id', 
-            'created_at', 
-            'total_price', 
-            'status', 
-            'status_display', 
-            'items_count'
-        ]
 
 class OrderItemDetailSerializer(serializers.ModelSerializer):
     product_code = serializers.CharField(source="product.product_code", read_only=True)
