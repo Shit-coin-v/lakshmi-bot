@@ -10,7 +10,7 @@ from django.utils import timezone as dj_tz
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
-from rest_framework import status, generics, filters, viewsets
+from rest_framework import status, generics, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -30,13 +30,13 @@ from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
-    ProductListSerializer,
     PurchaseSerializer,
     NotificationSerializer,
     NotificationReadSerializer,
     UpdateFCMTokenSerializer,
 
 )
+from apps.orders.views import ProductListView  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -235,15 +235,6 @@ class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
     permission_classes = [AllowAny]
-
-
-class ProductListView(generics.ListAPIView):
-    queryset = Product.objects.filter(is_active=True)
-    serializer_class = ProductListSerializer
-    permission_classes = [AllowAny]
-
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["name", "description"]
 
 
 class OrderCreateView(generics.CreateAPIView):
