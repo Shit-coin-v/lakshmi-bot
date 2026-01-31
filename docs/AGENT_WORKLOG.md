@@ -656,3 +656,13 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/serializers.py backend/apps/notifications/serializers.py` -> успех
+
+- Дата/время: 2026-01-31T05:52:16Z
+- Кратко что сделано: Инвентаризация UpdateFCMTokenView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class UpdateFCMTokenView" backend/apps/api/views.py` -> найдено: `197:class UpdateFCMTokenView(APIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '197,260p'` -> просмотр класса
+  - `rg -n "UpdateFCMTokenView" backend/apps/api/urls.py` -> найдено: `51:    path("api/fcm/token/", _lazy_view("UpdateFCMTokenView"), name="fcm-token"),`
+  - `python -m compileall backend` -> успех
