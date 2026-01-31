@@ -3,7 +3,7 @@ from __future__ import annotations
 from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
 
-from apps.api.serializers import ProductListSerializer
+from apps.orders.serializers import ProductListSerializer
 from apps.main.models import Product
 
 

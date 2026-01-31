@@ -3,6 +3,7 @@ from typing import Any
 
 from rest_framework import serializers
 from apps.main.models import Product, Order, OrderItem, CustomUser, Notification
+from apps.orders.serializers import ProductListSerializer  # noqa: F401
 
 
 class PurchaseSerializer(serializers.Serializer):
@@ -102,29 +103,6 @@ class ProductUpdateSerializer(serializers.Serializer):
     is_promotional = serializers.BooleanField()
     updated_at = serializers.DateTimeField()
 
-
-class ProductListSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Product
-        fields = [
-            'id', 
-            'product_code', 
-            'name', 
-            'price', 
-            'category', 
-            'stock', 
-            'image_url',     
-            'description',   
-            'is_promotional'
-        ]
-
-    def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
-    
 
 class OrderItemSerializer(serializers.Serializer):
     product_code = serializers.CharField(required=False, allow_blank=False)
