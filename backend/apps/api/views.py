@@ -10,23 +10,19 @@ from django.utils import timezone as dj_tz
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
-from rest_framework import status, generics
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.main.models import CustomUser, Product, Transaction
 
 from .security import require_onec_auth
-from .serializers import (
-    CustomerProfileSerializer,
-    PurchaseSerializer,
-)
+from .serializers import PurchaseSerializer
 from apps.orders.views import OrderCreateView  # noqa: F401
 from apps.orders.views import OrderDetailView  # noqa: F401
 from apps.orders.views import OrderListUserView  # noqa: F401
 from apps.orders.views import ProductListView  # noqa: F401
+from apps.main.views import CustomerProfileView  # noqa: F401
 from apps.notifications.views import NotificationViewSet  # noqa: F401
 from apps.notifications.views import PushRegisterView  # noqa: F401
 from apps.notifications.views import UpdateFCMTokenView  # noqa: F401
@@ -148,11 +144,3 @@ class SendMessageAPIView(APIView):
 
         return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
 
-
-class CustomerProfileView(generics.RetrieveUpdateAPIView):
-    """Получение и обновление профиля клиента."""
-
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomerProfileSerializer
-    permission_classes = [AllowAny]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
