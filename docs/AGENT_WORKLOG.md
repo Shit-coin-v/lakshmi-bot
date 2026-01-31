@@ -758,3 +758,10 @@
   - `rg -n "CustomerProfileView" backend/apps/api/urls.py` -> найдено: `56:    path("api/customer/<int:pk>/", _lazy_view("CustomerProfileView"), name="customer-profile"),`
   - `python -m compileall backend` -> успех
 - Сериализаторы и модели в CustomerProfileView: CustomerProfileSerializer (serializer_class), CustomUser (queryset)
+
+- Дата/время: 2026-01-31T07:14:41Z
+- Кратко что сделано: CustomerProfileView перенесён в apps/main с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/main/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/main/views.py` -> успех
