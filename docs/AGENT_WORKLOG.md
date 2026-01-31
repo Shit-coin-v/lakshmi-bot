@@ -747,3 +747,14 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
+
+- Дата/время: 2026-01-31T07:08:16Z
+- Кратко что сделано: Инвентаризация CustomerProfileView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class CustomerProfileView" backend/apps/api/views.py` -> найдено: `152:class CustomerProfileView(generics.RetrieveUpdateAPIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '152,230p'` -> просмотр блока CustomerProfileView
+  - `rg -n "CustomerProfileView" backend/apps/api/urls.py` -> найдено: `56:    path("api/customer/<int:pk>/", _lazy_view("CustomerProfileView"), name="customer-profile"),`
+  - `python -m compileall backend` -> успех
+- Сериализаторы и модели в CustomerProfileView: CustomerProfileSerializer (serializer_class), CustomUser (queryset)
