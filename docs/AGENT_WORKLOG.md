@@ -7,7 +7,6 @@
   - `git grep -n "backend_bot" || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
   - `git grep -n "backend_bot/" || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
   - `git grep -n "backend_bot" infra backend bots docs || true` -> найдено в `docs/REFACTOR_PLAN.md:246`
-- Итоговый git commit hash: нет
 
 - Дата/время: не зафиксировано (внесено задним числом)
 - Кратко что сделано: Статическая валидация infra/docker/docker-compose.yml без Docker, без правок.
@@ -19,7 +18,6 @@
   - попытка Python+PyYAML -> `NO_PYYAML: ModuleNotFoundError("No module named 'yaml'")`
   - fallback `rg -n --no-heading "(^\\s*services:|^\\s*env_file:|^\\s*build:|dockerfile:|MB_SITE_URL|STATIC_URL|MEDIA)" infra/docker/docker-compose.yml || true` -> найдены `env_file: ../../backend/.env`, `dockerfile: infra/docker/backend/Dockerfile`, `MB_SITE_URL...`
   - `TAB_COUNT: 0`
-- Итоговый git commit hash: нет
 
 - Дата/время: 2026-01-22T05:38:54+00:00
 - Кратко что сделано: Аудит infra/docker/nginx/nginx.conf по X-Forwarded-Proto, без правок.
@@ -29,7 +27,6 @@
   - `sed -n '1,240p' infra/docker/nginx/nginx.conf` -> просмотр конфига
   - `rg -n "map\\s+\\$http_x_forwarded_proto|\\$forwarded_proto|X-Forwarded-Proto|http_x_forwarded_proto|X-Forwarded-Host|X-Forwarded-Port" infra/docker/nginx/nginx.conf` -> найдено: set $forwarded_proto, но в proxy_set_header используется $http_x_forwarded_proto
   - `nl -ba infra/docker/nginx/nginx.conf` -> подтверждены строки set/proxy_set_header
-- Итоговый git commit hash: нет
 
 - Дата/время: 2026-01-22T06:56:43+00:00
 - Кратко что сделано: Приведена в порядок история и запись worklog для правок X-Forwarded-Proto в Nginx
@@ -63,7 +60,6 @@
   - `git status -sb`
     ## HEAD (no branch)
      M docs/AGENT_WORKLOG.md
-- Итоговый git commit hash: cdc3598
 
 - Дата/время: 2026-01-23T09:32:26Z
 - Кратко что сделано: Создан каркас доменных приложений V2 в backend/apps/ с пустыми пакетами и AppConfig.
@@ -576,3 +572,11 @@
   - `rg -n "apps\.api\.views\.(healthz|onec_)" backend || true` -> нет вывода
   - `rg -n "from\s+apps\.api\.views\s+import\s+(healthz|onec_)" backend || true` -> нет вывода
   - `rg -n "path\(\"healthz/\"|path\(\"onec/" backend/apps/api/urls.py || true` -> успех, найдено 8 совпадений
+
+- Дата/время: 2026-01-31T02:32:17Z
+- Кратко что сделано: Удалены строки с "Итоговый git commit hash" из журнала.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "Итоговый git commit hash:" docs/AGENT_WORKLOG.md` -> найдено 4 строки до удаления
+  - `git diff` -> показаны удаления строк с "Итоговый git commit hash"
+  - `git status -sb` -> `## work`, изменён `docs/AGENT_WORKLOG.md`
