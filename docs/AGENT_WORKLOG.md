@@ -702,3 +702,11 @@
   - `rg -n "OrderDetailView" backend/apps/api/urls.py` -> найдено: `55:    path("api/orders/<int:pk>/", _lazy_view("OrderDetailView"), name="order-detail"),`
   - `python -m compileall backend` -> успех
 - Сериализаторы и модели в OrderDetailView: OrderDetailSerializer; Order (apps.main.models).
+
+- Дата/время: 2026-01-31T07:02:34Z
+- Кратко что сделано: OrderDetailView перенесён в apps/orders с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/orders/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/orders/views.py` -> успех
+  - `PYTHONPATH=backend python -c "from apps.api.views import OrderDetailView; print(OrderDetailView)"` -> ошибка (django.core.exceptions.ImproperlyConfigured: settings не настроены)
