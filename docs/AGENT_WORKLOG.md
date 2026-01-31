@@ -783,3 +783,14 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/main/views.py` -> ошибка, затем успех после удаления неиспользуемого импорта
+
+- Дата/время: 2026-01-31T07:41:55Z
+- Кратко что сделано: Инвентаризация PurchaseAPIView без правок.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `sed -n '1,220p' docs/AGENT_WORKLOG.md` -> журнал прочитан
+  - `rg -n "class PurchaseAPIView" backend/apps/api/views.py` -> найдено: `35:class PurchaseAPIView(APIView):`
+  - `nl -ba backend/apps/api/views.py | sed -n '1,160p'` -> просмотр блока PurchaseAPIView
+  - `rg -n "PurchaseAPIView" backend/apps/api/urls.py` -> найдено: `48:    path("api/purchase/", _lazy_view("PurchaseAPIView"), name="purchase"),`
+  - `python -m compileall backend` -> успех
+- Используемые сериализаторы/модели в PurchaseAPIView: PurchaseSerializer; модели CustomUser, Product, Transaction.
