@@ -29,11 +29,10 @@ from .serializers import (
     OrderDetailSerializer,
     OrderListSerializer,
     PurchaseSerializer,
-    UpdateFCMTokenSerializer,
-
 )
 from apps.orders.views import ProductListView  # noqa: F401
 from apps.notifications.views import NotificationViewSet  # noqa: F401
+from apps.notifications.views import UpdateFCMTokenView  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -194,40 +193,6 @@ class PushRegisterView(APIView):
         return Response({"status": "ok", "device_id": device.id}, status=status.HTTP_200_OK)
     
 
-class UpdateFCMTokenView(APIView):
-    permission_classes = []
-    authentication_classes = []
-
-    def post(self, request):
-        perm = ApiKeyPermission()
-        if not perm.has_permission(request, self):
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        s = UpdateFCMTokenSerializer(data=request.data)
-        if not s.is_valid():
-            return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        customer_id = int(s.validated_data["customer_id"])
-        fcm_token = s.validated_data["fcm_token"].strip()
-        platform = s.validated_data.get("platform", "android")
-
-        try:
-            customer = CustomUser.objects.get(id=customer_id)
-        except CustomUser.DoesNotExist:
-            return Response({"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        device, created = CustomerDevice.objects.update_or_create(
-            fcm_token=fcm_token,
-            defaults={"customer": customer, "platform": platform},
-        )
-
-        return Response(
-            {"status": "ok", "device_id": device.id, "created": created},
-            status=status.HTTP_200_OK,
-        )
-
-
-
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
@@ -260,4 +225,3 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = CustomerProfileSerializer
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-
