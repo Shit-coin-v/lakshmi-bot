@@ -683,3 +683,11 @@
   - `nl -ba backend/apps/api/views.py | sed -n '140,240p'` -> просмотр класса
   - `rg -n "PushRegisterView" backend/apps/api/urls.py` -> найдено: `50:    path("api/push/register/", _lazy_view("PushRegisterView"), name="push-register"),`
   - `python -m compileall backend` -> успех
+
+- Дата/время: 2026-01-31T06:11:54Z
+- Кратко что сделано: PushRegisterView перенесён в домен notifications с прокси-реэкспортом в apps/api.
+- Какие файлы изменены: backend/apps/notifications/views.py, backend/apps/api/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py backend/apps/notifications/views.py` -> ошибка (F401: unused import CustomerDevice и ApiKeyPermission в backend/apps/api/views.py)
+  - `ruff check backend/apps/api/views.py backend/apps/notifications/views.py` -> успех

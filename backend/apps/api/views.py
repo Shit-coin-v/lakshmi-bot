@@ -16,12 +16,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.main.models import (
-    CustomUser, Product, Transaction, Order, 
-    CustomerDevice
-    )
+from apps.main.models import CustomUser, Product, Transaction, Order
 
-from .permissions import ApiKeyPermission
 from .security import require_onec_auth
 from .serializers import (
     CustomerProfileSerializer,
@@ -32,6 +28,7 @@ from .serializers import (
 )
 from apps.orders.views import ProductListView  # noqa: F401
 from apps.notifications.views import NotificationViewSet  # noqa: F401
+from apps.notifications.views import PushRegisterView  # noqa: F401
 from apps.notifications.views import UpdateFCMTokenView  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -151,47 +148,6 @@ class SendMessageAPIView(APIView):
 
         return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
 
-
-class PushRegisterView(APIView):
-    # ApiKeyPermission у тебя уже завязан на X-Api-Key 👍
-    permission_classes = []  # НЕ ставим DRF-auth; проверка только через ApiKeyPermission ниже
-    authentication_classes = []
-
-    def post(self, request):
-        # ручная проверка через permission класс
-        perm = ApiKeyPermission()
-        if not perm.has_permission(request, self):
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        fcm_token = (request.data.get("fcm_token") or "").strip()
-        platform = (request.data.get("platform") or "android").lower()
-        customer_id = request.data.get("customer_id")
-
-        if not fcm_token or not customer_id:
-            return Response(
-                {"detail": "customer_id and fcm_token are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            customer = CustomUser.objects.get(id=int(customer_id))
-        except (TypeError, ValueError, CustomUser.DoesNotExist):
-            return Response({"detail": "customer not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        device, created = CustomerDevice.objects.update_or_create(
-            fcm_token=fcm_token,
-            defaults={"customer": customer, "platform": platform},
-        )
-
-        logger.info(
-            "Registered FCM token for customer=%s | platform=%s | created=%s",
-            customer.id,
-            platform,
-            created,
-        )
-
-        return Response({"status": "ok", "device_id": device.id}, status=status.HTTP_200_OK)
-    
 
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
