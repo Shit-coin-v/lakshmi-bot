@@ -568,3 +568,11 @@
   - `ruff check backend/apps/integrations/onec/customer_sync.py backend/apps/integrations/onec/order_status.py backend/apps/integrations/onec/orders_pending.py backend/apps/integrations/onec/product_sync_endpoint.py backend/apps/integrations/onec/receipt.py` -> успех (All checks passed!)
   - `python -m compileall backend` -> успех
   - `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"` -> успех (ok)
+
+- Дата/время: 2026-01-31T02:17:54Z
+- Кратко что сделано: Аудит остаточных ссылок на re-export из apps.api.views по заданным шаблонам, без правок кода.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "apps\.api\.views\.(healthz|onec_)" backend || true` -> нет вывода
+  - `rg -n "from\s+apps\.api\.views\s+import\s+(healthz|onec_)" backend || true` -> нет вывода
+  - `rg -n "path\(\"healthz/\"|path\(\"onec/" backend/apps/api/urls.py || true` -> успех, найдено 8 совпадений
