@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 
 from apps.api.serializers import OrderCreateSerializer, OrderListSerializer
 from apps.orders.serializers import OrderDetailSerializer, ProductListSerializer
-from apps.main.models import Order, Product
+from apps.orders.models import Order, Product
 
 
 class ProductListView(generics.ListAPIView):
