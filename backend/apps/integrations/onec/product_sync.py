@@ -3,7 +3,7 @@ import json
 from django.http import JsonResponse
 
 from apps.api.serializers import ProductUpdateSerializer
-from apps.main.models import Product
+from apps.orders.models import Product
 
 
 def onec_product_sync_impl(request):

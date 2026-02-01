@@ -874,3 +874,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/tests` -> успех
+
+- Дата/время: 2026-02-01T05:34:39Z
+- Кратко что сделано: Обновлён импорт Product в интеграции 1С на доменный прокси orders без изменения логики.
+- Какие файлы изменены: backend/apps/integrations/onec/product_sync.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/integrations/onec/product_sync.py` -> успех
