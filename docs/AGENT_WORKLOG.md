@@ -801,3 +801,17 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/views.py backend/apps/loyalty/views.py` -> успех
+
+- Дата/время: 2026-02-01T04:07:01Z
+- Кратко что сделано: Добавлен доменный прокси-модуль orders/models.py и обновлены импорты orders.
+- Какие файлы изменены: backend/apps/orders/models.py, backend/apps/orders/serializers.py, backend/apps/orders/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/orders/models.py backend/apps/orders/serializers.py backend/apps/orders/views.py` -> успех
+
+- Дата/время: 2026-02-01T04:08:37Z
+- Кратко что сделано: Повторный запуск compileall и ruff для проверки orders.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/orders/models.py backend/apps/orders/serializers.py backend/apps/orders/views.py` -> успех
