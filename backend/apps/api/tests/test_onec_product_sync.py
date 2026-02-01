@@ -1,7 +1,7 @@
 import json
 from django.test import TestCase, Client
 from api import security
-from apps.main.models import Product
+from apps.orders.models import Product
 
 
 class OneCProductSyncTests(TestCase):

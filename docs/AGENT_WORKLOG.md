@@ -867,3 +867,10 @@
   - `rg -n "from apps\.main\.models import" backend/apps/api/models.py` -> найдено: строка 2
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/models.py` -> успех
+
+- Дата/время: 2026-02-01T05:22:31+00:00
+- Кратко что сделано: Обновлены импорты моделей в тестах API на доменные прокси orders/loyalty без изменения логики.
+- Какие файлы изменены: backend/apps/api/tests/test_onec_receipt.py, backend/apps/api/tests/test_onec_product_sync.py, backend/apps/api/tests/test_onec_customer_sync.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/tests` -> успех
