@@ -6,7 +6,7 @@ from django.test import Client, TestCase
 
 from api import security
 from apps.api.models import OneCClientMap
-from apps.main.models import CustomUser
+from apps.loyalty.models import CustomUser
 
 
 class OneCCustomerSyncTests(TestCase):

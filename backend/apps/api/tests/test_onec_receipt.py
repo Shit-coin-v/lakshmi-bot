@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import Client, TestCase
 
 from api import security
-from apps.main.models import CustomUser, Transaction
+from apps.loyalty.models import CustomUser, Transaction
 
 
 class OneCReceiptTests(TestCase):
