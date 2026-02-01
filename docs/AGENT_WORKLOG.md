@@ -851,3 +851,19 @@
   - `rg -n "\b(uuid|settings|transaction|dj_tz|Order)\b" backend/apps/api/tasks.py` -> нет совпадений
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/tasks.py` -> успех
+
+- Дата/время: 2026-02-01T04:51:37Z
+- Кратко что сделано: Проверены импорты моделей в backend/apps/api/views.py; совпадений с apps.main.models не найдено, выполнены проверки.
+- Какие файлы изменены: docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "from apps\.main\.models import" backend/apps/api/views.py` -> совпадений нет
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/views.py` -> успех
+
+- Дата/время: 2026-02-01T05:14:05Z
+- Кратко что сделано: Обновлён импорт CustomUser в api/models на доменный прокси loyalty.
+- Какие файлы изменены: backend/apps/api/models.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "from apps\.main\.models import" backend/apps/api/models.py` -> найдено: строка 2
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/models.py` -> успех
