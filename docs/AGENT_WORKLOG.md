@@ -888,3 +888,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/integrations/onec/order_status.py` -> успех
+
+- Дата/время: 2026-02-01T06:08:08Z
+- Кратко что сделано: Обновлён импорт Order в orders_pending на доменный прокси orders без изменения логики.
+- Какие файлы изменены: backend/apps/integrations/onec/orders_pending.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/integrations/onec/orders_pending.py` -> успех

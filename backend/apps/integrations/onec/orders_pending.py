@@ -16,7 +16,7 @@ from apps.integrations.onec.order_create import _onec_error
 @require_GET
 @require_onec_auth
 def onec_orders_pending(request):
-    from apps.main.models import Order
+    from apps.orders.models import Order
 
     after_raw = (request.GET.get("after") or "").strip()
     limit_raw = (request.GET.get("limit") or "50").strip()
