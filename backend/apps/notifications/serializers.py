@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.main.models import Notification
+from apps.notifications.models import Notification
 
 
 class UpdateFCMTokenSerializer(serializers.Serializer):

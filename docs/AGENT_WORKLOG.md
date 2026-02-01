@@ -815,3 +815,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/orders/models.py backend/apps/orders/serializers.py backend/apps/orders/views.py` -> успех
+
+- Дата/время: 2026-02-01T04:16:11Z
+- Кратко что сделано: Добавлен доменный прокси-модуль models для notifications и обновлены импорты.
+- Какие файлы изменены: backend/apps/notifications/models.py, backend/apps/notifications/serializers.py, backend/apps/notifications/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/notifications/models.py backend/apps/notifications/serializers.py backend/apps/notifications/views.py` -> успех
