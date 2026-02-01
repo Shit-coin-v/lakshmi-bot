@@ -822,3 +822,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/notifications/models.py backend/apps/notifications/serializers.py backend/apps/notifications/views.py` -> успех
+
+- Дата/время: 2026-02-01T04:22:41Z
+- Кратко что сделано: Добавлен прокси-модуль моделей для loyalty и обновлён импорт в views.
+- Какие файлы изменены: backend/apps/loyalty/models.py, backend/apps/loyalty/views.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/loyalty/models.py backend/apps/loyalty/views.py` -> успех
