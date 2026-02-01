@@ -1,15 +1,10 @@
 import os
 import requests
-import uuid
 import logging
 
 from datetime import date
 from celery import shared_task
-from django.conf import settings
-from django.db import transaction
-from django.utils import timezone as dj_tz
-
-from apps.main.models import CustomUser, Order
+from apps.loyalty.models import CustomUser
 from apps.integrations.onec.order_sync import send_order_to_onec_impl
 
 logger = logging.getLogger(__name__)
