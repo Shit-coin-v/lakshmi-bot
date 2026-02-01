@@ -836,3 +836,18 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/api/serializers.py` -> успех
+
+- Дата/время: 2026-02-01T04:36:11Z
+- Кратко что сделано: Обновлены импорты моделей в задачах API на доменные прокси orders/loyalty без изменения логики.
+- Какие файлы изменены: backend/apps/api/tasks.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/tasks.py` -> ошибка (F401: unused import uuid/settings/transaction/dj_tz/Order)
+
+- Дата/время: 2026-02-01T04:46:43Z
+- Кратко что сделано: Удалены неиспользуемые импорты в задачах API для устранения F401.
+- Какие файлы изменены: backend/apps/api/tasks.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `rg -n "\b(uuid|settings|transaction|dj_tz|Order)\b" backend/apps/api/tasks.py` -> нет совпадений
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/tasks.py` -> успех
