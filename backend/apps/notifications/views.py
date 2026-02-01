@@ -7,7 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.permissions import ApiKeyPermission
-from apps.main.models import CustomUser, CustomerDevice, Notification, NotificationOpenEvent
+from apps.main.models import CustomUser, CustomerDevice
+from apps.notifications.models import Notification, NotificationOpenEvent
 from apps.notifications.serializers import (
     NotificationReadSerializer,
     NotificationSerializer,
