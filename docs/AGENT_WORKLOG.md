@@ -829,3 +829,10 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/loyalty/models.py backend/apps/loyalty/views.py` -> успех
+
+- Дата/время: 2026-02-01T04:29:45Z
+- Кратко что сделано: Обновлены импорты моделей в serializers API на доменные прокси orders/loyalty без изменения логики.
+- Какие файлы изменены: backend/apps/api/serializers.py, docs/AGENT_WORKLOG.md
+- Какие проверки/команды запускались и результат:
+  - `python -m compileall backend` -> успех
+  - `ruff check backend/apps/api/serializers.py` -> успех

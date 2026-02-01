@@ -2,7 +2,8 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
-from apps.main.models import Product, Order, OrderItem, CustomUser
+from apps.orders.models import Order, OrderItem, Product
+from apps.loyalty.models import CustomUser
 from apps.notifications.serializers import (  # noqa: F401
     NotificationReadSerializer,
     NotificationSerializer,
