@@ -1179,3 +1179,5 @@ docker compose config
   - `grep -rn "except Exception:" backend/apps/common/security.py` -> 0 совпадений ✅
   - `python3 -m compileall backend/` -> успешно ✅
 - Итог: Рефакторинг V3 завершён. Устранён технический долг, разорвана зависимость backend→bots, задачи консолидированы в доменных приложениях.
+  - `git commit` -> d4115f0 "Implement V3 refactoring - all 10 steps completed"
+  - `git push origin dev` -> успешно (88a0f19..d4115f0)
