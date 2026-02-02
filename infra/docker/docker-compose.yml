@@ -91,8 +91,8 @@ services:
       dockerfile: infra/docker/backend/Dockerfile
     env_file: ../../backend/.env
     environment:
-      PYTHONPATH: /app:/app/backend
-      DJANGO_SETTINGS_MODULE: backend.settings
+      PYTHONPATH: /app/backend
+      DJANGO_SETTINGS_MODULE: settings
     working_dir: /app
     depends_on:
       db:
@@ -129,7 +129,7 @@ services:
     environment:
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "backend.celery", "worker", "--loglevel=info"]
+    command: ["-A", "celery", "worker", "--loglevel=info"]
     logging:
       driver: json-file
       options:
@@ -155,7 +155,7 @@ services:
     environment:
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "backend.celery", "beat", "--loglevel=info"]
+    command: ["-A", "celery", "beat", "--loglevel=info"]
     logging:
       driver: json-file
       options:

@@ -923,3 +923,26 @@
   - `ls -la scripts/` -> 4 файла с правами -rwxrwxr-x
 - Контекст: Phase 1 разблокирует Phase 3 (docker-compose в корне) и Phase 4 (упрощение entrypoint).
 - Итог: Phase 1 завершена. Скрипты готовы к использованию.
+
+- Дата/время: 2026-02-02T10:35:00Z
+- Этап: V2 Phase 2 — Flatten Backend Structure
+- Кратко что сделано: Устранена двойная вложенность backend/backend/. Django-конфигурация перемещена в backend/.
+- Какие файлы перемещены/созданы:
+  - backend/backend/settings.py -> backend/settings.py (обновлены BASE_DIR, ROOT_URLCONF, WSGI_APPLICATION)
+  - backend/backend/urls.py -> backend/urls.py
+  - backend/backend/wsgi.py -> backend/wsgi.py (DJANGO_SETTINGS_MODULE='settings')
+  - backend/backend/asgi.py -> backend/asgi.py (DJANGO_SETTINGS_MODULE='settings')
+  - backend/backend/celery.py -> backend/celery.py (DJANGO_SETTINGS_MODULE='settings', app name='lakshmi')
+  - backend/backend/test_settings.py -> backend/settings_test.py
+  - backend/__init__.py — создан
+- Какие файлы обновлены:
+  - backend/manage.py — DJANGO_SETTINGS_MODULE='settings'
+  - backend/entrypoint.sh — wsgi:application (было backend.wsgi:application)
+  - backend/.env.example — DJANGO_SETTINGS_MODULE=settings, PYTHONPATH=/app/backend
+  - infra/docker/docker-compose.yml — PYTHONPATH, DJANGO_SETTINGS_MODULE, celery -A celery
+- Какие файлы удалены:
+  - backend/backend/ — вся директория
+- Какие проверки/команды запускались и результат:
+  - `ls -la backend/` -> структура соответствует целевой (settings.py, urls.py, wsgi.py, celery.py в корне backend/)
+- Контекст: Phase 2 — высокорисковое изменение, меняет все пути импортов Django. Разблокирует Phase 3.
+- Итог: Phase 2 завершена. Двойная вложенность устранена.

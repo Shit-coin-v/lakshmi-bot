@@ -18,7 +18,7 @@ gunicorn \
   --timeout "$GUNICORN_TIMEOUT" \
   --access-logfile - \
   --error-logfile - \
-  backend.wsgi:application &
+  wsgi:application &
 gunicorn_pid=$!
 
 trap 'kill -TERM $gunicorn_pid 2>/dev/null || true' EXIT
