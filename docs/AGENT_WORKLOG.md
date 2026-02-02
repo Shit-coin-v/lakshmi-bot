@@ -909,3 +909,17 @@
   - `grep -n "print" backend/apps/common/security.py` -> нет вывода (все print удалены)
 - Контекст: Phase 0 является блокером для всех остальных фаз рефакторинга V2. Без устранения этих уязвимостей деплой в production небезопасен.
 - Итог: Phase 0 завершена. Проект готов к Phase 1 (scripts/) и Phase 2 (flatten backend/).
+
+- Дата/время: 2026-02-02T10:25:00Z
+- Этап: V2 Phase 1 — Scripts Directory
+- Кратко что сделано: Создана директория scripts/ с утилитарными скриптами для автоматизации операций.
+- Какие файлы созданы:
+  - scripts/migrate.sh — применение миграций БД
+  - scripts/collectstatic.sh — сборка статических файлов
+  - scripts/backup_db.sh — резервное копирование PostgreSQL с gzip-сжатием
+  - scripts/init_dev.sh — инициализация dev-окружения (создание .env, build, миграции, collectstatic)
+- Какие проверки/команды запускались и результат:
+  - `chmod +x scripts/*.sh` -> успех
+  - `ls -la scripts/` -> 4 файла с правами -rwxrwxr-x
+- Контекст: Phase 1 разблокирует Phase 3 (docker-compose в корне) и Phase 4 (упрощение entrypoint).
+- Итог: Phase 1 завершена. Скрипты готовы к использованию.
