@@ -1181,3 +1181,15 @@ docker compose config
 - Итог: Рефакторинг V3 завершён. Устранён технический долг, разорвана зависимость backend→bots, задачи консолидированы в доменных приложениях.
   - `git commit` -> d4115f0 "Implement V3 refactoring - all 10 steps completed"
   - `git push origin dev` -> успешно (88a0f19..d4115f0)
+
+- Дата/время: 2026-02-02
+- Кратко что сделано: Исправлена архитектурная ошибка - перенесены вспомогательные функции из bots в shared/broadcast/helpers.py
+- Какие файлы изменены:
+  - shared/broadcast/helpers.py (создан) - константы, Recipient, chunked, send_message_with_retry, generate_unique_open_token, parse_target_user_ids
+  - shared/broadcast/__init__.py (обновлён) - экспорт helpers
+  - shared/broadcast/django_sender.py (обновлён) - импорт из .helpers
+  - bots/customer_bot/broadcast.py (обновлён) - импорт из shared.broadcast
+- Какие проверки/команды запускались и результат:
+  - `grep -rn "from bots\." backend/ shared/` -> 0 совпадений ✅
+  - `python3 -m py_compile shared/broadcast/*.py` -> успешно ✅
+- Итог: Зависимость backend→bots полностью устранена. Архитектура: backend→shared←bots

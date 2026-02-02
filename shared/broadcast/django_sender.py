@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 async def send_with_django(message_id: int, bot_instance: Bot) -> None:
     """Send broadcast using Django ORM (for use in Celery tasks)."""
 
-    # Import helper functions from bots module
-    from bots.customer_bot.broadcast import (
+    # Import helper functions from shared module
+    from .helpers import (
         BATCH_DELAY_SECONDS,
         BATCH_SIZE,
         OPEN_CALLBACK_PREFIX,
         Recipient,
-        _chunked,
-        _send_message_with_retry,
+        chunked,
+        send_message_with_retry,
         generate_unique_open_token,
         parse_target_user_ids,
     )
@@ -121,7 +121,7 @@ async def send_with_django(message_id: int, bot_instance: Bot) -> None:
         return await _create()
 
     async with bot_instance:
-        for batch in _chunked(recipients, BATCH_SIZE):
+        for batch in chunked(recipients, BATCH_SIZE):
             for recipient in batch:
                 if recipient.customer_id in delivered_customer_ids:
                     total_skipped += 1
@@ -141,7 +141,7 @@ async def send_with_django(message_id: int, bot_instance: Bot) -> None:
                 spoiler_text = f"<tg-spoiler>{message.message_text}</tg-spoiler>"
 
                 try:
-                    sent_message = await _send_message_with_retry(
+                    sent_message = await send_message_with_retry(
                         bot_instance,
                         recipient.telegram_id,
                         spoiler_text,

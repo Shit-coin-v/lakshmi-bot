@@ -3,19 +3,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import secrets
-from dataclasses import dataclass
-from typing import Awaitable, Callable, Iterable, List, Sequence
+from typing import List
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.exceptions import (
-    TelegramAPIError,
-    TelegramForbiddenError,
-    TelegramNetworkError,
-    TelegramRetryAfter,
-)
+from aiogram.exceptions import TelegramForbiddenError
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 from sqlalchemy import select
@@ -26,6 +19,18 @@ from .database.models import (
     BroadcastMessage as SqlBroadcastMessage,
     CustomUser,
     NewsletterDelivery,
+)
+
+# Import shared helpers
+from shared.broadcast import (
+    BATCH_DELAY_SECONDS,
+    BATCH_SIZE,
+    OPEN_CALLBACK_PREFIX,
+    Recipient,
+    chunked,
+    generate_unique_open_token,
+    parse_target_user_ids,
+    send_message_with_retry,
 )
 
 load_dotenv()
@@ -40,98 +45,11 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
-OPEN_CALLBACK_PREFIX = "open:"
-BATCH_SIZE = 500
-BATCH_DELAY_SECONDS = 0.5
-
-
-@dataclass(frozen=True)
-class Recipient:
-    """Lightweight representation of a broadcast recipient."""
-
-    customer_id: int
-    telegram_id: int
-
-
 async def _token_exists_sqlalchemy(session, token: str) -> bool:
     result = await session.execute(
         select(NewsletterDelivery.id).where(NewsletterDelivery.open_token == token)
     )
     return result.scalar_one_or_none() is not None
-
-
-async def generate_unique_open_token(
-    token_exists: Callable[[str], Awaitable[bool]], *, max_attempts: int = 10
-) -> str:
-    for attempt in range(max_attempts):
-        token = secrets.token_hex(16)
-        if not await token_exists(token):
-            return token
-        logger.debug("Collision on newsletter open token %s (attempt %s)", token, attempt + 1)
-    raise RuntimeError("Unable to generate unique open token")
-
-
-def parse_target_user_ids(raw_value: str | None) -> List[int]:
-    """Parse a CSV string into a list of distinct positive Telegram IDs."""
-
-    if not raw_value:
-        return []
-
-    result: List[int] = []
-    seen = set()
-    for chunk in raw_value.split(","):
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-        try:
-            telegram_id = int(chunk)
-        except ValueError:
-            logger.warning("Skipping invalid telegram id '%s'", chunk)
-            continue
-        if telegram_id <= 0:
-            logger.warning("Skipping non-positive telegram id '%s'", chunk)
-            continue
-        if telegram_id in seen:
-            continue
-        seen.add(telegram_id)
-        result.append(telegram_id)
-    return result
-
-
-def _chunked(sequence: Sequence[Recipient], size: int) -> Iterable[Sequence[Recipient]]:
-    for index in range(0, len(sequence), size):
-        yield sequence[index : index + size]
-
-
-async def _send_message_with_retry(bot_instance: Bot, chat_id: int, text: str, reply_markup):
-    attempts = 0
-    while True:
-        attempts += 1
-        try:
-            return await bot_instance.send_message(chat_id, text, reply_markup=reply_markup)
-        except TelegramForbiddenError as exc:
-            logger.warning("Telegram forbids sending to %s: %s", chat_id, exc)
-            raise
-        except TelegramRetryAfter as exc:
-            logger.warning(
-                "Rate limited when sending to %s; retrying in %s seconds (attempt %s)",
-                chat_id,
-                exc.retry_after,
-                attempts,
-            )
-            await asyncio.sleep(exc.retry_after)
-        except (TelegramNetworkError, TelegramAPIError, asyncio.TimeoutError) as exc:
-            if attempts >= 3:
-                logger.error("Giving up sending to %s after %s attempts: %s", chat_id, attempts, exc)
-                raise
-            delay = min(5, 2 ** attempts)
-            logger.warning(
-                "Transient error sending to %s (%s); sleeping %s seconds before retry",
-                chat_id,
-                exc,
-                delay,
-            )
-            await asyncio.sleep(delay)
 
 
 async def _send_with_sqlalchemy(message_id: int, bot_instance: Bot) -> None:
@@ -177,7 +95,7 @@ async def _send_with_sqlalchemy(message_id: int, bot_instance: Bot) -> None:
         total_sent = total_skipped = total_errors = 0
 
         async with bot_instance:
-            for batch in _chunked(recipients, BATCH_SIZE):
+            for batch in chunked(recipients, BATCH_SIZE):
                 for recipient in batch:
                     if recipient.customer_id in delivered_customer_ids:
                         total_skipped += 1
@@ -199,7 +117,7 @@ async def _send_with_sqlalchemy(message_id: int, bot_instance: Bot) -> None:
                     spoiler_text = f"<tg-spoiler>{message.message_text}</tg-spoiler>"
 
                     try:
-                        sent_message = await _send_message_with_retry(
+                        sent_message = await send_message_with_retry(
                             bot_instance,
                             recipient.telegram_id,
                             spoiler_text,
@@ -348,7 +266,7 @@ async def _send_with_django(message_id: int, bot_instance: Bot) -> None:
         return await _create()
 
     async with bot_instance:
-        for batch in _chunked(recipients, BATCH_SIZE):
+        for batch in chunked(recipients, BATCH_SIZE):
             for recipient in batch:
                 if recipient.customer_id in delivered_customer_ids:
                     total_skipped += 1
@@ -368,7 +286,7 @@ async def _send_with_django(message_id: int, bot_instance: Bot) -> None:
                 spoiler_text = f"<tg-spoiler>{message.message_text}</tg-spoiler>"
 
                 try:
-                    sent_message = await _send_message_with_retry(
+                    sent_message = await send_message_with_retry(
                         bot_instance,
                         recipient.telegram_id,
                         spoiler_text,
