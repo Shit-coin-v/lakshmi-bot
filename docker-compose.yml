@@ -167,6 +167,38 @@ services:
     volumes:
       - media:/app/backend/media
 
+  # One-off services for setup tasks (run with --profile setup)
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      PYTHONPATH: /app/backend
+      DJANGO_SETTINGS_MODULE: settings
+    working_dir: /app/backend
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["python", "manage.py"]
+    command: ["migrate", "--noinput"]
+    profiles: ["setup"]
+
+  collectstatic:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      PYTHONPATH: /app/backend
+      DJANGO_SETTINGS_MODULE: settings
+    working_dir: /app/backend
+    entrypoint: ["python", "manage.py"]
+    command: ["collectstatic", "--noinput"]
+    volumes:
+      - static:/app/backend/collected_static
+    profiles: ["setup"]
+
   redis:
     image: redis:7
     container_name: redis

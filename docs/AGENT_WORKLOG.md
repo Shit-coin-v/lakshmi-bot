@@ -962,3 +962,19 @@
   - `ls docker-compose.yml Makefile` -> файлы существуют
 - Контекст: Phase 3 — стандартная практика, docker compose up работает из корня проекта. Разблокирует Phase 4 и Phase 5.
 - Итог: Phase 3 завершена. Docker compose теперь в корне проекта.
+
+- Дата/время: 2026-02-02T10:55:00Z
+- Этап: V2 Phase 4 — Упрощение Entrypoint
+- Кратко что сделано: Вынесены миграции и collectstatic из entrypoint.sh в отдельные Docker-сервисы с профилями.
+- Какие файлы обновлены:
+  - backend/entrypoint.sh — упрощён до exec gunicorn (без migrate/collectstatic)
+  - docker-compose.yml — добавлены сервисы migrate и collectstatic с profiles: ["setup"]
+  - Makefile — команды migrate/collectstatic теперь используют профили, добавлена команда setup
+- Преимущества:
+  - Нет race conditions при scaling (миграции запускаются один раз перед запуском)
+  - Быстрый старт контейнера app (без ожидания миграций)
+  - Явное управление миграциями через make setup
+- Какие проверки/команды запускались и результат:
+  - Файлы обновлены, синтаксис корректен
+- Контекст: Phase 4 устраняет проблему race conditions при горизонтальном масштабировании.
+- Итог: Phase 4 завершена. Entrypoint упрощён.
