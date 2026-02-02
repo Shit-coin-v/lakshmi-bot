@@ -1153,3 +1153,29 @@ docker compose config
   - `git add AGENTS.md docs/AGENT_WORKLOG.md docs/REFACTOR_PLAN.md` -> успешно
   - `git commit` -> 42a55c6 "Plan V3 refactoring and update documentation"
   - `git push origin dev` -> успешно (4dd8562..42a55c6)
+  - `git commit` -> 88a0f19 "Update AGENT_WORKLOG.md with commit and push record"
+  - `git push origin dev` -> успешно (42a55c6..88a0f19)
+
+- Дата/время: 2026-02-02
+- Кратко что сделано: Выполнены все 10 шагов рефакторинга V3.
+- Какие файлы изменены:
+  - backend/apps/common/security.py (убран except Exception)
+  - backend/apps/api/tasks.py (print → logger, затем удалён)
+  - shared/broadcast/__init__.py (создан)
+  - shared/broadcast/django_sender.py (создан, перенесена логика broadcast)
+  - backend/apps/main/tasks.py (импорт из shared.broadcast)
+  - backend/apps/notifications/tasks.py (перенесён send_birthday_congratulations)
+  - backend/apps/integrations/onec/tasks.py (создан, send_order_to_onec)
+  - backend/apps/integrations/onec/task_contract.py (обновлён импорт)
+  - backend/apps/integrations/onec/customer_sync.py (импорты моделей, exception handling)
+  - backend/apps/integrations/onec/receipt.py (импорты моделей)
+  - backend/apps/integrations/onec/order_sync.py (импорты моделей, exception handling)
+  - backend/apps/notifications/views.py (exception handling)
+  - backend/apps/integrations/payments/README.md (создан)
+  - backend/apps/integrations/delivery/README.md (создан)
+- Какие проверки/команды запускались и результат:
+  - `grep -rn "from bots\." backend/` -> 0 совпадений (кроме тестов) ✅
+  - `grep -rn "print(" backend/apps/` -> 0 совпадений (кроме тестов) ✅
+  - `grep -rn "except Exception:" backend/apps/common/security.py` -> 0 совпадений ✅
+  - `python3 -m compileall backend/` -> успешно ✅
+- Итог: Рефакторинг V3 завершён. Устранён технический долг, разорвана зависимость backend→bots, задачи консолидированы в доменных приложениях.

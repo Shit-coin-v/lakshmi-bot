@@ -91,11 +91,7 @@ def require_onec_auth(view_func):
             )
             return _bad(401, "Bad API key")
 
-        try:
-            return view_func(request, *args, **kwargs)
-        except Exception:  # pragma: no cover - defensive logging
-            logger.exception("require_onec_auth crashed")
-            return _bad(401, "Unauthorized")
+        return view_func(request, *args, **kwargs)
 
     return _wrapped
 

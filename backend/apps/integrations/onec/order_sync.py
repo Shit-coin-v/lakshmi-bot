@@ -8,7 +8,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as dj_tz
 
-from apps.main.models import CustomUser, Order
+from apps.loyalty.models import CustomUser
+from apps.orders.models import Order
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ def send_order_to_onec_impl(self, order_id: int):
         data = {}
         try:
             data = resp.json()
-        except Exception:
+        except (ValueError, requests.exceptions.JSONDecodeError):
             data = {"raw": text}
 
         onec_guid = data.get("onec_guid") or data.get("order_guid") or None

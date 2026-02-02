@@ -74,7 +74,7 @@ class DuplicateReceiptLineError(Exception):
 def onec_receipt(request):
     from apps.api.models import OneCClientMap
     from apps.api.serializers import ReceiptSerializer
-    from apps.main.models import CustomUser, Product, Transaction
+    from apps.loyalty.models import CustomUser, Product, Transaction
 
     raw_body = request.body or b"{}"
     if isinstance(raw_body, (bytes, bytearray)):

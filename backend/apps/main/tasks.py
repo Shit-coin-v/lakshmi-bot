@@ -17,18 +17,14 @@ def broadcast_send_task(self, message_id: int) -> None:
     from aiogram import Bot
     from aiogram.enums import ParseMode
     from aiogram.client.default import DefaultBotProperties
-
-    # NOTE: _send_with_django import from bots is intentional integration code
-    # This allows reusing bot's broadcast logic in Celery tasks
-    # TODO: Consider moving broadcast logic to shared/ in future refactoring
-    from bots.customer_bot.broadcast import _send_with_django
+    from shared.broadcast import send_with_django
 
     bot_token = settings.TELEGRAM_BOT_TOKEN
 
     async def runner():
         bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         try:
-            await _send_with_django(message_id, bot_instance=bot)
+            await send_with_django(message_id, bot_instance=bot)
         finally:
             await bot.session.close()
 

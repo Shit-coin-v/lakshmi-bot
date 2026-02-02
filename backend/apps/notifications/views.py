@@ -88,7 +88,7 @@ class NotificationViewSet(viewsets.ViewSet):
                 user=notif.user,
                 defaults={"source": source},
             )
-        except Exception:
+        except (ValueError, TypeError):  # pragma: no cover - defensive logging
             logger.exception("Failed to log notification open event notification_id=%s", notif.id)
 
         return Response({"status": "ok", "id": notif.id, "is_read": True}, status=status.HTTP_200_OK)

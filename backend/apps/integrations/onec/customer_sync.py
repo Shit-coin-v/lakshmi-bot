@@ -26,7 +26,7 @@ def _as_decimal(value: Any) -> D:
 @require_onec_auth
 def onec_customer_sync(request):
     from apps.api.models import OneCClientMap
-    from apps.main.models import CustomUser
+    from apps.loyalty.models import CustomUser
 
     raw = request.body or b""
     if not raw:
@@ -60,7 +60,7 @@ def onec_customer_sync(request):
         if qr_norm.startswith("http://") or qr_norm.startswith("https://"):
             try:
                 qr_norm = urlparse(qr_norm).path or qr_norm
-            except Exception:
+            except (ValueError, AttributeError):
                 pass
 
     # Иногда приходит без ведущего "/"
@@ -120,7 +120,7 @@ def onec_customer_sync(request):
     if bonus_balance is not None:
         try:
             user.bonuses = _as_decimal(bonus_balance)
-        except Exception:
+        except (ValueError, TypeError, ArithmeticError):
             return JsonResponse({"detail": {"bonus_balance": ["Неверное число"]}}, status=400)
 
     if referrer_tid:
