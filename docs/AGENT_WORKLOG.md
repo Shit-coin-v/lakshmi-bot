@@ -978,3 +978,20 @@
   - Файлы обновлены, синтаксис корректен
 - Контекст: Phase 4 устраняет проблему race conditions при горизонтальном масштабировании.
 - Итог: Phase 4 завершена. Entrypoint упрощён.
+
+- Дата/время: 2026-02-02T11:05:00Z
+- Этап: V2 Phase 5 — Customer Bot в Docker
+- Кратко что сделано: Добавлен Dockerfile для Telegram бота и сервис customer_bot в docker-compose.
+- Какие файлы созданы:
+  - infra/docker/bots/Dockerfile — образ для customer_bot (python:3.10-slim, использует backend/requirements.txt)
+- Какие файлы обновлены:
+  - docker-compose.yml — добавлен сервис customer_bot с restart: always, depends_on db, volume для qr_codes
+- Особенности:
+  - Бот использует общие зависимости из backend/requirements.txt (aiogram, sqlalchemy уже там)
+  - QR-коды монтируются как volume для персистентности
+  - Автоперезапуск при падении (restart: always)
+- Какие проверки/команды запускались и результат:
+  - `mkdir -p infra/docker/bots` -> успех
+  - Dockerfile создан
+- Контекст: Phase 5 интегрирует бота в единый docker-compose стек для единообразного управления.
+- Итог: Phase 5 завершена. Customer bot добавлен в Docker Compose.

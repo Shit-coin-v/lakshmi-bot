@@ -257,6 +257,24 @@ services:
         max-size: "20m"
         max-file: "3"
 
+  customer_bot:
+    build:
+      context: .
+      dockerfile: infra/docker/bots/Dockerfile
+    env_file: backend/.env
+    container_name: customer_bot
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./bots/customer_bot/qr_codes:/app/bots/customer_bot/qr_codes
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
 volumes:
   static:
   media:
