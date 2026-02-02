@@ -11,7 +11,7 @@
 | Phase 4 | Упростить entrypoint.sh | ✅ Выполнено |
 | Phase 5 | Customer bot в Docker | ✅ Выполнено |
 | Phase 6 | shared/ module - shared/config/qr.py | ✅ Выполнено |
-| Phase 7 | Технический долг - убрать _lazy_view | ⏳ Осталось |
+| Phase 7 | Технический долг - убрать _lazy_view | ✅ Выполнено |
 
 ## Текущая структура проекта
 
@@ -77,17 +77,17 @@ lakshmi-bot/
 - Создан `shared/` модуль для общего кода между backend и bots
 - Устранены прямые импорты `from bots.*` в backend
 
-## Оставшаяся работа: Phase 7 (Технический долг)
+## Phase 7: Технический долг (Выполнено)
 
-### Задачи:
-1. `apps/api/views.py` - удалить реэкспорты, оставить только views
-2. `apps/api/urls.py` - заменить `_lazy_view` на прямые импорты
-3. Документировать или удалить contract-файлы
+### Выполненные задачи:
+1. ✅ `apps/api/views.py` - удалён (содержал только реэкспорты)
+2. ✅ `apps/api/urls.py` - `_lazy_view`/`_lazy_viewset` заменены на прямые импорты
+3. ✅ Contract-файлы - отсутствуют (не требуется действий)
 
 ### Проверка:
 ```bash
 grep -n "_lazy_view\|_lazy_viewset" backend/apps/api/urls.py
-# Должно быть 0 совпадений
+# 0 совпадений ✅
 ```
 
 ## Команды верификации
