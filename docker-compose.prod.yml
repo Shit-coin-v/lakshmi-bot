@@ -1,0 +1,31 @@
+# Production overrides for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  app:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  celery_worker:
+    restart: always
+    deploy:
+      replicas: 2
+
+  celery_beat:
+    restart: always
+
+  nginx:
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+
+  db:
+    restart: always
+
+  redis:
+    restart: always

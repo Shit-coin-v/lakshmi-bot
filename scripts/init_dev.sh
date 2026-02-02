@@ -25,12 +25,12 @@ fi
 # Build containers
 echo ""
 echo "Building Docker containers..."
-docker compose -f "$PROJECT_ROOT/infra/docker/docker-compose.yml" build
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" build
 
 # Start database
 echo ""
 echo "Starting database..."
-docker compose -f "$PROJECT_ROOT/infra/docker/docker-compose.yml" up -d db redis
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" up -d db redis
 
 # Wait for database to be healthy
 echo ""
@@ -40,18 +40,18 @@ sleep 5
 # Run migrations
 echo ""
 echo "Running migrations..."
-docker compose -f "$PROJECT_ROOT/infra/docker/docker-compose.yml" run --rm app python backend/manage.py migrate --noinput
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" run --rm app python backend/manage.py migrate --noinput
 
 # Collect static
 echo ""
 echo "Collecting static files..."
-docker compose -f "$PROJECT_ROOT/infra/docker/docker-compose.yml" run --rm app python backend/manage.py collectstatic --noinput
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" run --rm app python backend/manage.py collectstatic --noinput
 
 echo ""
 echo "=== Development environment initialized ==="
 echo ""
 echo "Start all services with:"
-echo "  docker compose -f infra/docker/docker-compose.yml up -d"
+echo "  docker compose up -d"
 echo ""
 echo "Or start specific services:"
-echo "  docker compose -f infra/docker/docker-compose.yml up -d app celery_worker"
+echo "  docker compose up -d app celery_worker"

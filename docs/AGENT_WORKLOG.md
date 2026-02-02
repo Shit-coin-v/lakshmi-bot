@@ -946,3 +946,19 @@
   - `ls -la backend/` -> структура соответствует целевой (settings.py, urls.py, wsgi.py, celery.py в корне backend/)
 - Контекст: Phase 2 — высокорисковое изменение, меняет все пути импортов Django. Разблокирует Phase 3.
 - Итог: Phase 2 завершена. Двойная вложенность устранена.
+
+- Дата/время: 2026-02-02T10:45:00Z
+- Этап: V2 Phase 3 — Docker Compose в корне
+- Кратко что сделано: Перемещён docker-compose.yml в корень проекта, создан Makefile для автоматизации.
+- Какие файлы созданы:
+  - docker-compose.yml — основной файл в корне (обновлены все пути: infra/observability/, backend/.env, infra/docker/)
+  - docker-compose.prod.yml — production overrides
+  - Makefile — команды build, up, down, logs, shell, migrate, collectstatic, test, backup
+- Какие файлы обновлены:
+  - scripts/init_dev.sh — обновлены пути к docker-compose.yml
+- Какие файлы удалены:
+  - infra/docker/docker-compose.yml — старый файл
+- Какие проверки/команды запускались и результат:
+  - `ls docker-compose.yml Makefile` -> файлы существуют
+- Контекст: Phase 3 — стандартная практика, docker compose up работает из корня проекта. Разблокирует Phase 4 и Phase 5.
+- Итог: Phase 3 завершена. Docker compose теперь в корне проекта.
