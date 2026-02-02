@@ -1,155 +1,199 @@
-# План рефакторинга V2: Статус
+# План рефакторинга V3 для lakshmi-bot
 
-## Статус выполнения
+## Цели V3
+- Устранить оставшийся технический долг
+- Разорвать зависимость backend → bots
+- Консолидировать Celery tasks в доменных приложениях
+- Улучшить качество кода (exception handling)
 
-| Фаза | Описание | Статус |
-|------|----------|--------|
-| Phase 0 | Security - удалить print(), pinned metabase | ✅ Выполнено |
-| Phase 1 | scripts/ - создать директорию скриптов | ✅ Выполнено |
-| Phase 2 | Flatten backend - устранить вложенность backend/backend/ | ✅ Выполнено |
-| Phase 3 | Docker compose в корне + Makefile | ✅ Выполнено |
-| Phase 4 | Упростить entrypoint.sh | ✅ Выполнено |
-| Phase 5 | Customer bot в Docker | ✅ Выполнено |
-| Phase 6 | shared/ module - shared/config/qr.py | ✅ Выполнено |
-| Phase 7 | Технический долг - убрать _lazy_view | ✅ Выполнено |
+---
 
-## Текущая структура проекта
+## План из 10 шагов
 
+### Шаг 1: Исправить except Exception в security.py (P0)
+**Файл:** `backend/apps/common/security.py:96`
+
+**Изменения:**
+- Заменить `except Exception:` на специфичные исключения
+- Добавить комментарий с обоснованием для defensive code
+
+**Критерий:** `grep -rn "except Exception:" backend/apps/common/security.py` → 0 совпадений
+
+---
+
+### Шаг 2: Заменить print() на logger (P0)
+**Файл:** `backend/apps/api/tasks.py:36`
+
+**Изменения:**
+- Заменить `print(f"Ошибка...")` на `logger.error(...)`
+- Добавить импорт logger если отсутствует
+
+**Критерий:** `grep -rn "print(" backend/apps/ | grep -v test` → 0 совпадений
+
+---
+
+### Шаг 3: Создать shared/broadcast/ модуль (P1)
+**Цель:** Подготовить структуру для переноса broadcast логики
+
+**Изменения:**
+1. Создать `shared/broadcast/__init__.py`
+2. Создать `shared/broadcast/django_sender.py`
+3. Перенести `_send_with_django()` из `bots/customer_bot/broadcast.py`
+
+**Структура:**
 ```
-lakshmi-bot/
-├── docker-compose.yml          # Основной compose (был в infra/docker/)
-├── Makefile                    # Команды: make build, make up, make migrate, make test
-├── scripts/
-│   ├── migrate.sh
-│   ├── collectstatic.sh
-│   ├── backup_db.sh
-│   └── init_dev.sh
-├── backend/
-│   ├── settings.py             # Был backend/backend/settings.py
-│   ├── settings_test.py        # Был backend/backend/test_settings.py
-│   ├── urls.py                 # Был backend/backend/urls.py
-│   ├── wsgi.py                 # Был backend/backend/wsgi.py
-│   ├── asgi.py                 # Был backend/backend/asgi.py
-│   ├── celery.py               # Был backend/backend/celery.py
-│   ├── manage.py
-│   ├── entrypoint.sh           # Упрощён: только gunicorn
-│   └── apps/
-│       ├── api/
-│       ├── main/
-│       └── common/
-├── bots/
-│   └── customer_bot/
-├── shared/
-│   ├── __init__.py
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── qr.py               # QR_DIR, константы
-│   └── dto/
-│       ├── __init__.py
-│       └── broadcast.py        # BroadcastRecipient dataclass
-└── infra/
-    └── docker/
-        └── bots/
-            └── Dockerfile      # Dockerfile для customer_bot
+shared/
+├── config/qr.py
+└── broadcast/
+    ├── __init__.py
+    └── django_sender.py
 ```
 
-## Ключевые изменения V2
+---
 
-### Phase 2: Flatten backend
-- `DJANGO_SETTINGS_MODULE=settings` (было `backend.settings`)
-- `ROOT_URLCONF = 'urls'` (было `backend.urls`)
-- `WSGI_APPLICATION = 'wsgi.application'` (было `backend.wsgi.application`)
+### Шаг 4: Обновить импорты broadcast в backend (P1)
+**Файл:** `backend/apps/main/tasks.py:24`
 
-### Phase 3: Docker compose
-- `docker-compose.yml` перемещён в корень проекта
-- `PYTHONPATH: /app/backend` в контейнерах
-- Celery: `-A celery` (было `-A backend.celery`)
+**Изменения:**
+- Заменить `from bots.customer_bot.broadcast import _send_with_django`
+- На `from shared.broadcast import send_with_django`
 
-### Phase 4: Entrypoint
-- Убраны migrate и collectstatic из entrypoint.sh
-- Добавлены отдельные сервисы с profiles для миграций
+**Критерий:** `grep -rn "from bots\." backend/` → только тесты
 
-### Phase 5: Customer bot
-- Добавлен сервис `customer_bot` в docker-compose.yml
-- Dockerfile: `infra/docker/bots/Dockerfile`
+---
 
-### Phase 6: Shared module
-- Создан `shared/` модуль для общего кода между backend и bots
-- Устранены прямые импорты `from bots.*` в backend
+### Шаг 5: Перенести send_birthday_congratulations (P1)
+**Файлы:**
+- `backend/apps/api/tasks.py` (источник)
+- `backend/apps/notifications/tasks.py` (цель)
 
-## Phase 7: Технический долг (Выполнено)
+**Изменения:**
+1. Перенести функцию `send_birthday_congratulations` в notifications/tasks.py
+2. Удалить legacy wrapper
+3. Обновить Celery beat schedule если есть
 
-### Выполненные задачи:
-1. ✅ `apps/api/views.py` - удалён (содержал только реэкспорты)
-2. ✅ `apps/api/urls.py` - `_lazy_view`/`_lazy_viewset` заменены на прямые импорты
-3. ✅ Contract-файлы - отсутствуют (не требуется действий)
+---
 
-### Проверка:
+### Шаг 6: Создать integrations/onec/tasks.py (P2)
+**Файл:** `backend/apps/integrations/onec/tasks.py` (новый)
+
+**Изменения:**
+1. Создать файл tasks.py в integrations/onec/
+2. Перенести `send_order_to_onec` из apps/api/tasks.py
+3. Обновить импорты
+
+---
+
+### Шаг 7: Удалить apps/api/tasks.py (P2)
+**Файл:** `backend/apps/api/tasks.py`
+
+**Изменения:**
+1. Убедиться что все задачи перенесены (шаги 5-6)
+2. Удалить файл
+3. Обновить все импорты в проекте
+
+**Целевая структура tasks:**
+```
+apps/notifications/tasks.py → send_birthday_congratulations
+apps/integrations/onec/tasks.py → send_order_to_onec
+apps/main/tasks.py → broadcast_send_task
+```
+
+---
+
+### Шаг 8: Консолидация импортов моделей (P2)
+**Цель:** Установить консистентный паттерн импортов
+
+**Правило:**
+- `CustomUser`, `Transaction` → `apps.loyalty.models`
+- `Order`, `OrderItem`, `Product` → `apps.orders.models`
+- `Notification`, `NotificationOpenEvent` → `apps.notifications.models`
+
+**Изменения:**
+1. Обновить импорты в `apps/integrations/onec/*.py`
+2. Расширить фасады при необходимости
+
+---
+
+### Шаг 9: Документирование пустых интеграций (P2)
+**Файлы:**
+- `apps/integrations/payments/README.md` (создать)
+- `apps/integrations/delivery/README.md` (создать)
+
+**Изменения:**
+1. НЕ удалять приложения
+2. НЕ подключать в INSTALLED_APPS
+3. Добавить README.md с описанием планируемого назначения:
+   - payments/ — будущая интеграция с платёжными системами
+   - delivery/ — будущая интеграция с сервисами доставки
+
+---
+
+### Шаг 10: Улучшение exception handling (P2)
+**Файлы для ревью:**
+- `apps/integrations/onec/order_sync.py:109`
+- `apps/integrations/onec/customer_sync.py:63, 123`
+- `apps/notifications/views.py:91`
+
+**Изменения:**
+- Заменить `except Exception:` на специфичные исключения
+- Для defensive code добавить комментарий `# pragma: no cover`
+
+---
+
+## Сводная таблица
+
+| Шаг | Приоритет | Описание | Сложность |
+|-----|-----------|----------|-----------|
+| 1 | P0 | except Exception в security.py | Низкая |
+| 2 | P0 | print() → logger | Низкая |
+| 3 | P1 | Создать shared/broadcast/ | Средняя |
+| 4 | P1 | Импорты broadcast в backend | Низкая |
+| 5 | P1 | Перенос birthday task | Низкая |
+| 6 | P2 | Создать onec/tasks.py | Низкая |
+| 7 | P2 | Удалить api/tasks.py | Низкая |
+| 8 | P2 | Импорты моделей | Средняя |
+| 9 | P2 | README для интеграций | Низкая |
+| 10 | P2 | Exception handling | Низкая |
+
+---
+
+## Порядок выполнения
+
+```
+Шаг 1 → Шаг 2 → Шаг 3 → Шаг 4 → Шаг 5 → Шаг 6 → Шаг 7
+                                                    ↓
+                                          Шаги 8, 9, 10
+```
+
+---
+
+## Верификация
+
 ```bash
-grep -n "_lazy_view\|_lazy_viewset" backend/apps/api/urls.py
-# 0 совпадений ✅
-```
-
-## Команды верификации
-
-```bash
-# 1. Build
-docker compose build
-
-# 2. Migrate
-docker compose --profile migrate run --rm migrate
-
-# 3. Start
-docker compose up -d
-
-# 4. Health checks
-curl -f http://localhost:8000/healthz/
-curl -f http://localhost:8000/onec/health
-
-# 5. Bot check
-# Отправить /start в Telegram
-
-# 6. Tests
-docker compose run --rm app python backend/manage.py test
-
-# 7. Security check
-grep -rn "print.*API\|print.*KEY" backend/
-# 0 совпадений
-
-# 8. Boundary check
+# 1. Проверка границ backend/bots
 grep -rn "from bots\." backend/
-# 0 совпадений
-```
+# Ожидается: только тесты
 
-## Локальные проверки
+# 2. Проверка print statements
+grep -rn "print(" backend/apps/ | grep -v test
+# Ожидается: 0 совпадений
 
-Backend:
-```bash
-cd backend && DJANGO_SETTINGS_MODULE=settings python manage.py check
+# 3. Проверка except Exception в security
+grep -rn "except Exception:" backend/apps/common/security.py
+# Ожидается: 0 совпадений
+
+# 4. Компиляция
 python -m compileall backend
+
+# 5. Линтер
+ruff check backend/
+
+# 6. Тесты
+cd backend && python manage.py test
+
+# 7. Celery tasks
+# Проверить broadcast_send_task
+# Проверить send_birthday_congratulations
+# Проверить send_order_to_onec
 ```
-
-Docker:
-```bash
-docker compose config
-docker compose up -d --build
-docker compose logs --tail=200
-```
-
-## V2 Завершён
-
-**Дата завершения:** 2026-02-02
-
-Рефакторинг V2 успешно завершён. Все 8 фаз (0-7) выполнены:
-
-- **Безопасность**: Удалены print() с секретами, закреплена версия Metabase
-- **Структура**: Создана директория scripts/, устранена вложенность backend/backend/
-- **DevOps**: Docker Compose перенесён в корень, добавлен Makefile
-- **Сервисы**: Упрощён entrypoint, customer_bot добавлен в Docker Compose
-- **Архитектура**: Создан shared/ модуль, устранены lazy view proxies
-
-Проект готов к дальнейшей разработке.
-
-## История
-
-Детальный журнал выполнения ведётся в `docs/AGENT_WORKLOG.md`.

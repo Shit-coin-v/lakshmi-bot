@@ -1014,3 +1014,133 @@
   - `grep -rn "from bots\." backend/` -> 2 совпадения (tasks.py и тесты)
 - Контекст: Phase 6 частично разрывает зависимость backend→bots. Полный разрыв требует рефакторинга broadcast модуля.
 - Итог: Phase 6 завершена. Shared модуль создан, QR-код конфигурация вынесена в shared/.
+
+- Дата/время: 2026-02-02
+- Кратко что сделано: Обновлён AGENTS.md — упрощены правила работы агента.
+- Какие файлы изменены: AGENTS.md
+- Какие проверки/команды запускались и результат: нет
+
+---
+
+## Итоговый статус V2 (Завершён 2026-02-02)
+
+### Выполненные фазы:
+| Фаза | Описание | Статус |
+|------|----------|--------|
+| Phase 0 | Security - удалить print(), pinned metabase | ✅ Выполнено |
+| Phase 1 | scripts/ - создать директорию скриптов | ✅ Выполнено |
+| Phase 2 | Flatten backend - устранить вложенность backend/backend/ | ✅ Выполнено |
+| Phase 3 | Docker compose в корне + Makefile | ✅ Выполнено |
+| Phase 4 | Упростить entrypoint.sh | ✅ Выполнено |
+| Phase 5 | Customer bot в Docker | ✅ Выполнено |
+| Phase 6 | shared/ module - shared/config/qr.py | ✅ Выполнено |
+| Phase 7 | Технический долг - убрать _lazy_view | ✅ Выполнено |
+
+### Достижения V2:
+- **Безопасность**: Удалены print() с секретами, закреплена версия Metabase
+- **Структура**: Создана директория scripts/, устранена вложенность backend/backend/
+- **DevOps**: Docker Compose перенесён в корень, добавлен Makefile
+- **Сервисы**: Упрощён entrypoint, customer_bot добавлен в Docker Compose
+- **Архитектура**: Создан shared/ модуль, устранены lazy view proxies
+
+### Текущая структура проекта после V2:
+```
+lakshmi-bot/
+├── docker-compose.yml          # Основной compose (был в infra/docker/)
+├── Makefile                    # Команды: make build, make up, make migrate, make test
+├── scripts/
+│   ├── migrate.sh
+│   ├── collectstatic.sh
+│   ├── backup_db.sh
+│   └── init_dev.sh
+├── backend/
+│   ├── settings.py             # Был backend/backend/settings.py
+│   ├── settings_test.py        # Был backend/backend/test_settings.py
+│   ├── urls.py                 # Был backend/backend/urls.py
+│   ├── wsgi.py                 # Был backend/backend/wsgi.py
+│   ├── asgi.py                 # Был backend/backend/asgi.py
+│   ├── celery.py               # Был backend/backend/celery.py
+│   ├── manage.py
+│   ├── entrypoint.sh           # Упрощён: только gunicorn
+│   └── apps/
+│       ├── api/
+│       ├── main/
+│       └── common/
+├── bots/
+│   └── customer_bot/
+├── shared/
+│   ├── __init__.py
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── qr.py               # QR_DIR, константы
+│   └── dto/
+│       ├── __init__.py
+│       └── broadcast.py        # BroadcastRecipient dataclass
+└── infra/
+    └── docker/
+        └── bots/
+            └── Dockerfile      # Dockerfile для customer_bot
+```
+
+### Ключевые изменения V2:
+
+**Phase 2: Flatten backend**
+- `DJANGO_SETTINGS_MODULE=settings` (было `backend.settings`)
+- `ROOT_URLCONF = 'urls'` (было `backend.urls`)
+- `WSGI_APPLICATION = 'wsgi.application'` (было `backend.wsgi.application`)
+
+**Phase 3: Docker compose**
+- `docker-compose.yml` перемещён в корень проекта
+- `PYTHONPATH: /app/backend` в контейнерах
+- Celery: `-A celery` (было `-A backend.celery`)
+
+**Phase 4: Entrypoint**
+- Убраны migrate и collectstatic из entrypoint.sh
+- Добавлены отдельные сервисы с profiles для миграций
+
+**Phase 5: Customer bot**
+- Добавлен сервис `customer_bot` в docker-compose.yml
+- Dockerfile: `infra/docker/bots/Dockerfile`
+
+**Phase 6: Shared module**
+- Создан `shared/` модуль для общего кода между backend и bots
+- Устранены прямые импорты `from bots.*` в backend
+
+**Phase 7: Технический долг**
+- `apps/api/views.py` - удалён (содержал только реэкспорты)
+- `apps/api/urls.py` - `_lazy_view`/`_lazy_viewset` заменены на прямые импорты
+- Contract-файлы - отсутствуют (не требуется действий)
+
+### Команды верификации V2:
+```bash
+# Build & Deploy
+docker compose build
+docker compose --profile migrate run --rm migrate
+docker compose up -d
+
+# Health checks
+curl -f http://localhost:8000/healthz/
+curl -f http://localhost:8000/onec/health
+
+# Tests
+docker compose run --rm app python backend/manage.py test
+
+# Security & Boundary checks
+grep -rn "print.*API\|print.*KEY" backend/  # 0 совпадений
+grep -rn "from bots\." backend/              # 0 совпадений
+grep -n "_lazy_view\|_lazy_viewset" backend/apps/api/urls.py  # 0 совпадений
+
+# Local checks
+cd backend && DJANGO_SETTINGS_MODULE=settings python manage.py check
+python -m compileall backend
+docker compose config
+```
+
+**V2 Завершён. Проект готов к V3.**
+
+---
+
+- Дата/время: 2026-02-02
+- Кратко что сделано: Спланирован рефакторинг V3 из 10 шагов.
+- Какие файлы изменены: docs/REFACTOR_PLAN.md (перенос информации о V2 в AGENT_WORKLOG.md, добавление плана V3)
+- Какие проверки/команды запускались и результат: Исследование кодовой базы через Explore агентов
