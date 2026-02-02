@@ -8,6 +8,18 @@ try:
 except Exception as e:
     raise RuntimeError("qrcode package is required: pip install qrcode[pil]") from e
 
+# Import shared constants and functions
+from shared.config.qr import (
+    QR_FILENAME_PREFIX,
+    QR_LEGACY_PREFIX,
+    QR_EXTENSION,
+    qr_code_filename,
+    legacy_qr_code_filename,
+    qr_code_media_url as qr_code_media_url_from_filename,
+    extract_telegram_id_from_filename as _extract_telegram_id,
+)
+
+# Compute paths (these remain local as they depend on filesystem)
 REPO_ROOT = Path(__file__).resolve().parents[2]  # <repo>/
 MEDIA_ROOT = REPO_ROOT / "backend" / "media"
 if not MEDIA_ROOT.exists():
@@ -34,46 +46,12 @@ MEDIA_ROOT = MEDIA_ROOT.resolve()
 QR_DIR = MEDIA_ROOT / "qr_codes"
 QR_DIR.mkdir(parents=True, exist_ok=True)
 
-QR_FILENAME_PREFIX = "user_"
-QR_LEGACY_PREFIX = "qr_"
-QR_EXTENSION = ".png"
-
-
-def qr_code_filename(telegram_id: int) -> str:
-    return f"{QR_FILENAME_PREFIX}{int(telegram_id)}{QR_EXTENSION}"
-
-
-def legacy_qr_code_filename(telegram_id: int) -> str:
-    return f"{QR_LEGACY_PREFIX}{int(telegram_id)}{QR_EXTENSION}"
-
-
-def qr_code_media_url_from_filename(filename: str) -> str:
-    return f"/media/qr_codes/{filename}"
-
 
 def _safe_qr_path(filename: str) -> Path:
     filepath = (QR_DIR / filename).resolve()
     if QR_DIR not in filepath.parents and filepath != QR_DIR:
         raise ValueError("Invalid filename/path for QR code")
     return filepath
-
-
-def _extract_telegram_id(filename: str) -> Optional[int]:
-    stem = filename
-    if stem.endswith(QR_EXTENSION):
-        stem = stem[: -len(QR_EXTENSION)]
-    if stem.startswith(QR_FILENAME_PREFIX):
-        candidate = stem[len(QR_FILENAME_PREFIX) :]
-    elif stem.startswith(QR_LEGACY_PREFIX):
-        candidate = stem[len(QR_LEGACY_PREFIX) :]
-    else:
-        return None
-    if candidate.isdigit():
-        try:
-            return int(candidate)
-        except ValueError:
-            return None
-    return None
 
 
 def generate_qr_code(

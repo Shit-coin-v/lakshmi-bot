@@ -2,9 +2,11 @@
 import asyncio
 import logging
 from celery import shared_task
+from django.conf import settings
 from django.db import close_old_connections
 
 logger = logging.getLogger(__name__)
+
 
 @shared_task(bind=True)
 def broadcast_send_task(self, message_id: int) -> None:
@@ -16,10 +18,15 @@ def broadcast_send_task(self, message_id: int) -> None:
     from aiogram.enums import ParseMode
     from aiogram.client.default import DefaultBotProperties
 
-    from bots.customer_bot.broadcast import _send_with_django, BOT_TOKEN
+    # NOTE: _send_with_django import from bots is intentional integration code
+    # This allows reusing bot's broadcast logic in Celery tasks
+    # TODO: Consider moving broadcast logic to shared/ in future refactoring
+    from bots.customer_bot.broadcast import _send_with_django
+
+    bot_token = settings.TELEGRAM_BOT_TOKEN
 
     async def runner():
-        bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         try:
             await _send_with_django(message_id, bot_instance=bot)
         finally:

@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from bots.customer_bot.qr_code import (
-    QR_DIR,
+from shared.config.qr import (
     QR_EXTENSION,
     QR_LEGACY_PREFIX,
-    get_telegram_id_from_filename,
+    extract_telegram_id_from_filename as get_telegram_id_from_filename,
     qr_code_filename,
-    qr_code_media_url_from_filename,
+    qr_code_media_url as qr_code_media_url_from_filename,
 )
+
+# Compute QR_DIR from Django settings
+QR_DIR = Path(settings.MEDIA_ROOT) / "qr_codes"
 
 
 class Command(BaseCommand):

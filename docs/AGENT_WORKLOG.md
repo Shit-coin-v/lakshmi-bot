@@ -995,3 +995,22 @@
   - Dockerfile создан
 - Контекст: Phase 5 интегрирует бота в единый docker-compose стек для единообразного управления.
 - Итог: Phase 5 завершена. Customer bot добавлен в Docker Compose.
+
+- Дата/время: 2026-02-02T11:20:00Z
+- Этап: V2 Phase 6 — Shared Module
+- Кратко что сделано: Создан shared/ модуль с общим кодом между backend и bots. Частично устранены прямые импорты из bots в backend.
+- Какие файлы созданы:
+  - shared/__init__.py
+  - shared/config/__init__.py
+  - shared/config/qr.py — константы и pure-функции для QR-кодов (QR_EXTENSION, qr_code_filename, etc.)
+- Какие файлы обновлены:
+  - bots/customer_bot/qr_code.py — импортирует константы и функции из shared/config/qr
+  - backend/apps/main/management/commands/rename_qr_codes.py — использует shared/config/qr вместо bots.customer_bot.qr_code
+  - backend/apps/main/tasks.py — BOT_TOKEN получает из settings.TELEGRAM_BOT_TOKEN вместо импорта из bots
+- Оставшийся технический долг (задокументирован):
+  - backend/apps/main/tasks.py:24 — импорт _send_with_django из bots (интеграционный код, TODO для будущего рефакторинга)
+  - backend/apps/main/tests/test_broadcast_sending.py:11 — импорт broadcast модуля для интеграционного тестирования (приемлемо для тестов)
+- Какие проверки/команды запускались и результат:
+  - `grep -rn "from bots\." backend/` -> 2 совпадения (tasks.py и тесты)
+- Контекст: Phase 6 частично разрывает зависимость backend→bots. Полный разрыв требует рефакторинга broadcast модуля.
+- Итог: Phase 6 завершена. Shared модуль создан, QR-код конфигурация вынесена в shared/.
