@@ -84,6 +84,10 @@ mobile/flutter_app/android/app/release
 # Secrets
 backend/firebase_service_account.json
 
+# Docker compose overrides (may contain production secrets)
+docker-compose.override.yml
+infra/docker/docker-compose.override.yml
+
 # Python cache
 **/__pycache__/
 *.pyc

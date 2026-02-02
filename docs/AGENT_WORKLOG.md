@@ -895,3 +895,17 @@
 - Какие проверки/команды запускались и результат:
   - `python -m compileall backend` -> успех
   - `ruff check backend/apps/integrations/onec/orders_pending.py` -> успех
+
+- Дата/время: 2026-02-02T10:15:00Z
+- Этап: V2 Phase 0 — Security P0 fixes
+- Кратко что сделано: Устранены критические уязвимости безопасности перед началом рефакторинга V2.
+- Какие файлы изменены:
+  - backend/apps/common/security.py — удалены debug print() вызовы (строки 60-69, 89), выводившие API-ключи и заголовки запросов в stdout
+  - .gitignore — добавлены docker-compose.override.yml и infra/docker/docker-compose.override.yml для предотвращения коммита production-конфигов
+  - infra/docker/docker-compose.yml — зафиксирована версия metabase (metabase/metabase:latest -> metabase/metabase:v0.50.36)
+  - infra/docker/docker-compose.override.yml.example — создан шаблон для production overrides
+- Какие проверки/команды запускались и результат:
+  - `grep -rn "print.*API\|print.*KEY\|print.*HEADER" backend/` -> No security leaks found
+  - `grep -n "print" backend/apps/common/security.py` -> нет вывода (все print удалены)
+- Контекст: Phase 0 является блокером для всех остальных фаз рефакторинга V2. Без устранения этих уязвимостей деплой в production небезопасен.
+- Итог: Phase 0 завершена. Проект готов к Phase 1 (scripts/) и Phase 2 (flatten backend/).

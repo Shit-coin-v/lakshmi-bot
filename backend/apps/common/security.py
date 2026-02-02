@@ -57,17 +57,6 @@ def require_onec_auth(view_func):
 
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
-        print("\n📨 --- ВСЕ ПРИШЕДШИЕ ЗАГОЛОВКИ ---")
-        # Выводим headers через стандартный словарь Django
-        for key, value in request.headers.items():
-            print(f"HEADER: '{key}' = '{value}'")
-        
-        # Выводим META, чтобы увидеть сырые данные
-        print("--- META (RAW) ---")
-        for key in ['HTTP_X_API_KEY', 'HTTP_X_ONEC_AUTH', 'CONTENT_TYPE']:
-            print(f"META: '{key}' = '{request.META.get(key)}'")
-        print("-----------------------------------\n")
-        
         if not API_KEY:
             logger.error("ONEC AUTH denied: server auth not configured")
             return _bad(401, "Server auth not configured")
@@ -85,8 +74,6 @@ def require_onec_auth(view_func):
             or request.META.get("HTTP_X_API_KEY")
             or ""
         ).strip()
-
-        print(f"🕵️ DEBUG: SERVER_KEY='{API_KEY}' | CLIENT_KEY='{api_key}'")
 
         if not api_key:
             logger.warning(

@@ -202,7 +202,7 @@ services:
         max-file: "5"
 
   metabase:
-    image: metabase/metabase:latest
+    image: metabase/metabase:v0.50.36
     container_name: metabase
     restart: unless-stopped
     environment:
