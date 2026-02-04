@@ -218,7 +218,7 @@ services:
         max-file: "3"
 
   nginx:
-    build: ./infra/docker/nginx/
+    build: ./infra/nginx/
     depends_on:
       - db
       - app
@@ -228,7 +228,7 @@ services:
     environment:
       SERVER_NAME: ${SERVER_NAME:-_}
     volumes:
-      - ./infra/docker/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - static:/app/backend/collected_static
       - media:/app/backend/media
     logging:
