@@ -8,7 +8,7 @@
    ```
 2. Start the stack from the repo root:
    ```bash
-   docker compose -f infra/docker/docker-compose.yml up -d
+   docker compose up -d
    ```
 
 ## `/onec/receipt`
@@ -61,22 +61,22 @@ object; the server will allocate the receipt to the configured guest user.
 
 1. Apply migrations:
    ```bash
-   SECRET_KEY=dummy python backend/manage.py migrate --settings=backend.settings
+   SECRET_KEY=dummy python backend/manage.py migrate --settings=settings
    ```
 2. Run the bot with the required environment (see `.env.example`) so that the
    Telegram callbacks can be processed.
 3. To execute tests that cover the tracking flow:
    ```bash
-   DJANGO_SETTINGS_MODULE=backend.test_settings pytest bots/customer_bot/tests/test_newsletter_tracking.py
-   SECRET_KEY=dummy python backend/manage.py test apps.main.tests --settings=backend.test_settings
+   DJANGO_SETTINGS_MODULE=settings_test pytest bots/customer_bot/tests/test_newsletter_tracking.py
+   SECRET_KEY=dummy python backend/manage.py test apps.main.tests --settings=settings_test
    ```
 4. Run the Celery workers that handle broadcast delivery from the repo root:
    ```bash
    # Using Docker Compose
-   docker compose -f infra/docker/docker-compose.yml up celery_worker
+   docker compose up celery_worker
 
    # Or locally
-   celery -A backend.celery worker --loglevel=info
+   celery -A celery worker --loglevel=info
    ```
    Keep the worker logs open to watch lines such as `Broadcast <id>: sent=…`
    for progress. Each delivery is also written to the `newsletter_deliveries`
