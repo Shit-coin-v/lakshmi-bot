@@ -4,7 +4,7 @@ import json
 
 from django.test import Client, TestCase
 
-from api import security
+from apps.common import security
 from apps.api.models import OneCClientMap
 from apps.loyalty.models import CustomUser
 

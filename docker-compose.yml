@@ -91,7 +91,7 @@ services:
       dockerfile: infra/docker/backend/Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app/backend:/app
       DJANGO_SETTINGS_MODULE: settings
     working_dir: /app
     depends_on:
@@ -127,7 +127,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app/backend:/app
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
@@ -155,7 +155,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app/backend:/app
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
@@ -175,7 +175,7 @@ services:
       dockerfile: infra/docker/backend/Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app/backend:/app
       DJANGO_SETTINGS_MODULE: settings
     working_dir: /app/backend
     depends_on:
@@ -191,7 +191,7 @@ services:
       dockerfile: infra/docker/backend/Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: /app/backend
+      PYTHONPATH: /app/backend:/app
       DJANGO_SETTINGS_MODULE: settings
     working_dir: /app/backend
     entrypoint: ["python", "manage.py"]

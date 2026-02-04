@@ -1,6 +1,6 @@
 import json
 from django.test import TestCase, Client
-from api import security
+from apps.common import security
 from apps.orders.models import Product
 
 

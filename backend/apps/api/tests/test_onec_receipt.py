@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.test import Client, TestCase
 
-from api import security
+from apps.common import security
 from apps.loyalty.models import CustomUser, Transaction
 
 
@@ -251,7 +251,7 @@ class OneCReceiptTests(TestCase):
             telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
         )
 
-        with self.assertLogs("apps.api.views", level="WARNING") as cm:
+        with self.assertLogs("apps.integrations.onec.receipt", level="WARNING") as cm:
             response = self._post_receipt(
                 payload,
                 api_key=security.API_KEY,
@@ -307,7 +307,6 @@ class OneCReceiptTests(TestCase):
         follow_payload = {
             **base_payload,
             "positions": [
-                base_payload["positions"][1],
                 {
                     "product_code": "SKU-3",
                     "quantity": "1",
@@ -318,10 +317,10 @@ class OneCReceiptTests(TestCase):
             ],
         }
         follow_payload["totals"] = {
-            "total_amount": "110.00",
+            "total_amount": "60.00",
             "discount_total": "0",
             "bonus_spent": "0",
-            "bonus_earned": "2.00",
+            "bonus_earned": "1.00",
         }
 
         second_resp = self._post_receipt(
