@@ -8,6 +8,7 @@ from apps.integrations.onec.order_status import onec_order_status
 from apps.integrations.onec.orders_pending import onec_orders_pending
 from apps.integrations.onec.product_sync_endpoint import onec_product_sync
 from apps.integrations.onec.receipt import onec_receipt
+from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
 from apps.loyalty.views import PurchaseAPIView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
@@ -21,6 +22,7 @@ urlpatterns = [
     path("onec/receipt", onec_receipt, name="onec_receipt"),
     path("onec/customer", onec_customer_sync, name="onec_customer_sync"),
     path("onec/product", onec_product_sync, name="onec_product_sync"),
+    path("onec/stock", onec_stock_sync, name="onec_stock_sync"),
     path("onec/order", onec_order_create, name="onec_order_create"),
     path("onec/orders/pending", onec_orders_pending, name="onec_orders_pending"),
     path("onec/order/status", onec_order_status, name="onec_order_status"),

@@ -80,3 +80,12 @@ class ProductUpdateSerializer(serializers.Serializer):
     category = serializers.CharField()
     is_promotional = serializers.BooleanField()
     updated_at = serializers.DateTimeField()
+
+
+class StockItemSerializer(serializers.Serializer):
+    product_code = serializers.CharField()
+    stock = serializers.IntegerField(min_value=0)
+
+
+class StockUpdateSerializer(serializers.Serializer):
+    items = StockItemSerializer(many=True, min_length=1)
