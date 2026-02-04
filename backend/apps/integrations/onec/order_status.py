@@ -89,7 +89,7 @@ def onec_order_status(request):
             if status_changed:
                 try:
                     notify_order_status_change(o, previous_status=previous_status)
-                except Exception:
+                except Exception:  # pragma: no cover — defensive: push must not break status endpoint
                     logger.exception(
                         "Failed to send push for order status change: order_id=%s %s->%s",
                         o.id,

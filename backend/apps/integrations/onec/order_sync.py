@@ -122,7 +122,7 @@ def send_order_to_onec_impl(self, order_id: int):
 
         return {"status": "sent", "order_id": order_id, "onec_guid": onec_guid}
 
-    except Exception as exc:
+    except (requests.RequestException, RuntimeError) as exc:
         logger.exception("send_order_to_onec failed: order_id=%s", order_id)
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             return {"status": "failed", "reason": str(exc)}

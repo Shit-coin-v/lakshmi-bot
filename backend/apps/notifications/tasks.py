@@ -33,5 +33,5 @@ def send_birthday_congratulations():
         try:
             response = requests.post(BASE_URL, data=payload)
             response.raise_for_status()
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Ошибка при отправке сообщения пользователю {user.telegram_id}: {e}")

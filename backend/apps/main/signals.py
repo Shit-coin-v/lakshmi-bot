@@ -57,5 +57,5 @@ def notification_send_push(sender, instance: Notification, created: bool, **kwar
             data_payload,
             {k: result.get(k) for k in ("sent", "success", "failure")},
         )
-    except Exception:
+    except Exception:  # pragma: no cover — defensive: push failure must not crash signal
         logger.exception("Push send failed for notification id=%s", instance.id)
