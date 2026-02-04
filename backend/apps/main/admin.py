@@ -16,7 +16,7 @@ from .models import (
     Notification,
     NotificationOpenEvent,
 )
-from apps.notifications.task_contract import broadcast_send_task
+from apps.main.tasks import broadcast_send_task
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class BroadcastMessageAdmin(admin.ModelAdmin):
     def send_broadcast(self, request, queryset):
         queued = 0
         for msg in queryset:
-            broadcast_send_task(msg.id)
+            broadcast_send_task.delay(msg.id)
             queued += 1
 
         if queued:
