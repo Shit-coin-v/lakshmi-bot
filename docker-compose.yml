@@ -47,7 +47,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.3
     container_name: grafana
-    env_file: backend/.env
+    env_file: .env
     ports:
       - "127.0.0.1:3000:3000"
     environment:
@@ -66,7 +66,7 @@ services:
 
   db:
     image: postgres:17
-    env_file: backend/.env
+    env_file: .env
     restart: always
     container_name: db
     # ports:
@@ -89,7 +89,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     environment:
       PYTHONPATH: /app/backend
       DJANGO_SETTINGS_MODULE: settings
@@ -118,7 +118,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     container_name: celery_worker
     restart: always
     depends_on:
@@ -144,7 +144,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     container_name: celery_beat
     restart: always
     depends_on:
@@ -173,7 +173,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     environment:
       PYTHONPATH: /app/backend
       DJANGO_SETTINGS_MODULE: settings
@@ -189,7 +189,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     environment:
       PYTHONPATH: /app/backend
       DJANGO_SETTINGS_MODULE: settings
@@ -262,7 +262,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/bots/Dockerfile
-    env_file: backend/.env
+    env_file: .env
     environment:
       PYTHONPATH: /app
     container_name: customer_bot

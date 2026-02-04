@@ -30,9 +30,8 @@ __pycache__/
 *.sqlite3
 
 # Environments & Secrets
-backend/.env
-backend/.env.*
-backend/*.env
+.env
+.env.*
 backend/venv/
 backend/.venv/
 
@@ -49,7 +48,7 @@ backend/backend/media/
 bots/customer_bot/qr_codes/
 
 # Исключение для примера (если нужно, чтобы .env.example был виден)
-!backend/.env.example
+!.env.example
 
 # ========================
 # APP (Flutter / Dart)

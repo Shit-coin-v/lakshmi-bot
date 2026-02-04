@@ -11,7 +11,7 @@
 Скопируйте шаблон и заполните значения:
 
 ```bash
-cp backend/.env.example backend/.env
+cp .env.example .env
 ```
 
 Обязательные переменные:

@@ -44,7 +44,7 @@ test:
 	docker compose run --rm -e DJANGO_SETTINGS_MODULE=settings_test app python backend/manage.py test
 
 init:
-	@test -f backend/.env && echo "backend/.env already exists, skipping" || (cp backend/.env.example backend/.env && echo "Created backend/.env from .env.example — edit it with your values")
+	@test -f .env && echo ".env already exists, skipping" || (cp .env.example .env && echo "Created .env from .env.example — edit it with your values")
 
 backup:
 	docker compose exec db pg_dump -U lakshmi lakshmi | gzip > backup_$$(date +%Y%m%d_%H%M%S).sql.gz

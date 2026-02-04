@@ -4,7 +4,7 @@
 
 1. Copy the env template:
    ```bash
-   cp backend/.env.example backend/.env
+   cp .env.example .env
    ```
 2. Start the stack from the repo root:
    ```bash

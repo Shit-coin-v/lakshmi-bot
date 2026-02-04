@@ -10,16 +10,16 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 echo "=== Initializing development environment ==="
 
 # Check for .env file
-if [ ! -f "$PROJECT_ROOT/backend/.env" ]; then
+if [ ! -f "$PROJECT_ROOT/.env" ]; then
     echo "Creating .env from .env.example..."
-    if [ -f "$PROJECT_ROOT/backend/.env.example" ]; then
-        cp "$PROJECT_ROOT/backend/.env.example" "$PROJECT_ROOT/backend/.env"
-        echo "Created backend/.env - please update with your settings"
+    if [ -f "$PROJECT_ROOT/.env.example" ]; then
+        cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
+        echo "Created .env - please update with your settings"
     else
-        echo "WARNING: backend/.env.example not found"
+        echo "WARNING: .env.example not found"
     fi
 else
-    echo "backend/.env already exists"
+    echo ".env already exists"
 fi
 
 # Build containers
