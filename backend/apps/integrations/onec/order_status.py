@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @require_onec_auth
 def onec_order_status(request):
     from apps.orders.models import Order
-    from apps.notifications.push_contract import notify_order_status_change
+    from apps.notifications.push import notify_order_status_change
 
     raw = request.body or b"{}"
     if isinstance(raw, (bytes, bytearray)):
