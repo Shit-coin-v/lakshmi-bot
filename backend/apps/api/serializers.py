@@ -3,7 +3,6 @@ from typing import Any
 
 from rest_framework import serializers
 from apps.orders.models import Order, OrderItem, Product
-from apps.loyalty.models import CustomUser
 from apps.notifications.serializers import (  # noqa: F401
     NotificationReadSerializer,
     NotificationSerializer,
@@ -201,20 +200,4 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         send_order_to_onec.delay(order.id)
 
         return order
-    
-
-class CustomerProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = [
-            'id', 
-            'telegram_id', 
-            'full_name', 
-            'phone', 
-            'email', 
-            'bonuses', 
-            'qr_code',
-            'avatar'
-        ]
-        read_only_fields = ['id', 'telegram_id', 'bonuses', 'qr_code']
 
