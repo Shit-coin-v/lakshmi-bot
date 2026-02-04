@@ -16,6 +16,9 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY bots/ ./bots/
+COPY shared/ ./shared/
+
+ENV PYTHONPATH=/app
 
 RUN addgroup --system app \
     && adduser --system --ingroup app app \

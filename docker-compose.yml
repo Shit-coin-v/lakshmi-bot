@@ -130,7 +130,7 @@ services:
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "celery", "worker", "--loglevel=info"]
+    command: ["-A", "celeryapp", "worker", "--loglevel=info"]
     logging:
       driver: json-file
       options:
@@ -158,7 +158,7 @@ services:
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "celery", "beat", "--loglevel=info"]
+    command: ["-A", "celeryapp", "beat", "--loglevel=info"]
     logging:
       driver: json-file
       options:
@@ -262,6 +262,8 @@ services:
       context: .
       dockerfile: infra/docker/bots/Dockerfile
     env_file: backend/.env
+    environment:
+      PYTHONPATH: /app
     container_name: customer_bot
     restart: always
     depends_on:

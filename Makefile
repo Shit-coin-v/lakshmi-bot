@@ -1,4 +1,4 @@
-.PHONY: build up down logs shell migrate collectstatic setup test backup help
+.PHONY: build up down logs shell migrate collectstatic setup test backup help init
 
 # Default target
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make migrate       - Run database migrations"
 	@echo "  make collectstatic - Collect static files"
 	@echo "  make test          - Run Django tests"
+	@echo "  make init          - Create .env from .env.example (first time)"
 	@echo "  make backup        - Backup PostgreSQL database"
 
 build:
@@ -41,6 +42,9 @@ collectstatic:
 
 test:
 	docker compose run --rm -e DJANGO_SETTINGS_MODULE=settings_test app python backend/manage.py test
+
+init:
+	@test -f backend/.env && echo "backend/.env already exists, skipping" || (cp backend/.env.example backend/.env && echo "Created backend/.env from .env.example — edit it with your values")
 
 backup:
 	docker compose exec db pg_dump -U lakshmi lakshmi | gzip > backup_$$(date +%Y%m%d_%H%M%S).sql.gz
