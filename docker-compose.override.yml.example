@@ -1,0 +1,9 @@
+# Docker Compose Override Example
+# Copy this file to docker-compose.override.yml and customize for your environment.
+# docker-compose.override.yml is gitignored and should NOT be committed.
+
+services:
+  app:
+    environment:
+      # Add your production hosts here
+      ALLOWED_HOSTS: "app,localhost,127.0.0.1,nginx,your-domain.com"
