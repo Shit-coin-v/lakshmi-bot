@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from .database.models import (
+from database.models import (
     SessionLocal,
     BroadcastMessage as SqlBroadcastMessage,
     CustomUser,

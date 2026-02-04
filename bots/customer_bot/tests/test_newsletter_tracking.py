@@ -14,6 +14,7 @@ sys.path.append(str(test_dir.parent))
 
 import broadcast  # noqa: E402  pylint: disable=wrong-import-position
 from broadcast import generate_unique_open_token  # noqa: E402  pylint: disable=wrong-import-position
+from shared.broadcast import helpers as _broadcast_helpers  # noqa: E402  pylint: disable=wrong-import-position
 from database import models as db_models  # noqa: E402  pylint: disable=wrong-import-position
 from run import register_newsletter_open  # noqa: E402  pylint: disable=wrong-import-position
 
@@ -93,7 +94,7 @@ def test_generate_unique_open_token(monkeypatch):
         async def fake_token_exists(token):
             return token == "a" * 32
 
-        monkeypatch.setattr(broadcast.secrets, "token_hex", fake_token_hex)
+        monkeypatch.setattr(_broadcast_helpers.secrets, "token_hex", fake_token_hex)
 
         token = await generate_unique_open_token(fake_token_exists)
         assert token == "b" * 32

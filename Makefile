@@ -1,4 +1,4 @@
-.PHONY: build up down logs shell migrate collectstatic setup test backup help init
+.PHONY: build up down logs shell migrate collectstatic setup test test-backend test-bot test-shared test-frontend backup help init
 
 # Default target
 help:
@@ -11,7 +11,11 @@ help:
 	@echo "  make setup         - Run migrations and collect static (first-time setup)"
 	@echo "  make migrate       - Run database migrations"
 	@echo "  make collectstatic - Collect static files"
-	@echo "  make test          - Run Django tests"
+	@echo "  make test          - Run all tests (backend, bot, shared, frontend)"
+	@echo "  make test-backend  - Run Django backend tests"
+	@echo "  make test-bot      - Run bot pytest tests"
+	@echo "  make test-shared   - Run shared module pytest tests"
+	@echo "  make test-frontend - Run Flutter frontend tests"
 	@echo "  make init          - Create .env from .env.example (first time)"
 	@echo "  make backup        - Backup PostgreSQL database"
 
@@ -40,8 +44,23 @@ migrate:
 collectstatic:
 	docker compose --profile setup run --rm collectstatic
 
-test:
+test: test-backend test-bot test-shared test-frontend
+
+test-backend:
 	docker compose run --rm -e DJANGO_SETTINGS_MODULE=settings_test app python backend/manage.py test
+
+test-bot:
+	docker compose run --rm customer_bot sh -c 'pip install --quiet --target /tmp/deps pytest && PYTHONPATH=/tmp/deps:$$PYTHONPATH python -m pytest tests/ -v'
+
+test-shared:
+	@docker compose run --rm -e DJANGO_SETTINGS_MODULE=settings_test app sh -c 'pip install --quiet --target /tmp/deps pytest && PYTHONPATH=/tmp/deps:$$PYTHONPATH python -m pytest shared/ -v; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 5 ] || exit $$ret'
+
+test-frontend:
+	@if [ -d mobile/flutter_app/test ]; then \
+		cd mobile/flutter_app && flutter test; \
+	else \
+		echo "Skipping frontend tests: mobile/flutter_app/test/ not found"; \
+	fi
 
 init:
 	@test -f .env && echo ".env already exists, skipping" || (cp .env.example .env && echo "Created .env from .env.example — edit it with your values")
