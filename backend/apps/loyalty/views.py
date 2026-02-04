@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from apps.loyalty.models import CustomUser, Product, Transaction
 
 from apps.api.security import require_onec_auth
-from apps.api.serializers import PurchaseSerializer
+from apps.loyalty.serializers import PurchaseSerializer
 
 
 @method_decorator(csrf_exempt, name="dispatch")
