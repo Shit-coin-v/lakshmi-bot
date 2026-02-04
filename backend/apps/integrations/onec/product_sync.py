@@ -2,7 +2,7 @@ import json
 
 from django.http import JsonResponse
 
-from apps.api.serializers import ProductUpdateSerializer
+from apps.integrations.onec.serializers import ProductUpdateSerializer
 from apps.orders.models import Product
 
 

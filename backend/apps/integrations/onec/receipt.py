@@ -73,7 +73,7 @@ class DuplicateReceiptLineError(Exception):
 @require_onec_auth
 def onec_receipt(request):
     from apps.api.models import OneCClientMap
-    from apps.api.serializers import ReceiptSerializer
+    from apps.integrations.onec.serializers import ReceiptSerializer
     from apps.loyalty.models import CustomUser, Product, Transaction
 
     raw_body = request.body or b"{}"
