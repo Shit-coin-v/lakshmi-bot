@@ -6,9 +6,9 @@ import '../models/product.dart';
 final productsServiceProvider = Provider((ref) => ProductsService());
 
 class ProductsService {
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
 
-  ProductsService();
+  ProductsService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   Future<List<Product>> getProducts({String search = ''}) async {
     try {

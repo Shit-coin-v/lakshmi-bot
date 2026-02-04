@@ -9,9 +9,9 @@ final orderServiceProvider = Provider((ref) => OrderService(ref));
 
 class OrderService {
   final Ref _ref;
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
 
-  OrderService(this._ref);
+  OrderService(this._ref, {Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   // Получить список всех заказов
   Future<List<OrderModel>> fetchMyOrders() async {

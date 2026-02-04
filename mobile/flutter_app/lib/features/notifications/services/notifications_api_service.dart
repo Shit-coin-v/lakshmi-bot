@@ -4,7 +4,9 @@ import '../../../core/api_client.dart';
 import '../models/notification_model.dart';
 
 class NotificationsApiService {
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
+
+  NotificationsApiService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   Future<List<NotificationModel>> fetchNotifications({
     required int userId,

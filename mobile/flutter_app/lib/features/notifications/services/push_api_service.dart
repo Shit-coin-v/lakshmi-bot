@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import '../../../core/api_client.dart';
 
 class PushApiService {
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
+
+  PushApiService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   Future<void> registerToken({
     required int customerId,

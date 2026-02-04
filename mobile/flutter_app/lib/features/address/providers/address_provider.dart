@@ -4,11 +4,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/address_model.dart';
 
 class AddressNotifier extends StateNotifier<List<AddressModel>> {
-  // Создаем хранилище
-  final _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
   static const _storageKey = 'user_addresses_v1';
 
-  AddressNotifier() : super([]) {
+  AddressNotifier({FlutterSecureStorage? storage})
+      : _storage = storage ?? const FlutterSecureStorage(),
+        super([]) {
     _loadAddresses(); // 👇 Загружаем при старте
   }
 

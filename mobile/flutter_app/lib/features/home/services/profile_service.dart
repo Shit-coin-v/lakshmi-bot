@@ -9,9 +9,9 @@ final profileServiceProvider = Provider((ref) => ProfileService(ref));
 
 class ProfileService {
   final Ref _ref;
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
 
-  ProfileService(this._ref);
+  ProfileService(this._ref, {Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   // Получить данные профиля
   Future<UserModel> getProfile() async {

@@ -56,10 +56,10 @@ test-shared:
 	@docker compose run --rm -e DJANGO_SETTINGS_MODULE=settings_test app sh -c 'pip install --quiet --target /tmp/deps pytest && PYTHONPATH=/tmp/deps:$$PYTHONPATH python -m pytest shared/ -v; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 5 ] || exit $$ret'
 
 test-frontend:
-	@if [ -d mobile/flutter_app/test ]; then \
+	@if [ -d mobile/flutter_app/test ] && command -v flutter >/dev/null 2>&1; then \
 		cd mobile/flutter_app && flutter test; \
 	else \
-		echo "Skipping frontend tests: mobile/flutter_app/test/ not found"; \
+		echo "Skipping frontend tests: Flutter SDK or test/ not found"; \
 	fi
 
 init:
