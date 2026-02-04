@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+if [ $# -gt 0 ]; then
+  exec "$@"
+fi
+
 GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
 GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-60}
 
