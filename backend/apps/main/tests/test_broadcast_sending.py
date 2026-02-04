@@ -1,14 +1,10 @@
 import asyncio
-import os
 from types import SimpleNamespace
 
 from django.test import TransactionTestCase
 
 from apps.main.models import BroadcastMessage, CustomUser, NewsletterDelivery
-
-os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
-
-from bots.customer_bot import broadcast  # noqa: E402  pylint: disable=wrong-import-position
+from shared.broadcast.django_sender import send_with_django
 
 
 class DummyTelegramBot:
@@ -41,20 +37,6 @@ class BroadcastSendingTests(TransactionTestCase):
     def setUp(self):
         self.bot = DummyTelegramBot()
 
-        self._original_session_local = broadcast.SessionLocal
-
-        class _FailingSession:
-            async def __aenter__(self):
-                raise RuntimeError("Database is not configured for the Telegram bot")
-
-            async def __aexit__(self, exc_type, exc, tb):
-                return False
-
-        broadcast.SessionLocal = lambda: _FailingSession()  # type: ignore
-
-    def tearDown(self):
-        broadcast.SessionLocal = self._original_session_local
-
     def test_send_to_specific_list_creates_deliveries(self):
         user_target = CustomUser.objects.create(telegram_id=200)
 
@@ -62,7 +44,7 @@ class BroadcastSendingTests(TransactionTestCase):
             message_text="Secret", send_to_all=False, target_user_ids="200,999"
         )
 
-        asyncio.run(broadcast.send_broadcast_message(message.id, bot_instance=self.bot))
+        asyncio.run(send_with_django(message.id, self.bot))
 
         deliveries = NewsletterDelivery.objects.filter(message=message).order_by("customer_id")
         self.assertEqual(deliveries.count(), 1)
@@ -79,7 +61,7 @@ class BroadcastSendingTests(TransactionTestCase):
 
         message = BroadcastMessage.objects.create(message_text="Promo", send_to_all=True)
 
-        asyncio.run(broadcast.send_broadcast_message(message.id, bot_instance=self.bot))
+        asyncio.run(send_with_django(message.id, self.bot))
 
         sent_ids = set(
             NewsletterDelivery.objects.filter(message=message).values_list("customer_id", flat=True)
@@ -91,7 +73,7 @@ class BroadcastSendingTests(TransactionTestCase):
         message = BroadcastMessage.objects.create(message_text="Repeat", send_to_all=True)
 
         for _ in range(2):
-            asyncio.run(broadcast.send_broadcast_message(message.id, bot_instance=self.bot))
+            asyncio.run(send_with_django(message.id, self.bot))
 
         deliveries = NewsletterDelivery.objects.filter(message=message)
         self.assertEqual(deliveries.count(), 1)

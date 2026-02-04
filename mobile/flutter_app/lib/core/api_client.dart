@@ -7,8 +7,10 @@ class ApiClient {
     defaultValue: 'http://127.0.0.1:8000',
   );
 
-  // ВАШ СЕКРЕТНЫЙ КЛЮЧ
-  static const String _apiKey = 'my_secret_mobile_key_2025';
+  static const String _apiKey = String.fromEnvironment(
+    'API_KEY',
+    defaultValue: 'my_secret_mobile_key_2025',
+  );
 
   final Dio _dio = Dio(
     BaseOptions(

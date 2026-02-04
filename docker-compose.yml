@@ -47,6 +47,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.3
     container_name: grafana
+    env_file: backend/.env
     ports:
       - "127.0.0.1:3000:3000"
     environment:
