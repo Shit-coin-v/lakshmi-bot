@@ -43,14 +43,14 @@ class SendMessageAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"err": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not settings.BOT_TOKEN:
-            logger.error("BOT_TOKEN is not configured; cannot send message")
+        if not settings.TELEGRAM_BOT_TOKEN:
+            logger.error("TELEGRAM_BOT_TOKEN is not configured; cannot send message")
             return Response(
                 {"err": "Bot token is not configured."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        telegram_url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
+        telegram_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {
             "chat_id": user.telegram_id,
             "text": text,
