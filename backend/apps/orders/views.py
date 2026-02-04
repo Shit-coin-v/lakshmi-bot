@@ -3,8 +3,12 @@ from __future__ import annotations
 from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
 
-from apps.api.serializers import OrderCreateSerializer, OrderListSerializer
-from apps.orders.serializers import OrderDetailSerializer, ProductListSerializer
+from apps.orders.serializers import (
+    OrderCreateSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+    ProductListSerializer,
+)
 from apps.orders.models import Order, Product
 
 
