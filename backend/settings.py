@@ -61,8 +61,13 @@ INSTALLED_APPS = [
     'django_object_actions',
     'django_celery_beat',
     'django_prometheus',
+    'apps.common.apps.CommonConfig',
     'apps.main.apps.MainConfig',
     'apps.api.apps.ApiConfig',
+    'apps.orders.apps.OrdersConfig',
+    'apps.loyalty.apps.LoyaltyConfig',
+    'apps.notifications.apps.NotificationsConfig',
+    'apps.integrations.onec.apps.OnecConfig',
 ]
 
 MIDDLEWARE = [
