@@ -1,145 +1,164 @@
-# План рефакторинга V3 для lakshmi-bot
+# План рефакторинга V4 для lakshmi-bot
 
-## Статус: ✅ ЗАВЕРШЁН (2026-02-02)
+## Статус: ⏳ ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ
 
-## Цели V3
-- ✅ Устранить оставшийся технический долг
-- ✅ Разорвать зависимость backend → bots
-- ✅ Консолидировать Celery tasks в доменных приложениях
-- ✅ Улучшить качество кода (exception handling)
+## Цели V4
+- Зарегистрировать доменные приложения в INSTALLED_APPS
+- Устранить промежуточные прокси-слои (push_contract, task_contract, main/push)
+- Переместить сериализаторы из apps/api в доменные приложения
+- Исправить оставшиеся except Exception паттерны
+- Очистить apps/api/serializers.py от реэкспортов
 
 ---
 
 ## План из 10 шагов
 
-### Шаг 1: Исправить except Exception в security.py (P0)
-**Файл:** `backend/apps/common/security.py:96`
+### Шаг 1: Зарегистрировать доменные приложения в INSTALLED_APPS (P0)
+**Файл:** `backend/settings.py`
+
+**Текущее состояние:** Только `apps.main` и `apps.api` зарегистрированы.
 
 **Изменения:**
-- Заменить `except Exception:` на специфичные исключения
-- Добавить комментарий с обоснованием для defensive code
+- Добавить в INSTALLED_APPS:
+  - `apps.orders.apps.OrdersConfig`
+  - `apps.loyalty.apps.LoyaltyConfig`
+  - `apps.notifications.apps.NotificationsConfig`
+  - `apps.integrations.onec.apps.OnecConfig`
+  - `apps.common.apps.CommonConfig`
 
-**Критерий:** `grep -rn "except Exception:" backend/apps/common/security.py` → 0 совпадений
+**Критерий:** `python -m compileall backend` → успех
 
 ---
 
-### Шаг 2: Заменить print() на logger (P0)
-**Файл:** `backend/apps/api/tasks.py:36`
+### Шаг 2: Исправить except Exception без pragma (P0)
+**Файлы с except Exception БЕЗ pragma: no cover:**
+- `backend/apps/notifications/tasks.py:36`
+- `backend/apps/main/signals.py:60`
+- `backend/apps/integrations/onec/order_status.py:92`
+- `backend/apps/integrations/onec/order_sync.py:125`
 
 **Изменения:**
-- Заменить `print(f"Ошибка...")` на `logger.error(...)`
-- Добавить импорт logger если отсутствует
+- Заменить `except Exception` на специфичные исключения (`requests.RequestException`, `ValueError`, `KeyError`, и т.д.)
+- Или добавить `# pragma: no cover` с обоснованием для defensive code
 
-**Критерий:** `grep -rn "print(" backend/apps/ | grep -v test` → 0 совпадений
+**Критерий:** `grep -rn "except Exception" backend/apps/ | grep -v "pragma: no cover" | grep -v test | grep -v __pycache__` → 0 совпадений
 
 ---
 
-### Шаг 3: Создать shared/broadcast/ модуль (P1)
-**Цель:** Подготовить структуру для переноса broadcast логики
-
-**Изменения:**
-1. Создать `shared/broadcast/__init__.py`
-2. Создать `shared/broadcast/django_sender.py`
-3. Перенести `_send_with_django()` из `bots/customer_bot/broadcast.py`
-
-**Структура:**
+### Шаг 3: Устранить цепочку push-прокси (P1)
+**Проблема:** Двойная цепочка прокси:
 ```
-shared/
-├── config/qr.py
-└── broadcast/
-    ├── __init__.py
-    └── django_sender.py
+signals.py → push_contract.py → main/push.py → notifications/push.py
+views.py → push_contract.py → main/push.py → notifications/push.py
 ```
 
----
-
-### Шаг 4: Обновить импорты broadcast в backend (P1)
-**Файл:** `backend/apps/main/tasks.py:24`
-
 **Изменения:**
-- Заменить `from bots.customer_bot.broadcast import _send_with_django`
-- На `from shared.broadcast import send_with_django`
+1. Обновить `backend/apps/main/signals.py` — импорт напрямую из `apps.notifications.push`
+2. Обновить все вызовы, которые используют `push_contract.py`, на прямой импорт из `apps.notifications.push`
+3. Удалить `backend/apps/notifications/push_contract.py`
+4. Удалить `backend/apps/main/push.py` (прокси-файл)
 
-**Критерий:** `grep -rn "from bots\." backend/` → только тесты
+**Критерий:** `rg -n "push_contract" backend/` → 0 совпадений; `python -m compileall backend` → успех
 
 ---
 
-### Шаг 5: Перенести send_birthday_congratulations (P1)
+### Шаг 4: Удалить task_contract.py файлы (P1)
 **Файлы:**
-- `backend/apps/api/tasks.py` (источник)
-- `backend/apps/notifications/tasks.py` (цель)
+- `backend/apps/notifications/task_contract.py` — прокси для broadcast_send_task
+- `backend/apps/integrations/onec/task_contract.py` — прокси для send_order_to_onec
 
 **Изменения:**
-1. Перенести функцию `send_birthday_congratulations` в notifications/tasks.py
-2. Удалить legacy wrapper
-3. Обновить Celery beat schedule если есть
+1. Найти все использования task_contract и заменить на прямые вызовы .delay()
+2. Обновить `backend/apps/api/serializers.py:218` — заменить import из task_contract на прямой
+3. Обновить `backend/apps/main/admin.py` — заменить import из task_contract на прямой
+4. Удалить оба файла task_contract.py
+
+**Критерий:** `rg -n "task_contract" backend/` → 0 совпадений; `python -m compileall backend` → успех
 
 ---
 
-### Шаг 6: Создать integrations/onec/tasks.py (P2)
-**Файл:** `backend/apps/integrations/onec/tasks.py` (новый)
-
-**Изменения:**
-1. Создать файл tasks.py в integrations/onec/
-2. Перенести `send_order_to_onec` из apps/api/tasks.py
-3. Обновить импорты
-
----
-
-### Шаг 7: Удалить apps/api/tasks.py (P2)
-**Файл:** `backend/apps/api/tasks.py`
-
-**Изменения:**
-1. Убедиться что все задачи перенесены (шаги 5-6)
-2. Удалить файл
-3. Обновить все импорты в проекте
-
-**Целевая структура tasks:**
-```
-apps/notifications/tasks.py → send_birthday_congratulations
-apps/integrations/onec/tasks.py → send_order_to_onec
-apps/main/tasks.py → broadcast_send_task
-```
-
----
-
-### Шаг 8: Консолидация импортов моделей (P2)
-**Цель:** Установить консистентный паттерн импортов
-
-**Правило:**
-- `CustomUser`, `Transaction` → `apps.loyalty.models`
-- `Order`, `OrderItem`, `Product` → `apps.orders.models`
-- `Notification`, `NotificationOpenEvent` → `apps.notifications.models`
-
-**Изменения:**
-1. Обновить импорты в `apps/integrations/onec/*.py`
-2. Расширить фасады при необходимости
-
----
-
-### Шаг 9: Документирование пустых интеграций (P2)
+### Шаг 5: Перенести PurchaseSerializer в apps/loyalty (P1)
 **Файлы:**
-- `apps/integrations/payments/README.md` (создать)
-- `apps/integrations/delivery/README.md` (создать)
+- Источник: `backend/apps/api/serializers.py` (PurchaseSerializer, строки 20-37)
+- Цель: `backend/apps/loyalty/serializers.py`
 
 **Изменения:**
-1. НЕ удалять приложения
-2. НЕ подключать в INSTALLED_APPS
-3. Добавить README.md с описанием планируемого назначения:
-   - payments/ — будущая интеграция с платёжными системами
-   - delivery/ — будущая интеграция с сервисами доставки
+1. Создать/обновить `backend/apps/loyalty/serializers.py` с PurchaseSerializer
+2. Обновить импорт в `backend/apps/loyalty/views.py`
+3. Удалить PurchaseSerializer из `backend/apps/api/serializers.py`
+
+**Критерий:** `ruff check backend/apps/loyalty/serializers.py` → успех
 
 ---
 
-### Шаг 10: Улучшение exception handling (P2)
-**Файлы для ревью:**
-- `apps/integrations/onec/order_sync.py:109`
-- `apps/integrations/onec/customer_sync.py:63, 123`
-- `apps/notifications/views.py:91`
+### Шаг 6: Перенести CustomerProfileSerializer в apps/main (P1)
+**Файлы:**
+- Источник: `backend/apps/api/serializers.py` (CustomerProfileSerializer, строки 225-238)
+- Цель: `backend/apps/main/serializers.py`
 
 **Изменения:**
-- Заменить `except Exception:` на специфичные исключения
-- Для defensive code добавить комментарий `# pragma: no cover`
+1. Создать `backend/apps/main/serializers.py` с CustomerProfileSerializer
+2. Обновить импорт в `backend/apps/main/views.py`
+3. Удалить CustomerProfileSerializer из `backend/apps/api/serializers.py`
+
+**Критерий:** `ruff check backend/apps/main/serializers.py` → успех
+
+---
+
+### Шаг 7: Перенести Receipt-сериализаторы в apps/integrations/onec (P2)
+**Файлы:**
+- Источник: `backend/apps/api/serializers.py` (ReceiptPositionSerializer, ReceiptTotalsSerializer, ReceiptCustomerSerializer, ReceiptSerializer, ProductUpdateSerializer)
+- Цель: `backend/apps/integrations/onec/serializers.py`
+
+**Изменения:**
+1. Создать `backend/apps/integrations/onec/serializers.py`
+2. Перенести 5 сериализаторов (Receipt*, ProductUpdate*)
+3. Обновить импорты в `backend/apps/integrations/onec/receipt.py` и `product_sync_endpoint.py`
+4. Удалить перенесённые классы из `backend/apps/api/serializers.py`
+
+**Критерий:** `ruff check backend/apps/integrations/onec/serializers.py` → успех
+
+---
+
+### Шаг 8: Перенести OrderCreateSerializer и OrderItemSerializer в apps/orders (P2)
+**Файлы:**
+- Источник: `backend/apps/api/serializers.py` (OrderItemSerializer, OrderCreateSerializer)
+- Цель: `backend/apps/orders/serializers.py`
+
+**Изменения:**
+1. Перенести OrderItemSerializer и OrderCreateSerializer в `backend/apps/orders/serializers.py`
+2. Обновить импорты (task_contract заменён на шаге 4)
+3. Удалить перенесённые классы из `backend/apps/api/serializers.py`
+
+**Критерий:** `ruff check backend/apps/orders/serializers.py` → успех
+
+---
+
+### Шаг 9: Очистить apps/api/serializers.py от реэкспортов (P2)
+**Файл:** `backend/apps/api/serializers.py`
+
+**Текущее состояние:** Содержит `# noqa: F401` реэкспорты из notifications и orders.
+
+**Изменения:**
+1. Проверить, что apps/api/urls.py НЕ импортирует сериализаторы из api (подтверждено — urls.py импортирует views)
+2. Удалить реэкспорт-импорты (строки 7-17)
+3. Удалить неиспользуемые импорты моделей после переноса сериализаторов
+4. После шагов 5-8 файл должен стать пустым → удалить файл
+
+**Критерий:** `rg -n "noqa: F401" backend/apps/api/serializers.py` → 0 совпадений или файл удалён
+
+---
+
+### Шаг 10: Верификация и обновление документации (P2)
+**Проверки:**
+1. `python -m compileall backend` → успех
+2. `ruff check backend/` → успех (или только ожидаемые warnings)
+3. `grep -rn "push_contract\|task_contract" backend/` → 0 совпадений
+4. `grep -rn "except Exception" backend/apps/ | grep -v "pragma: no cover" | grep -v test | grep -v __pycache__` → 0 совпадений
+5. Проверить PYTHONPATH импорты: `PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"`
+
+**Документация:**
+- Обновить `docs/AGENT_WORKLOG.md` с записью о V4
 
 ---
 
@@ -147,55 +166,51 @@ apps/main/tasks.py → broadcast_send_task
 
 | Шаг | Приоритет | Описание | Сложность |
 |-----|-----------|----------|-----------|
-| 1 | P0 | except Exception в security.py | Низкая |
-| 2 | P0 | print() → logger | Низкая |
-| 3 | P1 | Создать shared/broadcast/ | Средняя |
-| 4 | P1 | Импорты broadcast в backend | Низкая |
-| 5 | P1 | Перенос birthday task | Низкая |
-| 6 | P2 | Создать onec/tasks.py | Низкая |
-| 7 | P2 | Удалить api/tasks.py | Низкая |
-| 8 | P2 | Импорты моделей | Средняя |
-| 9 | P2 | README для интеграций | Низкая |
-| 10 | P2 | Exception handling | Низкая |
+| 1 | P0 | INSTALLED_APPS — регистрация доменных приложений | Низкая |
+| 2 | P0 | except Exception — специфичные исключения | Низкая |
+| 3 | P1 | Удалить push-прокси цепочку | Средняя |
+| 4 | P1 | Удалить task_contract.py прокси | Средняя |
+| 5 | P1 | PurchaseSerializer → loyalty | Низкая |
+| 6 | P1 | CustomerProfileSerializer → main | Низкая |
+| 7 | P2 | Receipt* сериализаторы → integrations/onec | Средняя |
+| 8 | P2 | OrderCreate/Item сериализаторы → orders | Средняя |
+| 9 | P2 | Очистка api/serializers.py | Низкая |
+| 10 | P2 | Верификация и документация | Низкая |
 
 ---
 
 ## Порядок выполнения
 
 ```
-Шаг 1 → Шаг 2 → Шаг 3 → Шаг 4 → Шаг 5 → Шаг 6 → Шаг 7
-                                                    ↓
-                                          Шаги 8, 9, 10
+Шаг 1 → Шаг 2 → Шаг 3 → Шаг 4 → Шаг 5 → Шаг 6 → Шаг 7 → Шаг 8 → Шаг 9 → Шаг 10
 ```
+
+Шаги 3-4 (прокси) должны быть выполнены ДО шагов 5-8 (сериализаторы), так как сериализаторы используют task_contract.
 
 ---
 
 ## Верификация
 
 ```bash
-# 1. Проверка границ backend/bots
-grep -rn "from bots\." backend/
-# Ожидается: только тесты
-
-# 2. Проверка print statements
-grep -rn "print(" backend/apps/ | grep -v test
-# Ожидается: 0 совпадений
-
-# 3. Проверка except Exception в security
-grep -rn "except Exception:" backend/apps/common/security.py
-# Ожидается: 0 совпадений
-
-# 4. Компиляция
+# 1. Компиляция
 python -m compileall backend
 
-# 5. Линтер
+# 2. Линтер
 ruff check backend/
 
-# 6. Тесты
-cd backend && python manage.py test
+# 3. Прокси удалены
+grep -rn "push_contract\|task_contract" backend/
+# Ожидается: 0 совпадений
 
-# 7. Celery tasks
-# Проверить broadcast_send_task
-# Проверить send_birthday_congratulations
-# Проверить send_order_to_onec
+# 4. except Exception исправлены
+grep -rn "except Exception" backend/apps/ | grep -v "pragma: no cover" | grep -v test | grep -v __pycache__
+# Ожидается: 0 совпадений
+
+# 5. Импорт urls
+PYTHONPATH=backend python -c "from apps.api import urls; print('ok')"
+# Ожидается: ok
+
+# 6. Реэкспорты удалены
+grep -rn "noqa: F401" backend/apps/api/
+# Ожидается: 0 совпадений
 ```
