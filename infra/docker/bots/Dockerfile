@@ -10,8 +10,8 @@ RUN apt-get update \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Use shared requirements from backend (includes aiogram, sqlalchemy, etc.)
-COPY backend/requirements.txt ./requirements.txt
+# Bot-specific dependencies (no Django/Celery bloat)
+COPY bots/customer_bot/requirements.txt ./requirements.txt
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
