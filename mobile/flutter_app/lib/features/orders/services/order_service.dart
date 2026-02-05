@@ -127,7 +127,7 @@ class OrderService {
         final double price = double.tryParse(priceRaw.toString()) ?? 0.0;
 
         return {
-          'product_id': code,
+          'product_code': code,
           'quantity': quantity,
           'price_at_moment': price.toStringAsFixed(2),
         };
