@@ -66,6 +66,13 @@ class OrderService {
       final ft = (fulfillmentType.trim().isEmpty)
           ? "delivery"
           : fulfillmentType.trim();
+      // Валидация: проверяем что у всех товаров есть product_code
+      for (final item in items) {
+        if (item.product.id.isEmpty) {
+          throw Exception('Товар "${item.product.name}" не имеет кода');
+        }
+      }
+
       final orderData = {
         "customer": userId,
         "address": address,
@@ -73,13 +80,13 @@ class OrderService {
         "comment": comment,
         "payment_method": paymentMethod,
         "fulfillment_type": ft,
-        "total_price": totalPrice,
+        "total_price": double.parse(totalPrice.toStringAsFixed(2)),
         "items": items
             .map(
               (item) => {
                 "product_code": item.product.id,
                 "quantity": item.quantity,
-                "price_at_moment": item.product.price,
+                "price_at_moment": double.parse(item.product.price.toStringAsFixed(2)),
               },
             )
             .toList(),
