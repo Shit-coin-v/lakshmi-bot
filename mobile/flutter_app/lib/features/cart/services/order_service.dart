@@ -77,7 +77,7 @@ class OrderService {
         "items": items
             .map(
               (item) => {
-                "product_id": item.product.id,
+                "product_code": item.product.id,
                 "quantity": item.quantity,
                 "price_at_moment": item.product.price,
               },
