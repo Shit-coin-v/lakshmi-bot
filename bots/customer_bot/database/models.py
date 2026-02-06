@@ -149,6 +149,7 @@ class CustomUser(Base):
     total_spent = Column(Numeric(10, 2), default=0.00)
     purchase_count = Column(Integer, default=0)
     personal_data_consent = Column(Boolean, default=False)
+    newsletter_enabled = Column(Boolean, default=True)
     promo_enabled = Column(Boolean, default=True)
     news_enabled = Column(Boolean, default=True)
     general_enabled = Column(Boolean, default=True)
