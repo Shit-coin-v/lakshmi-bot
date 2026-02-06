@@ -267,6 +267,18 @@ class BotActivity(Base):
     customer = relationship("CustomUser", back_populates="bot_activities")
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(200), nullable=False)
+    body = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    type = Column(String(20), default="personal", nullable=False)
+
+
 class NewsletterDelivery(Base):
     __tablename__ = "newsletter_deliveries"
 
