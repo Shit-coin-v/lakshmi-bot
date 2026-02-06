@@ -49,29 +49,58 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  _SwitchTile(
-                    title: 'Статусы заказов',
-                    subtitle: 'Узнавайте, когда заказ собран или едет к вам',
-                    value: settings.pushOrders,
-                    onChanged: notifier.togglePushOrders,
-                  ),
-                  const Divider(height: 1, indent: 16),
-                  _SwitchTile(
-                    title: 'Акции и скидки',
-                    subtitle: 'Персональные предложения и новинки',
-                    value: settings.pushPromos,
-                    onChanged: notifier.togglePushPromos,
-                  ),
-                  const Divider(height: 1, indent: 16),
-                  _SwitchTile(
-                    title: 'Новости магазина',
-                    subtitle: 'Открытие новых точек и изменения в графике',
-                    value: settings.news,
-                    onChanged: notifier.toggleNews,
-                  ),
-                ],
+              child: profileAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, __) => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Не удалось загрузить настройки'),
+                ),
+                data: (user) => Column(
+                  children: [
+                    _SwitchTile(
+                      title: 'Статусы заказов',
+                      subtitle: 'Узнавайте, когда заказ собран или едет к вам',
+                      value: settings.pushOrders,
+                      onChanged: notifier.togglePushOrders,
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _SwitchTile(
+                      title: 'Акции и скидки',
+                      subtitle: 'Персональные предложения и новинки',
+                      value: user.promoEnabled,
+                      onChanged: (value) {
+                        ref.read(profileProvider.notifier).updateData(
+                          promoEnabled: value,
+                        );
+                      },
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _SwitchTile(
+                      title: 'Новости магазина',
+                      subtitle: 'Открытие новых точек и изменения в графике',
+                      value: user.newsEnabled,
+                      onChanged: (value) {
+                        ref.read(profileProvider.notifier).updateData(
+                          newsEnabled: value,
+                        );
+                      },
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _SwitchTile(
+                      title: 'Общие уведомления',
+                      subtitle: 'Важные объявления и обновления',
+                      value: user.generalEnabled,
+                      onChanged: (value) {
+                        ref.read(profileProvider.notifier).updateData(
+                          generalEnabled: value,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
 

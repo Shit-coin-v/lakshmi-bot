@@ -8,6 +8,9 @@ class UserModel {
   final String? email;
   final String? avatarUrl;
   final bool newsletterEnabled;
+  final bool promoEnabled;
+  final bool newsEnabled;
+  final bool generalEnabled;
 
   UserModel({
     required this.id,
@@ -19,6 +22,9 @@ class UserModel {
     this.email,
     this.avatarUrl,
     this.newsletterEnabled = true,
+    this.promoEnabled = true,
+    this.newsEnabled = true,
+    this.generalEnabled = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +46,9 @@ class UserModel {
       email: data['email'],
       avatarUrl: data['avatar'],
       newsletterEnabled: data['newsletter_enabled'] ?? true,
+      promoEnabled: data['promo_enabled'] ?? true,
+      newsEnabled: data['news_enabled'] ?? true,
+      generalEnabled: data['general_enabled'] ?? true,
     );
   }
 }

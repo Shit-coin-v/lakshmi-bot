@@ -15,13 +15,26 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
   }
 
   // Метод для обновления текстовых данных (ФИО, телефон, email)
-  Future<void> updateData({String? name, String? phone, String? email, bool? newsletterEnabled}) async {
-    state = const AsyncValue.loading(); // Показываем загрузку
+  Future<void> updateData({
+    String? name,
+    String? phone,
+    String? email,
+    bool? newsletterEnabled,
+    bool? promoEnabled,
+    bool? newsEnabled,
+    bool? generalEnabled,
+  }) async {
+    state = const AsyncValue.loading();
     try {
-      // 1. Отправляем на сервер
-      await ref
-          .read(profileServiceProvider)
-          .updateProfile(fullName: name, phone: phone, email: email, newsletterEnabled: newsletterEnabled);
+      await ref.read(profileServiceProvider).updateProfile(
+        fullName: name,
+        phone: phone,
+        email: email,
+        newsletterEnabled: newsletterEnabled,
+        promoEnabled: promoEnabled,
+        newsEnabled: newsEnabled,
+        generalEnabled: generalEnabled,
+      );
 
       // 2. Обновляем данные локально (перезапрашиваем с сервера)
       final newUser = await ref.read(profileServiceProvider).getProfile();

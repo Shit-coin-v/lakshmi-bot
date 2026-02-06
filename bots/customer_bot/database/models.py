@@ -149,6 +149,9 @@ class CustomUser(Base):
     total_spent = Column(Numeric(10, 2), default=0.00)
     purchase_count = Column(Integer, default=0)
     personal_data_consent = Column(Boolean, default=False)
+    promo_enabled = Column(Boolean, default=True)
+    news_enabled = Column(Boolean, default=True)
+    general_enabled = Column(Boolean, default=True)
 
     transactions = relationship("Transaction", back_populates="customer")
     bot_activities = relationship("BotActivity", back_populates="customer")
@@ -244,6 +247,7 @@ class BroadcastMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     send_to_all = Column(Boolean, default=True)
     target_user_ids = Column(String, nullable=True)
+    category = Column(String(10), nullable=False, default="general")
     deliveries = relationship(
         "NewsletterDelivery",
         back_populates="message",
@@ -278,10 +282,16 @@ class NewsletterDelivery(Base):
         nullable=False,
         index=True,
     )
-    chat_id = Column(BigInteger, nullable=False)
-    telegram_message_id = Column(BigInteger, nullable=False)
-    open_token = Column(String(64), nullable=False, unique=True, index=True)
+    chat_id = Column(BigInteger, nullable=True)
+    telegram_message_id = Column(BigInteger, nullable=True)
+    open_token = Column(String(64), nullable=True, unique=True, index=True)
     opened_at = Column(DateTime, nullable=True)
+    channel = Column(String(10), nullable=False, default="telegram")
+    notification_id = Column(
+        Integer,
+        ForeignKey("notifications.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime,

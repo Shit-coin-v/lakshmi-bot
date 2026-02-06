@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 OPEN_CALLBACK_PREFIX = "open:"
-BATCH_SIZE = 500
-BATCH_DELAY_SECONDS = 0.5
+BATCH_SIZE = 100
+BATCH_DELAY_SECONDS = 1.0
 
 
 @dataclass(frozen=True)

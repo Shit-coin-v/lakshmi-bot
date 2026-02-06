@@ -50,6 +50,9 @@ class CustomUser(models.Model):
     purchase_count = models.IntegerField(null=True, blank=True)
     personal_data_consent = models.BooleanField(null=True, blank=True)
     newsletter_enabled = models.BooleanField("Подписка на рассылки", default=True)
+    promo_enabled = models.BooleanField("Акции и скидки", default=True)
+    news_enabled = models.BooleanField("Новости магазина", default=True)
+    general_enabled = models.BooleanField("Общие уведомления", default=True)
     created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -284,6 +287,12 @@ class Transaction(models.Model):
         return f"Transaction #{self.id}"
 
 class BroadcastMessage(models.Model):
+    CATEGORY_CHOICES = (
+        ("general", "Общая"),
+        ("promo", "Акции и скидки"),
+        ("news", "Новости магазина"),
+    )
+
     message_text = models.TextField("Текст сообщения", null=False)
     created_at = models.DateTimeField("Дата создания", default=timezone.now)
     send_to_all = models.BooleanField("Всем пользователям", default=True)
@@ -292,6 +301,12 @@ class BroadcastMessage(models.Model):
         null=True,
         blank=True,
         help_text="Пример: 123456789, 987654321"
+    )
+    category = models.CharField(
+        "Категория",
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        default="general",
     )
 
     class Meta:
@@ -316,6 +331,11 @@ class BotActivity(models.Model):
 
 
 class NewsletterDelivery(models.Model):
+    CHANNEL_CHOICES = (
+        ("telegram", "Telegram"),
+        ("push", "Push"),
+    )
+
     message = models.ForeignKey(
         BroadcastMessage,
         on_delete=models.CASCADE,
@@ -326,10 +346,24 @@ class NewsletterDelivery(models.Model):
         on_delete=models.CASCADE,
         related_name="newsletter_deliveries",
     )
-    chat_id = models.BigIntegerField()
-    telegram_message_id = models.BigIntegerField()
-    open_token = models.CharField(max_length=64, unique=True, db_index=True)
+    chat_id = models.BigIntegerField(null=True, blank=True)
+    telegram_message_id = models.BigIntegerField(null=True, blank=True)
+    open_token = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     opened_at = models.DateTimeField(null=True, blank=True)
+    channel = models.CharField(
+        "Канал доставки",
+        max_length=10,
+        choices=CHANNEL_CHOICES,
+        default="telegram",
+        db_index=True,
+    )
+    notification = models.ForeignKey(
+        Notification,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="newsletter_deliveries",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

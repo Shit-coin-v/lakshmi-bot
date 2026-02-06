@@ -1,9 +1,16 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.test import TransactionTestCase
 
-from apps.main.models import BroadcastMessage, CustomUser, NewsletterDelivery
+from apps.main.models import (
+    BroadcastMessage,
+    CustomUser,
+    CustomerDevice,
+    NewsletterDelivery,
+    Notification,
+)
 from shared.broadcast.django_sender import send_with_django
 
 
@@ -78,3 +85,97 @@ class BroadcastSendingTests(TransactionTestCase):
         deliveries = NewsletterDelivery.objects.filter(message=message)
         self.assertEqual(deliveries.count(), 1)
         self.assertEqual(deliveries.first().customer_id, user.id)
+
+
+class BroadcastDualChannelTests(TransactionTestCase):
+    """Tests for dual-channel (push + telegram) broadcast sending."""
+
+    def setUp(self):
+        self.bot = DummyTelegramBot()
+
+    @patch("apps.main.signals.notify_notification_created")
+    def test_user_with_fcm_gets_push_not_telegram(self, mock_push):
+        mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
+        user = CustomUser.objects.create(telegram_id=300)
+        CustomerDevice.objects.create(customer=user, fcm_token="tok-push-1", platform="android")
+        msg = BroadcastMessage.objects.create(message_text="Push test", send_to_all=True)
+
+        asyncio.run(send_with_django(msg.id, self.bot))
+
+        # Telegram NOT called
+        self.assertEqual(len(self.bot.sent_messages), 0)
+        # Delivery created with channel=push
+        delivery = NewsletterDelivery.objects.get(message=msg, customer=user)
+        self.assertEqual(delivery.channel, "push")
+        self.assertIsNone(delivery.telegram_message_id)
+        self.assertIsNone(delivery.open_token)
+        # Notification created
+        notif = Notification.objects.get(user=user, type="broadcast")
+        self.assertEqual(notif.body, "Push test")
+        self.assertEqual(delivery.notification_id, notif.id)
+
+    @patch("apps.main.signals.notify_notification_created")
+    def test_mixed_users_split_correctly(self, mock_push):
+        mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
+        push_user = CustomUser.objects.create(telegram_id=600)
+        CustomerDevice.objects.create(customer=push_user, fcm_token="tok-mix-1", platform="ios")
+        tg_user = CustomUser.objects.create(telegram_id=601)
+        msg = BroadcastMessage.objects.create(message_text="Mixed", send_to_all=True)
+
+        asyncio.run(send_with_django(msg.id, self.bot))
+
+        # Telegram only for tg_user
+        self.assertEqual(len(self.bot.sent_messages), 1)
+        self.assertEqual(self.bot.sent_messages[0]["chat_id"], tg_user.telegram_id)
+        # Check channels
+        push_d = NewsletterDelivery.objects.get(customer=push_user, message=msg)
+        self.assertEqual(push_d.channel, "push")
+        tg_d = NewsletterDelivery.objects.get(customer=tg_user, message=msg)
+        self.assertEqual(tg_d.channel, "telegram")
+
+    @patch("apps.main.signals.notify_notification_created")
+    def test_category_promo_filters(self, mock_push):
+        mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
+        subscribed = CustomUser.objects.create(telegram_id=900, promo_enabled=True)
+        unsubscribed = CustomUser.objects.create(telegram_id=901, promo_enabled=False)
+        msg = BroadcastMessage.objects.create(
+            message_text="Sale!", send_to_all=True, category="promo"
+        )
+
+        asyncio.run(send_with_django(msg.id, self.bot))
+
+        delivered_ids = set(
+            NewsletterDelivery.objects.filter(message=msg).values_list("customer_id", flat=True)
+        )
+        self.assertIn(subscribed.id, delivered_ids)
+        self.assertNotIn(unsubscribed.id, delivered_ids)
+
+    @patch("apps.main.signals.notify_notification_created")
+    def test_category_general_filters(self, mock_push):
+        mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
+        subscribed = CustomUser.objects.create(telegram_id=910, general_enabled=True)
+        unsubscribed = CustomUser.objects.create(telegram_id=911, general_enabled=False)
+        msg = BroadcastMessage.objects.create(
+            message_text="Announcement", send_to_all=True, category="general"
+        )
+
+        asyncio.run(send_with_django(msg.id, self.bot))
+
+        delivered_ids = set(
+            NewsletterDelivery.objects.filter(message=msg).values_list("customer_id", flat=True)
+        )
+        self.assertIn(subscribed.id, delivered_ids)
+        self.assertNotIn(unsubscribed.id, delivered_ids)
+
+    @patch("apps.main.signals.notify_notification_created")
+    def test_push_delivery_idempotent(self, mock_push):
+        mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
+        user = CustomUser.objects.create(telegram_id=800)
+        CustomerDevice.objects.create(customer=user, fcm_token="tok-idem", platform="android")
+        msg = BroadcastMessage.objects.create(message_text="Idem", send_to_all=True)
+
+        for _ in range(2):
+            asyncio.run(send_with_django(msg.id, self.bot))
+
+        self.assertEqual(NewsletterDelivery.objects.filter(message=msg).count(), 1)
+        self.assertEqual(Notification.objects.filter(user=user, type="broadcast").count(), 1)

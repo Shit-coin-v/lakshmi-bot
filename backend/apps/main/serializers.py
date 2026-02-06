@@ -16,5 +16,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'qr_code',
             'avatar',
             'newsletter_enabled',
+            'promo_enabled',
+            'news_enabled',
+            'general_enabled',
         ]
         read_only_fields = ['id', 'telegram_id', 'bonuses', 'qr_code']

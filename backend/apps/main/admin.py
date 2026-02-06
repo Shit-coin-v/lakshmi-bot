@@ -59,9 +59,12 @@ class CustomUserAdmin(admin.ModelAdmin):
         'total_spent',
         'purchase_count',
         'newsletter_enabled',
+        'promo_enabled',
+        'news_enabled',
+        'general_enabled',
     )
     search_fields = ('full_name', 'telegram_id')
-    list_filter = ('newsletter_enabled',)
+    list_filter = ('newsletter_enabled', 'promo_enabled', 'news_enabled', 'general_enabled')
     readonly_fields = ('registration_date',)
     inlines = [ReferralInline]
 
@@ -103,9 +106,10 @@ class NotificationOpenEventAdmin(admin.ModelAdmin):
 
 @admin.register(BroadcastMessage)
 class BroadcastMessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "truncated_message", "created_at", "send_to_all", "target_user_ids")
+    list_display = ("id", "truncated_message", "category", "created_at", "send_to_all", "target_user_ids")
+    list_filter = ("category",)
     actions = ["send_broadcast"]
-    fields = ('message_text', 'send_to_all', 'target_user_ids')
+    fields = ('message_text', 'category', 'send_to_all', 'target_user_ids')
 
     def truncated_message(self, obj):
         return obj.message_text[:50] + "..." if len(obj.message_text) > 50 else obj.message_text
@@ -141,15 +145,21 @@ class NewsletterDeliveryAdmin(admin.ModelAdmin):
         'id',
         'message',
         'customer',
-        'chat_id',
-        'telegram_message_id',
-        'open_token',
+        'channel',
+        'push_read',
         'opened_at',
         'created_at',
     )
-    list_filter = ('message', 'opened_at')
+    list_filter = ('message', 'channel', 'opened_at')
     search_fields = ('open_token', 'customer__telegram_id')
     readonly_fields = ('created_at', 'updated_at')
+
+    def push_read(self, obj):
+        if obj.notification:
+            return obj.notification.is_read
+        return None
+    push_read.short_description = "Прочитано (push)"
+    push_read.boolean = True
 
 
 @admin.register(NewsletterOpenEvent)
