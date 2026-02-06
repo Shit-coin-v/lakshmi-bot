@@ -7,6 +7,7 @@ class UserModel {
   final String? phone;
   final String? email;
   final String? avatarUrl;
+  final bool newsletterEnabled;
 
   UserModel({
     required this.id,
@@ -17,6 +18,7 @@ class UserModel {
     this.phone,
     this.email,
     this.avatarUrl,
+    this.newsletterEnabled = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +39,7 @@ class UserModel {
       phone: data['phone'],
       email: data['email'],
       avatarUrl: data['avatar'],
+      newsletterEnabled: data['newsletter_enabled'] ?? true,
     );
   }
 }

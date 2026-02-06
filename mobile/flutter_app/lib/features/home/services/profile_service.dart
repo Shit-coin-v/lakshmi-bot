@@ -28,6 +28,7 @@ class ProfileService {
     String? fullName,
     String? phone,
     String? email,
+    bool? newsletterEnabled,
   }) async {
     final userId = await _ref.read(authServiceProvider).getSavedUserId();
     if (userId == null) throw Exception("Не найден ID пользователя");
@@ -36,6 +37,7 @@ class ProfileService {
     if (fullName != null) data['full_name'] = fullName;
     if (phone != null) data['phone'] = phone;
     if (email != null) data['email'] = email;
+    if (newsletterEnabled != null) data['newsletter_enabled'] = newsletterEnabled;
 
     await _dio.patch('/api/customer/$userId/', data: data);
   }

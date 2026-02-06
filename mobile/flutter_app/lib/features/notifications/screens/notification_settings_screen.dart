@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/notification_settings_provider.dart';
+import '../../home/providers/profile_provider.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
@@ -9,6 +10,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(notificationSettingsProvider);
     final notifier = ref.read(notificationSettingsProvider.notifier);
+    final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -63,7 +65,6 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     onChanged: notifier.togglePushPromos,
                   ),
                   const Divider(height: 1, indent: 16),
-                  // 👇 НОВЫЙ ПУНКТ
                   _SwitchTile(
                     title: 'Новости магазина',
                     subtitle: 'Открытие новых точек и изменения в графике',
@@ -71,6 +72,54 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     onChanged: notifier.toggleNews,
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const Padding(
+              padding: EdgeInsets.only(left: 16, bottom: 8),
+              child: Text(
+                'РАССЫЛКИ',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: profileAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, __) => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Не удалось загрузить настройки'),
+                ),
+                data: (user) => _SwitchTile(
+                  title: 'Рассылки в Telegram',
+                  subtitle: 'Акции, новости и спецпредложения в боте',
+                  value: user.newsletterEnabled,
+                  onChanged: (value) {
+                    ref.read(profileProvider.notifier).updateData(
+                      newsletterEnabled: value,
+                    );
+                  },
+                ),
               ),
             ),
           ],

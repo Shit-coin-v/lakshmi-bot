@@ -57,9 +57,11 @@ class CustomUserAdmin(admin.ModelAdmin):
         'registration_date',
         'last_purchase_date',
         'total_spent',
-        'purchase_count'
+        'purchase_count',
+        'newsletter_enabled',
     )
     search_fields = ('full_name', 'telegram_id')
+    list_filter = ('newsletter_enabled',)
     readonly_fields = ('registration_date',)
     inlines = [ReferralInline]
 

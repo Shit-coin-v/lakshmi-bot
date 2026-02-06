@@ -53,7 +53,7 @@ async def send_with_django(message_id: int, bot_instance: Bot) -> None:
 
     @sync_to_async(thread_sensitive=True)
     def fetch_recipients() -> List[Recipient]:
-        base_qs = DjangoCustomUser.objects.filter(telegram_id__isnull=False, telegram_id__gt=0)
+        base_qs = DjangoCustomUser.objects.filter(telegram_id__isnull=False, telegram_id__gt=0, newsletter_enabled=True)
         if message.send_to_all:
             qs = base_qs
         else:
