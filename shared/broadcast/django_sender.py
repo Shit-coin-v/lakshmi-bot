@@ -73,7 +73,6 @@ async def send_with_django(message_id: int, bot_instance: Bot | None = None) -> 
         base_qs = DjangoCustomUser.objects.filter(
             telegram_id__isnull=False,
             telegram_id__gt=0,
-            newsletter_enabled=True,
         )
         # Apply category filter
         cat_filter = _CATEGORY_FILTER.get(message.category)

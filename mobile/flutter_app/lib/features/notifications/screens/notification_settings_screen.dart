@@ -104,53 +104,6 @@ class NotificationSettingsScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
-
-            const Padding(
-              padding: EdgeInsets.only(left: 16, bottom: 8),
-              child: Text(
-                'РАССЫЛКИ',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: profileAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (_, __) => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Не удалось загрузить настройки'),
-                ),
-                data: (user) => _SwitchTile(
-                  title: 'Рассылки в Telegram',
-                  subtitle: 'Акции, новости и спецпредложения в боте',
-                  value: user.newsletterEnabled,
-                  onChanged: (value) {
-                    ref.read(profileProvider.notifier).updateData(
-                      newsletterEnabled: value,
-                    );
-                  },
-                ),
-              ),
-            ),
           ],
         ),
       ),
