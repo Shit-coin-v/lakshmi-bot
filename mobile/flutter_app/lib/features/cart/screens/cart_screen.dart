@@ -23,6 +23,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // По умолчанию
   String _paymentMethod = 'card_courier';
+  double? _changeFrom;
 
   late TextEditingController _phoneController;
   late TextEditingController _commentController;
@@ -68,47 +69,155 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   // --- ВЫБОР ОПЛАТЫ (НОВЫЙ МЕТОД) ---
-  void _showPaymentMethodPicker() {
+  void _showPaymentMethodPicker(double finalTotal) {
+    String selectedMethod = _paymentMethod;
+    final changeController = TextEditingController(
+      text: _changeFrom != null ? _changeFrom!.toInt().toString() : '',
+    );
+    String? changeError;
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Выберите способ оплаты",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
               ),
-              const SizedBox(height: 20),
-              _PaymentOption(
-                title: "Картой курьеру (карта или QR)",
-                icon: Icons.credit_card,
-                value: "card_courier",
-                groupValue: _paymentMethod,
-                onChanged: (val) {
-                  setState(() => _paymentMethod = val!);
-                  Navigator.pop(context);
-                },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Выберите способ оплаты",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    _PaymentOption(
+                      title: "Картой курьеру (карта или QR)",
+                      icon: Icons.credit_card,
+                      value: "card_courier",
+                      groupValue: selectedMethod,
+                      onChanged: (val) {
+                        setSheetState(() {
+                          selectedMethod = val!;
+                          changeError = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _PaymentOption(
+                      title: "Наличными",
+                      icon: Icons.payments_outlined,
+                      value: "cash",
+                      groupValue: selectedMethod,
+                      onChanged: (val) {
+                        setSheetState(() {
+                          selectedMethod = val!;
+                          changeError = null;
+                        });
+                      },
+                    ),
+                    // Поле ввода сдачи (только для наличных)
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: selectedMethod == 'cash'
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Сдача с какой суммы?",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: changeController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      hintText: "Например, 1000",
+                                      suffixText: "\u20bd",
+                                      errorText: changeError,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 14,
+                                      ),
+                                    ),
+                                    onChanged: (_) {
+                                      if (changeError != null) {
+                                        setSheetState(() => changeError = null);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (selectedMethod == 'cash') {
+                            final parsed = double.tryParse(changeController.text);
+                            if (parsed == null || parsed < finalTotal) {
+                              setSheetState(() {
+                                changeError = parsed == null
+                                    ? "Введите сумму"
+                                    : "Сумма должна быть не менее ${finalTotal.toStringAsFixed(0)} \u20bd";
+                              });
+                              return;
+                            }
+                            setState(() {
+                              _paymentMethod = selectedMethod;
+                              _changeFrom = parsed;
+                            });
+                          } else {
+                            setState(() {
+                              _paymentMethod = selectedMethod;
+                              _changeFrom = null;
+                            });
+                          }
+                          Navigator.pop(sheetContext);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "Готово",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              _PaymentOption(
-                title: "Наличными",
-                icon: Icons.payments_outlined,
-                value: "cash",
-                groupValue: _paymentMethod,
-                onChanged: (val) {
-                  setState(() => _paymentMethod = val!);
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -120,6 +229,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       case 'card_courier':
         return 'Картой курьеру';
       case 'cash':
+        if (_changeFrom != null) {
+          return 'Наличными \u00b7 Сдача с ${_changeFrom!.toInt()} \u20bd';
+        }
         return 'Наличными';
       default:
         return 'Картой курьеру';
@@ -156,12 +268,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ? "Самовывоз"
           : _selectedAddress!.fullAddress;
 
+      String comment = _commentController.text;
+      if (_paymentMethod == 'cash' && _changeFrom != null) {
+        final changeLine = 'Сдача с ${_changeFrom!.toInt()} \u20bd';
+        comment = comment.isEmpty ? changeLine : '$comment\n$changeLine';
+      }
+
       final orderId = await ref
           .read(orderServiceProvider)
           .createOrder(
             address: addressToSend,
             phone: _phoneController.text,
-            comment: _commentController.text,
+            comment: comment,
             paymentMethod: _paymentMethod,
             totalPrice: totalPrice,
             items: items,
@@ -465,7 +583,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         const Divider(height: 24),
 
                         InkWell(
-                          onTap: _showPaymentMethodPicker,
+                          onTap: () => _showPaymentMethodPicker(finalTotal),
                           child: Row(
                             children: [
                               Container(
