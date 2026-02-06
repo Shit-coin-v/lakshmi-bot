@@ -333,7 +333,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final finalTotal = productsTotal + deliveryCost;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
         title: const Text(
           "Корзина",
@@ -371,153 +371,177 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                "Ваш заказ",
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                "${cartItems.length} поз.",
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ...cartItems.map((item) => _CartItemRow(item: item)),
-
-                          const SizedBox(height: 24),
-                          const Divider(),
-                          const SizedBox(height: 16),
-
-                          const Text(
-                            "Детали доставки",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              "Самовывоз",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: const Text(
-                              "Заберу заказ сам из магазина",
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            value: _isPickup,
-                            onChanged: (v) {
-                              setState(() {
-                                _isPickup = v;
-                                if (_isPickup) {
-                                  _selectedAddress = null;
-                                }
-                              });
-                            },
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          InkWell(
-                            onTap: _isPickup ? null : _selectAddress,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Opacity(
-                              opacity: _isPickup ? 0.5 : 1,
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
+                          // --- Карточка 1: Ваш заказ ---
+                          _Card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Icon(
-                                      Icons.location_on_outlined,
-                                      color: Colors.green,
+                                    const Text(
+                                      "Ваш заказ",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                    Text(
+                                      "${cartItems.length} поз.",
+                                      style: const TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                ...cartItems.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final item = entry.value;
+                                  return Column(
+                                    children: [
+                                      _CartItemRow(item: item),
+                                      if (index < cartItems.length - 1)
+                                        const Divider(height: 1),
+                                    ],
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // --- Карточка 2: Детали доставки ---
+                          _Card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Детали доставки",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text(
+                                    "Самовывоз",
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: const Text(
+                                    "Заберу заказ сам из магазина",
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                  value: _isPickup,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _isPickup = v;
+                                      if (_isPickup) {
+                                        _selectedAddress = null;
+                                      }
+                                    });
+                                  },
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                InkWell(
+                                  onTap: _isPickup ? null : _selectAddress,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Opacity(
+                                    opacity: _isPickup ? 0.5 : 1,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey[300]!),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            _isPickup
-                                                ? "Самовывоз"
-                                                : (_selectedAddress == null
-                                                      ? "Выберите адрес"
-                                                      : "Адрес доставки"),
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
+                                          const Icon(
+                                            Icons.location_on_outlined,
+                                            color: Colors.green,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _isPickup
+                                                      ? "Самовывоз"
+                                                      : (_selectedAddress == null
+                                                            ? "Выберите адрес"
+                                                            : "Адрес доставки"),
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  _isPickup
+                                                      ? "Пункт выдачи: магазин"
+                                                      : (_selectedAddress
+                                                                ?.fullAddress ??
+                                                            "Нажмите, чтобы выбрать"),
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _isPickup
-                                                ? "Пункт выдачи: магазин"
-                                                : (_selectedAddress
-                                                          ?.fullAddress ??
-                                                      "Нажмите, чтобы выбрать"),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.grey,
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(
-                                      Icons.chevron_right,
-                                      color: Colors.grey,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
 
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              labelText: "Телефон для связи",
-                              prefixIcon: const Icon(Icons.phone_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _commentController,
-                            maxLines: 2,
-                            decoration: InputDecoration(
-                              labelText: "Комментарий к заказу",
-                              hintText: "Подъезд, этаж, код домофона...",
-                              prefixIcon: const Icon(Icons.comment_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  decoration: InputDecoration(
+                                    labelText: "Телефон для связи",
+                                    prefixIcon: const Icon(Icons.phone_outlined),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _commentController,
+                                  maxLines: 2,
+                                  decoration: InputDecoration(
+                                    labelText: "Комментарий к заказу",
+                                    hintText: "Подъезд, этаж, код домофона...",
+                                    prefixIcon: const Icon(Icons.comment_outlined),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
@@ -952,9 +976,37 @@ class _CountBtn extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, size: 20, color: Colors.grey[600]),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 22, color: Colors.grey[700]),
       ),
+    );
+  }
+}
+
+class _Card extends StatelessWidget {
+  final Widget child;
+  const _Card({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
