@@ -67,7 +67,11 @@ class OrderService {
     }
   }
 
-  Future<int> repeatOrder(int orderId) async {
+  Future<int> repeatOrder(
+    int orderId, {
+    required String paymentMethod,
+    double? changeFrom,
+  }) async {
     try {
       final authService = _ref.read(authServiceProvider);
       final customerId = await authService.getSavedUserId();
@@ -83,23 +87,18 @@ class OrderService {
       final Map<String, dynamic> o = Map<String, dynamic>.from(detailRes.data);
 
       final String phone = (o['phone'] ?? '').toString();
-      final String paymentMethod = (o['payment_method'] ?? '').toString();
       final String oldComment = (o['comment'] ?? '').toString();
 
       final String addressRaw = (o['address'] ?? '').toString().trim();
 
-      // ✅ Ключевой фикс: при повторе всегда передаём fulfillment_type,
-      // иначе бэкенд может считать это доставкой и прибавить стоимость доставки.
       String fulfillmentType = (o['fulfillment_type'] ?? '').toString().trim();
 
-      // ✅ Фолбэк (если вдруг API не отдаёт fulfillment_type)
       if (fulfillmentType.isEmpty) {
         fulfillmentType = addressRaw.toLowerCase() == 'самовывоз'
             ? 'pickup'
             : 'delivery';
       }
 
-      // ✅ Нормализуем адрес для самовывоза
       final String address = fulfillmentType == 'pickup'
           ? 'Самовывоз'
           : addressRaw;
@@ -109,7 +108,6 @@ class OrderService {
         throw Exception('В заказе нет товаров — повторить нечего');
       }
 
-      // ✅ ВАЖНО: product_id — это product_code (строка), потому что на бэке SlugRelatedField(product_code)
       final List<Map<String, dynamic>> itemsPayload = orderItems.map((it) {
         final m = Map<String, dynamic>.from(it as Map);
 
@@ -133,12 +131,17 @@ class OrderService {
         };
       }).toList();
 
+      String commentText = 'Повтор заказа №$orderId. $oldComment'.trim();
+      if (changeFrom != null) {
+        commentText += ' Сдача с ${changeFrom.toInt()} ₽';
+      }
+
       final payload = {
         'customer': customerId,
         'fulfillment_type': fulfillmentType,
         'address': address,
         'phone': phone,
-        'comment': 'Повтор заказа №$orderId. $oldComment'.trim(),
+        'comment': commentText,
         'payment_method': paymentMethod,
         'items': itemsPayload,
       };

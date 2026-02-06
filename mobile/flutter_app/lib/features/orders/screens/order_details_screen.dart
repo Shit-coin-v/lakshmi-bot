@@ -10,6 +10,185 @@ class OrderDetailsScreen extends ConsumerWidget {
 
   const OrderDetailsScreen({super.key, required this.orderId});
 
+  void _showPaymentAndRepeat(BuildContext context, WidgetRef ref, int orderId, String oldPaymentMethod, double totalPrice) {
+    String selectedMethod = oldPaymentMethod;
+    final changeController = TextEditingController();
+    String? changeError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Выберите способ оплаты",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    _PaymentOption(
+                      title: "Картой курьеру (карта или QR)",
+                      icon: Icons.credit_card,
+                      value: "card_courier",
+                      groupValue: selectedMethod,
+                      onChanged: (val) {
+                        setSheetState(() {
+                          selectedMethod = val!;
+                          changeError = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _PaymentOption(
+                      title: "Наличными",
+                      icon: Icons.payments_outlined,
+                      value: "cash",
+                      groupValue: selectedMethod,
+                      onChanged: (val) {
+                        setSheetState(() {
+                          selectedMethod = val!;
+                          changeError = null;
+                        });
+                      },
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: selectedMethod == 'cash'
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Сдача с какой суммы?",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: changeController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      hintText: "Например, 1000",
+                                      suffixText: "₽",
+                                      errorText: changeError,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 14,
+                                      ),
+                                    ),
+                                    onChanged: (_) {
+                                      if (changeError != null) {
+                                        setSheetState(() => changeError = null);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          double? changeFrom;
+                          if (selectedMethod == 'cash') {
+                            final parsed = double.tryParse(changeController.text);
+                            if (parsed == null || parsed < totalPrice) {
+                              setSheetState(() {
+                                changeError = parsed == null
+                                    ? "Введите сумму"
+                                    : "Сумма должна быть не менее ${totalPrice.toStringAsFixed(0)} ₽";
+                              });
+                              return;
+                            }
+                            changeFrom = parsed;
+                          }
+                          Navigator.pop(sheetContext);
+                          _executeRepeat(context, ref, orderId, selectedMethod, changeFrom);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "Готово",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _executeRepeat(BuildContext context, WidgetRef ref, int orderId, String paymentMethod, double? changeFrom) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final repeat = ref.read(repeatOrderProvider);
+      final newOrderId = await repeat(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom);
+
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Заказ повторён"),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        context.push('/order-status/$newOrderId');
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Ошибка: $e"),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   void _showCancelDialog(BuildContext context, WidgetRef ref, int id) {
     showDialog(
       context: context,
@@ -85,44 +264,9 @@ class OrderDetailsScreen extends ConsumerWidget {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (_) =>
-                            const Center(child: CircularProgressIndicator()),
-                      );
-
-                      try {
-                        final repeat = ref.read(repeatOrderProvider);
-                        final newOrderId = await repeat(o.id);
-
-                        if (context.mounted) Navigator.of(context).pop();
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Заказ повторён"),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-
-                          context.push('/order-status/$newOrderId');
-                        }
-                      } catch (e) {
-                        if (context.mounted) Navigator.of(context).pop();
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Ошибка: $e"),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 3),
-                            ),
-                          );
-                        }
-                      }
-                    },
+                    onPressed: () => _showPaymentAndRepeat(
+                      context, ref, o.id, o.paymentMethod, o.totalPrice,
+                    ),
                     icon: const Icon(Icons.replay),
                     label: const Text("Повторить заказ"),
                     style: ElevatedButton.styleFrom(
@@ -322,6 +466,59 @@ class _Card extends StatelessWidget {
         ],
       ),
       child: child,
+    );
+  }
+}
+
+class _PaymentOption extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String value;
+  final String groupValue;
+  final ValueChanged<String?> onChanged;
+
+  const _PaymentOption({
+    required this.title,
+    required this.icon,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = value == groupValue;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.green.withValues(alpha: 0.05)
+              : Colors.white,
+          border: Border.all(
+            color: isSelected ? Colors.green : Colors.grey[300]!,
+            width: isSelected ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? Colors.green : Colors.grey[600]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.green),
+          ],
+        ),
+      ),
     );
   }
 }
