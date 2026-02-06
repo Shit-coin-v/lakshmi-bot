@@ -12,7 +12,7 @@ from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
 from apps.loyalty.views import PurchaseAPIView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
-from apps.orders.views import OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
+from apps.orders.views import OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
 
 urlpatterns = [
     # Health checks
@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/orders/create/", OrderCreateView.as_view(), name="order-create"),
     path("api/orders/", OrderListUserView.as_view(), name="order-history"),
     path("api/orders/<int:pk>/", OrderDetailView.as_view(), name="order-detail"),
+    path("api/orders/<int:pk>/cancel/", OrderCancelView.as_view(), name="order-cancel"),
     path("api/customer/<int:pk>/", CustomerProfileView.as_view(), name="customer-profile"),
     # Notifications
     path("api/notifications/", NotificationViewSet.as_view({"get": "list"}), name="notifications-list"),

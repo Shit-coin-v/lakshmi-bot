@@ -161,4 +161,17 @@ class OrderService {
       throw Exception('Ошибка повтора заказа: $e');
     }
   }
+
+  Future<void> cancelOrder(int orderId) async {
+    try {
+      final response = await _dio.post('/api/orders/$orderId/cancel/');
+      if (response.statusCode != 200) {
+        final detail = response.data?['detail'] ?? 'Неизвестная ошибка';
+        throw Exception(detail);
+      }
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'] ?? 'Ошибка отмены заказа';
+      throw Exception(detail);
+    }
+  }
 }

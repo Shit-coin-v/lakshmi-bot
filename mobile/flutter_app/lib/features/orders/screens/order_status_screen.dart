@@ -14,6 +14,50 @@ class OrderStatusScreen extends ConsumerWidget {
     this.fromOrderCreation = false, // <--- ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ
   });
 
+  void _showCancelDialog(BuildContext context, WidgetRef ref, int id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Отменить заказ?"),
+        content: const Text("Вы уверены, что хотите отменить заказ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Нет"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final cancel = ref.read(cancelOrderProvider);
+                await cancel(id);
+                ref.invalidate(orderByIdProvider(id));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Заказ отменён"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Ошибка: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text("Да, отменить", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orderAsync = ref.watch(orderByIdProvider(orderId));
@@ -116,21 +160,44 @@ class OrderStatusScreen extends ConsumerWidget {
 
               Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.phone),
-                    label: const Text("Связаться с курьером"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.phone),
+                        label: const Text("Связаться с курьером"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (order.status == 'new' || order.status == 'assembly') ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showCancelDialog(context, ref, order.id),
+                          icon: const Icon(Icons.close),
+                          label: const Text("Отменить заказ"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

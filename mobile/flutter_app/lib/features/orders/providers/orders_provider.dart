@@ -30,3 +30,9 @@ final repeatOrderProvider =
       final service = ref.watch(orderServiceProvider);
       return (orderId) => service.repeatOrder(orderId);
     });
+
+final cancelOrderProvider =
+    Provider.autoDispose<Future<void> Function(int orderId)>((ref) {
+      final service = ref.watch(orderServiceProvider);
+      return (orderId) => service.cancelOrder(orderId);
+    });

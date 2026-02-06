@@ -10,6 +10,51 @@ class OrderDetailsScreen extends ConsumerWidget {
 
   const OrderDetailsScreen({super.key, required this.orderId});
 
+  void _showCancelDialog(BuildContext context, WidgetRef ref, int id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Отменить заказ?"),
+        content: const Text("Вы уверены, что хотите отменить заказ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Нет"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final cancel = ref.read(cancelOrderProvider);
+                await cancel(id);
+                ref.invalidate(orderDetailByIdProvider(id));
+                ref.invalidate(myOrdersProvider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Заказ отменён"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Ошибка: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text("Да, отменить", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(orderDetailByIdProvider(orderId));
@@ -29,64 +74,89 @@ class OrderDetailsScreen extends ConsumerWidget {
         loading: () => const SizedBox.shrink(),
         error: (err, _) => const SizedBox.shrink(),
 
-        data: (o) => SafeArea(
-          minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                // 🧠⏳ маленький лоадер-диалог
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
+        data: (o) {
+          final canCancel = o.status == 'new' || o.status == 'assembly';
+          return SafeArea(
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) =>
+                            const Center(child: CircularProgressIndicator()),
+                      );
 
-                try {
-                  final repeat = ref.read(repeatOrderProvider);
-                  final newOrderId = await repeat(o.id);
+                      try {
+                        final repeat = ref.read(repeatOrderProvider);
+                        final newOrderId = await repeat(o.id);
 
-                  if (context.mounted) Navigator.of(context).pop();
+                        if (context.mounted) Navigator.of(context).pop();
 
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Заказ повторён ✅"),
-                        duration: Duration(seconds: 2),
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Заказ повторён"),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+
+                          context.push('/order-status/$newOrderId');
+                        }
+                      } catch (e) {
+                        if (context.mounted) Navigator.of(context).pop();
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Ошибка: $e"),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.replay),
+                    label: const Text("Повторить заказ"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    );
-
-                    // ✅ Переходим на статус нового заказа
-                    context.push('/order-status/$newOrderId');
-                  }
-                } catch (e) {
-                  if (context.mounted) Navigator.of(context).pop();
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Ошибка: $e"),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.replay),
-              label: const Text("Повторить заказ"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
-              ),
+                if (canCancel) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showCancelDialog(context, ref, o.id),
+                      icon: const Icon(Icons.close),
+                      label: const Text("Отменить заказ"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ),
-        ),
+          );
+        },
       ),
 
       body: detailAsync.when(
