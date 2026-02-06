@@ -19,13 +19,16 @@ def broadcast_send_task(self, message_id: int) -> None:
     from aiogram.client.default import DefaultBotProperties
     from shared.broadcast import send_with_django
 
-    bot_token = settings.TELEGRAM_BOT_TOKEN
+    bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", "") or ""
 
     async def runner():
-        bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        bot = None
+        if bot_token and ":" in bot_token:
+            bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         try:
             await send_with_django(message_id, bot_instance=bot)
         finally:
-            await bot.session.close()
+            if bot:
+                await bot.session.close()
 
     asyncio.run(runner())

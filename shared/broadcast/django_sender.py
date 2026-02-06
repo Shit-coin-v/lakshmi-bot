@@ -20,7 +20,7 @@ _CATEGORY_FILTER = {
 }
 
 
-async def send_with_django(message_id: int, bot_instance: Bot) -> None:
+async def send_with_django(message_id: int, bot_instance: Bot | None = None) -> None:
     """Send broadcast using Django ORM (for use in Celery tasks).
 
     Recipients are split into two channels:
@@ -195,7 +195,12 @@ async def send_with_django(message_id: int, bot_instance: Bot) -> None:
     # TELEGRAM CHANNEL — send via bot with spoiler + "Показать" button
     # ================================================================
 
-    if not telegram_users:
+    if not telegram_users or bot_instance is None:
+        if telegram_users and bot_instance is None:
+            logger.warning(
+                "Broadcast %s: %s telegram recipients skipped — no bot token configured",
+                message_id, len(telegram_users),
+            )
         logger.info(
             "Broadcast %s completed: sent=%s skipped=%s errors=%s",
             message_id, total_sent, total_skipped, total_errors,
