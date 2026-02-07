@@ -30,11 +30,13 @@ class ApiClient {
   );
 
   ApiClient._internal() {
-    // Логирование запросов (синие предупреждения останутся, это нормально!)
+    debugPrint("API_CLIENT baseUrl=$_baseUrl apiKey=$_apiKey");
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          debugPrint("REQUEST[${options.method}] => PATH: ${options.path}");
+          debugPrint(
+            "REQUEST[${options.method}] => URL: ${options.uri}",
+          );
           return handler.next(options);
         },
         onError: (DioException e, handler) {
@@ -42,6 +44,9 @@ class ApiClient {
             "ERROR[${e.response?.statusCode}] => PATH: ${e.requestOptions.path}",
           );
           debugPrint("Message: ${e.response?.data}");
+          debugPrint("Type: ${e.type}");
+          debugPrint("Error: ${e.message}");
+          debugPrint("URL: ${e.requestOptions.uri}");
           return handler.next(e);
         },
       ),
@@ -49,7 +54,8 @@ class ApiClient {
   }
 
   void setTelegramUserId(int telegramId) {
-    _dio.options.headers['X-Telegram-User-Id'] = telegramId.toString();
+    _dio.options.headers['X-Telegram-User-Id'] =
+        telegramId.toString();
   }
 
   void clearTelegramUserId() {
@@ -58,3 +64,5 @@ class ApiClient {
 
   Dio get dio => _dio;
 }
+
+    
