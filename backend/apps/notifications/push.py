@@ -6,7 +6,7 @@ import os
 from typing import Iterable
 
 from django.core.exceptions import ImproperlyConfigured
-from apps.main.models import Notification as DBNotification
+from .models import Notification as DBNotification
 
 try:  # firebase-admin is optional until configured
     import firebase_admin
@@ -158,7 +158,7 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
 
     invalid_tokens = result.get("invalid_tokens") or []
     if invalid_tokens:
-        from apps.main.models import CustomerDevice  # imported lazily to avoid circular imports
+        from .models import CustomerDevice
 
         CustomerDevice.objects.filter(fcm_token__in=invalid_tokens).delete()
         logger.info("Removed %s invalid FCM tokens", len(invalid_tokens))
@@ -185,7 +185,7 @@ def send_test_push_to_customer(
     Важно: отправляет ПО ОДНОМУ токену через messaging.send(),
     чтобы не дергать /batch и не ловить 404.
     """
-    from apps.main.models import CustomerDevice  # lazy import to avoid circular imports
+    from .models import CustomerDevice
 
     tokens_qs = CustomerDevice.objects.filter(customer_id=customer_id)
     if platform:

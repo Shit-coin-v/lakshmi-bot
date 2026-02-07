@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 
 from apps.common.pagination import HeaderPagination
 from apps.common.permissions import TelegramUserPermission
-from apps.main.models import CustomerDevice
-from apps.notifications.models import Notification, NotificationOpenEvent
+from .models import CustomerDevice
+from .models import Notification, NotificationOpenEvent
 from apps.notifications.serializers import (
     NotificationSerializer,
 )

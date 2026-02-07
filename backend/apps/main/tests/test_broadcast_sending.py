@@ -93,7 +93,7 @@ class BroadcastDualChannelTests(TransactionTestCase):
     def setUp(self):
         self.bot = DummyTelegramBot()
 
-    @patch("apps.main.signals.notify_notification_created")
+    @patch("apps.notifications.signals.notify_notification_created")
     def test_user_with_fcm_gets_push_not_telegram(self, mock_push):
         mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
         user = CustomUser.objects.create(telegram_id=300)
@@ -114,7 +114,7 @@ class BroadcastDualChannelTests(TransactionTestCase):
         self.assertEqual(notif.body, "Push test")
         self.assertEqual(delivery.notification_id, notif.id)
 
-    @patch("apps.main.signals.notify_notification_created")
+    @patch("apps.notifications.signals.notify_notification_created")
     def test_mixed_users_split_correctly(self, mock_push):
         mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
         push_user = CustomUser.objects.create(telegram_id=600)
@@ -133,7 +133,7 @@ class BroadcastDualChannelTests(TransactionTestCase):
         tg_d = NewsletterDelivery.objects.get(customer=tg_user, message=msg)
         self.assertEqual(tg_d.channel, "telegram")
 
-    @patch("apps.main.signals.notify_notification_created")
+    @patch("apps.notifications.signals.notify_notification_created")
     def test_category_promo_filters(self, mock_push):
         mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
         subscribed = CustomUser.objects.create(telegram_id=900, promo_enabled=True)
@@ -150,7 +150,7 @@ class BroadcastDualChannelTests(TransactionTestCase):
         self.assertIn(subscribed.id, delivered_ids)
         self.assertNotIn(unsubscribed.id, delivered_ids)
 
-    @patch("apps.main.signals.notify_notification_created")
+    @patch("apps.notifications.signals.notify_notification_created")
     def test_category_general_filters(self, mock_push):
         mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
         subscribed = CustomUser.objects.create(telegram_id=910, general_enabled=True)
@@ -167,7 +167,7 @@ class BroadcastDualChannelTests(TransactionTestCase):
         self.assertIn(subscribed.id, delivered_ids)
         self.assertNotIn(unsubscribed.id, delivered_ids)
 
-    @patch("apps.main.signals.notify_notification_created")
+    @patch("apps.notifications.signals.notify_notification_created")
     def test_push_delivery_idempotent(self, mock_push):
         mock_push.return_value = {"sent": 1, "success": 1, "failure": 0}
         user = CustomUser.objects.create(telegram_id=800)

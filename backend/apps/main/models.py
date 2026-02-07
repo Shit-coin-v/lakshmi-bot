@@ -64,234 +64,6 @@ class CustomUser(models.Model):
         return self.full_name or f"User {self.telegram_id}"
 
 
-class CustomerDevice(models.Model):
-    PLATFORM_CHOICES = (
-        ("android", "Android"),
-        ("ios", "iOS"),
-        ("web", "Web"),
-    )
-
-    customer = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name="devices",
-        verbose_name="Клиент",
-    )
-    fcm_token = models.CharField(max_length=255, unique=True, verbose_name="FCM токен")
-    platform = models.CharField(
-        max_length=20, choices=PLATFORM_CHOICES, default="android", verbose_name="Платформа"
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлен")
-
-    class Meta:
-        db_table = "customer_devices"
-        verbose_name = "Устройство клиента"
-        verbose_name_plural = "Устройства клиентов"
-
-    def __str__(self):
-        return f"{self.customer_id} | {self.platform}"
-    
-
-class Notification(models.Model):
-    TYPE_CHOICES = (
-        ("personal", "Персональное"),
-        ("broadcast", "Массовое"),
-    )
-
-    user = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name="notifications",
-        verbose_name="Клиент",
-    )
-    title = models.CharField(max_length=200, verbose_name="Заголовок")
-    body = models.TextField(verbose_name="Текст")
-    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Создано")
-    type = models.CharField(
-        max_length=20,
-        choices=TYPE_CHOICES,
-        default="personal",
-        db_index=True,
-        verbose_name="Тип",
-    )
-
-    class Meta:
-        db_table = "notifications"
-        verbose_name = "Уведомление"
-        verbose_name_plural = "Уведомления"
-        indexes = [
-            models.Index(fields=["user", "-created_at"], name="notif_user_created_idx"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.user_id} | {self.type} | {self.title}"
-    
-
-class NotificationOpenEvent(models.Model):
-    SOURCE_CHOICES = (
-        ("inapp", "In-app"),
-        ("push", "Push"),
-    )
-
-    notification = models.ForeignKey(
-        Notification,
-        on_delete=models.CASCADE,
-        related_name="open_events",
-        verbose_name="Уведомление",
-    )
-    user = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name="notification_open_events",
-        verbose_name="Клиент",
-    )
-    source = models.CharField(
-        max_length=20,
-        choices=SOURCE_CHOICES,
-        default="inapp",
-        db_index=True,
-        verbose_name="Источник",
-    )
-    occurred_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        verbose_name="Открыто",
-    )
-
-    class Meta:
-        db_table = "notification_open_events"
-        verbose_name = "Открытие уведомления"
-        verbose_name_plural = "Открытия уведомлений"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["notification"],
-                name="uniq_notification_open_once",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.user_id} | notif={self.notification_id} | {self.source}"
-
-
-class Order(models.Model):
-    STATUS_CHOICES = [
-        ('new', 'Новый'),
-        ('assembly', 'В сборке'),
-        ('delivery', 'Курьер едет'),
-        ('completed', 'Доставлен'),
-        ('canceled', 'Отменен'),
-    ]
-
-    FULFILLMENT_CHOICES = [
-    ("delivery", "Доставка"),
-    ("pickup", "Самовывоз"),
-    ]
-
-    PAYMENT_CHOICES = [
-        ('card_courier', 'Картой курьеру'),
-        ('cash', 'Наличными'),
-        ('sbp', 'СБП'),
-    ]
-
-    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='orders', verbose_name="Клиент")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
-    
-    # Данные доставки
-    address = models.TextField(verbose_name="Адрес доставки")
-    phone = models.CharField(max_length=20, verbose_name="Телефон")
-    comment = models.TextField(null=True, blank=True, verbose_name="Комментарий")
-    
-    # Деньги
-    products_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма товаров")
-    delivery_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Стоимость доставки")
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Итого к оплате")
-    
-    # Способ оплаты
-    payment_method = models.CharField(
-        max_length=20, 
-        choices=PAYMENT_CHOICES, 
-        default='card_courier', 
-        verbose_name="Способ оплаты"
-    )
-
-    fulfillment_type = models.CharField(
-        max_length=20,
-        choices=FULFILLMENT_CHOICES,
-        default="delivery",
-        verbose_name="Способ получения",
-    )
-
-    # --- 1C sync ---
-    onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")
-    sync_status = models.CharField(max_length=20, default="new", db_index=True, verbose_name="Синхр. статус")
-    sent_to_onec_at = models.DateTimeField(null=True, blank=True, verbose_name="Отправлен в 1С")
-    last_sync_error = models.TextField(null=True, blank=True, verbose_name="Ошибка синхронизации")
-    sync_attempts = models.IntegerField(default=0, verbose_name="Попыток синхронизации")
-
-
-    class Meta:
-        db_table = "orders"
-        verbose_name = "Заказ доставки"
-        verbose_name_plural = "Заказы доставки"
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=["customer", "-created_at"], name="order_customer_created_idx"),
-        ]
-
-    def __str__(self):
-        return f"Заказ #{self.id} ({self.get_status_display()})"
-
-
-class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
-    quantity = models.IntegerField(default=1, verbose_name="Количество")
-    price_at_moment = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена на момент заказа")
-
-    class Meta:
-        db_table = "order_items"
-        verbose_name = "Позиция заказа"
-        verbose_name_plural = "Позиции заказа"
-
-    def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
-
-
-class Transaction(models.Model):
-    customer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
-    product = models.ForeignKey(Product, on_delete=models.DO_NOTHING, null=True, blank=True)
-    quantity = models.IntegerField(null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    purchase_date = models.DateField(null=True, blank=True)
-    purchase_time = models.TimeField(null=True, blank=True)
-    store_id = models.IntegerField()
-    is_promotional = models.BooleanField(null=True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    purchased_at = models.DateTimeField(null=True, blank=True)
-    idempotency_key = models.UUIDField(unique=True, null=True, blank=True)
-    receipt_total_amount   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    receipt_discount_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    receipt_bonus_spent    = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    receipt_bonus_earned   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    receipt_guid = models.CharField(max_length=64, null=True, blank=True)
-    receipt_line = models.IntegerField(null=True, blank=True)
-
-    class Meta:
-        db_table = "transactions"
-        constraints = [
-            models.UniqueConstraint(fields=["receipt_guid", "receipt_line"], name="uniq_receipt_line")
-        ]
-        indexes = [
-            models.Index(fields=["customer"], name="transaction_customer_idx"),
-        ]
-
-    def __str__(self):
-        return f"Transaction #{self.id}"
-
 class BroadcastMessage(models.Model):
     CATEGORY_CHOICES = (
         ("general", "Общая"),
@@ -364,7 +136,7 @@ class NewsletterDelivery(models.Model):
         db_index=True,
     )
     notification = models.ForeignKey(
-        Notification,
+        "notifications.Notification",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -417,3 +189,13 @@ class NewsletterOpenEvent(models.Model):
 
     def __str__(self):
         return f"Open event #{self.id} for delivery {self.delivery_id}"
+
+
+# Backward-compat imports (C10 refactoring) — DO NOT REMOVE
+from apps.orders.models import Order, OrderItem  # noqa: F401,E402
+from apps.loyalty.models import Transaction  # noqa: F401,E402
+from apps.notifications.models import (  # noqa: F401,E402
+    Notification,
+    NotificationOpenEvent,
+    CustomerDevice,
+)
