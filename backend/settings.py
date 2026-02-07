@@ -207,6 +207,16 @@ REST_FRAMEWORK = {
         ),
     ],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.HeaderPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "apps.common.throttling.TelegramUserThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "telegram_user": "120/min",
+    },
 }
 
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO")

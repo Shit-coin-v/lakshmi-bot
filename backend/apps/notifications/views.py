@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.pagination import HeaderPagination
 from apps.common.permissions import TelegramUserPermission
 from apps.main.models import CustomerDevice
 from apps.notifications.models import Notification, NotificationOpenEvent
@@ -20,6 +21,12 @@ class NotificationViewSet(viewsets.ViewSet):
 
     def list(self, request):
         qs = Notification.objects.filter(user=request.telegram_user).order_by("-created_at")
+        paginator = HeaderPagination()
+        page = paginator.paginate_queryset(qs, request)
+        if page is not None:
+            return paginator.get_paginated_response(
+                NotificationSerializer(page, many=True).data
+            )
         return Response(NotificationSerializer(qs, many=True).data, status=200)
 
     def retrieve(self, request, pk=None):

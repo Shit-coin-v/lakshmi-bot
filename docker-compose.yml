@@ -229,6 +229,7 @@ services:
       SERVER_NAME: ${SERVER_NAME:-_}
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./infra/nginx/rate-limit.conf:/etc/nginx/conf.d/00-rate-limit.conf:ro
       - static:/app/backend/collected_static
       - media:/app/backend/media
     logging:
