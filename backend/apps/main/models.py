@@ -49,6 +49,7 @@ class CustomUser(models.Model):
     total_spent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     purchase_count = models.IntegerField(null=True, blank=True)
     personal_data_consent = models.BooleanField(null=True, blank=True)
+    # Deprecated: use promo_enabled / news_enabled / general_enabled
     newsletter_enabled = models.BooleanField("Подписка на рассылки", default=True)
     promo_enabled = models.BooleanField("Акции и скидки", default=True)
     news_enabled = models.BooleanField("Новости магазина", default=True)

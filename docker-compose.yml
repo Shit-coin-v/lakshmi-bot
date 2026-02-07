@@ -42,6 +42,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infra/observability/alerts.yml:/etc/prometheus/alerts.yml
       - prometheusdata:/prometheus
     networks:
       - monitoring
@@ -146,7 +147,7 @@ services:
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "celeryapp", "worker", "--loglevel=info"]
+    command: ["-A", "celeryapp", "worker", "--loglevel=info", "--max-tasks-per-child=1000"]
     networks:
       - backend
     logging:
@@ -176,7 +177,7 @@ services:
       DJANGO_SETTINGS_MODULE: settings
       POSTGRES_HOST: db
     entrypoint: ["celery"]
-    command: ["-A", "celeryapp", "beat", "--loglevel=info"]
+    command: ["-A", "celeryapp", "beat", "--loglevel=info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     networks:
       - backend
     logging:

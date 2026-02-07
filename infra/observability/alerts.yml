@@ -1,0 +1,30 @@
+groups:
+  - name: service_health
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx error rate above 5%"
+          description: "More than 5% of HTTP responses are 5xx for 5 minutes."
+
+      - alert: CeleryQueueBacklog
+        expr: celery_active_tasks > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery queue backlog exceeds 50 tasks"
+          description: "Active Celery tasks have been above 50 for 10 minutes."

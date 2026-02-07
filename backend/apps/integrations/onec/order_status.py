@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.api.security import require_onec_auth
-from apps.integrations.onec.order_create import _onec_error
+from apps.integrations.onec.utils import onec_error
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +29,14 @@ def onec_order_status(request):
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
-        return _onec_error("invalid_json", "Request body must be valid JSON.")
+        return onec_error("invalid_json", "Request body must be valid JSON.")
 
     order_id = payload.get("order_id")
     status_in = (payload.get("status") or "").strip()
     onec_guid = (payload.get("onec_guid") or "").strip() or None
 
     if not order_id:
-        return _onec_error(
+        return onec_error(
             "missing_field",
             "order_id is required.",
             details={"order_id": ["required"]},
@@ -44,7 +44,7 @@ def onec_order_status(request):
 
     allowed = {"new", "assembly", "delivery", "completed", "canceled"}
     if status_in and status_in not in allowed:
-        return _onec_error(
+        return onec_error(
             "invalid_status",
             "Invalid status value.",
             details={"status": sorted(allowed)},
@@ -98,14 +98,14 @@ def onec_order_status(request):
                     )
 
     except Order.DoesNotExist:
-        return _onec_error(
+        return onec_error(
             "order_not_found",
             "Order not found.",
             details={"order_id": order_id},
             status_code=404,
         )
     except (TypeError, ValueError):
-        return _onec_error(
+        return onec_error(
             "invalid_order_id",
             "order_id must be an integer.",
             details={"order_id": order_id},

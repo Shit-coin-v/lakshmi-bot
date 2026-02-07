@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.api.security import require_onec_auth
+from apps.integrations.onec.utils import onec_error
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +29,6 @@ def _as_decimal(value: Any) -> D:
 
 def _quantize(amount: D) -> D:
     return amount.quantize(D("0.01"), rounding=ROUND_HALF_UP)
-
-
-def _onec_error(
-    error_code: str,
-    message: str,
-    *,
-    details: Any | None = None,
-    status_code: int = 400,
-):
-    payload: dict[str, Any] = {"error_code": error_code, "message": message}
-    if details is not None:
-        payload["details"] = details
-    return JsonResponse(payload, status=status_code)
 
 
 def _find_first_error_code(errors: Any) -> str | None:
@@ -83,7 +71,7 @@ def onec_receipt(request):
         payload = json.loads(raw_body)
     except json.JSONDecodeError as exc:
         logger.warning("onec_receipt: invalid JSON payload: %s", exc)
-        return _onec_error(
+        return onec_error(
             "invalid_json",
             "Request body must be valid JSON.",
             details={"error": str(exc)},
@@ -107,7 +95,7 @@ def onec_receipt(request):
             error_code,
             errors,
         )
-        return _onec_error(error_code, message, details=errors)
+        return onec_error(error_code, message, details=errors)
     data = serializer.validated_data
 
     idem_key = (
@@ -115,7 +103,7 @@ def onec_receipt(request):
         or request.META.get("HTTP_X_IDEMPOTENCY_KEY")
     )
     if not idem_key:
-        return _onec_error(
+        return onec_error(
             "missing_idempotency_key",
             "Header X-Idempotency-Key is required.",
         )
@@ -125,7 +113,7 @@ def onec_receipt(request):
         try:
             existing_by_idem = Transaction.objects.filter(idempotency_key=idem_key).exists()
         except DjangoValidationError:
-            return _onec_error(
+            return onec_error(
                 "invalid_idempotency_key",
                 "Header X-Idempotency-Key must be a valid UUID.",
                 details={"idempotency_key": idem_key},
@@ -155,7 +143,7 @@ def onec_receipt(request):
             .first()
         )
         if not mapping:
-            return _onec_error(
+            return onec_error(
                 "unknown_customer",
                 "Customer GUID is not registered.",
                 details={"one_c_guid": one_c_guid},
@@ -165,13 +153,13 @@ def onec_receipt(request):
     if telegram_id is not None:
         user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
         if not user_by_tid:
-            return _onec_error(
+            return onec_error(
                 "unknown_customer",
                 "Customer telegram_id is not registered.",
                 details={"telegram_id": telegram_id},
             )
         if user and user_by_tid.id != user.id:
-            return _onec_error(
+            return onec_error(
                 "conflicting_customer",
                 "Customer identifiers refer to different users.",
                 details={"telegram_id": telegram_id, "one_c_guid": one_c_guid},
@@ -180,7 +168,7 @@ def onec_receipt(request):
 
     if not user:
         if one_c_guid or telegram_id is not None:
-            return _onec_error(
+            return onec_error(
                 "unknown_customer",
                 "Customer identifiers are not registered.",
                 details={"telegram_id": telegram_id, "one_c_guid": one_c_guid},
@@ -191,7 +179,7 @@ def onec_receipt(request):
             guest_tid_int = int(guest_tid)
         except (TypeError, ValueError):
             logger.error("Invalid GUEST_TELEGRAM_ID setting: %r", guest_tid)
-            return _onec_error(
+            return onec_error(
                 "guest_user_not_configured",
                 "Guest user is not configured on the server.",
                 status_code=500,
@@ -200,7 +188,7 @@ def onec_receipt(request):
         user = CustomUser.objects.filter(telegram_id=guest_tid_int).first()
         if not user:
             logger.error("Guest user with telegram_id %s not found", guest_tid_int)
-            return _onec_error(
+            return onec_error(
                 "guest_user_not_found",
                 "Guest user is missing in the database.",
                 status_code=500,
@@ -277,7 +265,7 @@ def onec_receipt(request):
             data["receipt_guid"],
             duplicate_lines,
         )
-        return _onec_error(
+        return onec_error(
             "duplicate_receipt_line",
             "Receipt line already processed.",
             details={
@@ -390,7 +378,7 @@ def onec_receipt(request):
                 finally:
                     first_line = False
     except DuplicateReceiptLineError as exc:
-        return _onec_error(
+        return onec_error(
             "duplicate_receipt_line",
             "Receipt line already processed.",
             details={"receipt_guid": data["receipt_guid"], "line_numbers": [exc.line_number]},

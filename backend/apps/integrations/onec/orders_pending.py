@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
 from apps.api.security import require_onec_auth
-from apps.integrations.onec.order_create import _onec_error
+from apps.integrations.onec.utils import onec_error
 
 
 @csrf_exempt
@@ -43,7 +43,7 @@ def onec_orders_pending(request):
                     dt = dj_tz.make_aware(dt, timezone=timezone.utc)
                 qs = qs.filter(created_at__gt=dt)
             except ValueError:
-                return _onec_error(
+                return onec_error(
                     "invalid_after",
                     "Query param 'after' must be ISO datetime.",
                     details={"after": after_raw},

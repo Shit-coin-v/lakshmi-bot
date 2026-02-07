@@ -27,7 +27,7 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramForbiddenError
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from dotenv import load_dotenv
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -32,8 +31,6 @@ from shared.broadcast import (
     parse_target_user_ids,
     send_message_with_retry,
 )
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")

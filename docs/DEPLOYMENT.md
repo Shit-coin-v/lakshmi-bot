@@ -65,7 +65,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 Production-оверлей (`docker-compose.prod.yml`) добавляет:
 - Nginx на портах 80/443
 - 2 реплики Celery worker
+- Resource limits (CPU/memory) на все сервисы
 - Увеличенные лимиты логов
+- Сервис `db_backup` для автобэкапов (профиль `backup`)
 
 ## Команды Makefile
 
@@ -113,15 +115,17 @@ docker compose exec app python backend/manage.py makemigrations
 ## Бэкапы
 
 ```bash
-# Ручной бэкап
+# Ручной бэкап (dev)
 make backup
 
-# Автоматический бэкап (cron)
-# Добавить в crontab:
-# 0 3 * * * cd /path/to/lakshmi-bot && make backup
+# Автоматический бэкап (production) — через Docker-сервис с ротацией:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile backup run --rm db_backup
+
+# Cron (рекомендуется ежедневно в 2:00):
+# 0 2 * * * cd /path/to/lakshmi-bot && docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile backup run --rm db_backup >> /var/log/lakshmi-backup.log 2>&1
 ```
 
-Бэкапы сохраняются в текущую директорию: `backup_YYYYMMDD_HHMMSS.sql.gz`
+Бэкапы сохраняются в Docker volume `db_backups`. Ротация: 7 дней (настраивается через `BACKUP_RETENTION_DAYS`).
 
 ## Обновление
 
@@ -131,3 +135,19 @@ make build
 make migrate
 docker compose restart
 ```
+
+## SSL/TLS
+
+Nginx слушает только порт 80. SSL termination — на внешнем reverse proxy (Cloudflare, Caddy и т.д.).
+
+```
+Client (HTTPS) → External Proxy (SSL) → nginx (HTTP:80) → app (Gunicorn:8000)
+```
+
+Внешний proxy должен пробрасывать заголовки:
+- `X-Forwarded-Proto: https`
+- `X-Forwarded-For: <client-ip>`
+- `X-Forwarded-Host: <domain>`
+
+Django `settings.py` уже обрабатывает `X-Forwarded-Proto` через `SECURE_PROXY_SSL_HEADER`.
+Nginx обрабатывает `X-Forwarded-Proto` для корректного определения схемы.

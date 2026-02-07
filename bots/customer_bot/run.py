@@ -15,8 +15,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from dotenv import load_dotenv
-
 import config
 from registration import UserRegistration
 from onec_client import send_customer_to_onec
@@ -33,8 +31,6 @@ from qr_code import (
     generate_qr_code,
     qr_code_filename,
 )
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
