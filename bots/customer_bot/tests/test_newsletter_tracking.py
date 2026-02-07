@@ -12,7 +12,6 @@ test_dir = Path(__file__).resolve().parents[1]
 sys.path.append(str(test_dir))
 sys.path.append(str(test_dir.parent))
 
-import broadcast  # noqa: E402  pylint: disable=wrong-import-position
 from broadcast import generate_unique_open_token  # noqa: E402  pylint: disable=wrong-import-position
 from shared.broadcast import helpers as _broadcast_helpers  # noqa: E402  pylint: disable=wrong-import-position
 from database import models as db_models  # noqa: E402  pylint: disable=wrong-import-position
