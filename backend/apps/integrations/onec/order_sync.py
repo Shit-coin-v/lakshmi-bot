@@ -3,12 +3,10 @@ import requests
 import uuid
 import logging
 
-from datetime import date
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as dj_tz
 
-from apps.loyalty.models import CustomUser
 from apps.orders.models import Order
 
 logger = logging.getLogger(__name__)

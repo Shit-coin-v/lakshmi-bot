@@ -7,10 +7,13 @@ services:
       - "127.0.0.1:9080:9080"
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/observability/promtail-config.yaml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
-    privileged: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -24,6 +27,8 @@ services:
       - "127.0.0.1:3100:3100"
     volumes:
       - ./infra/observability/loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -38,6 +43,8 @@ services:
     volumes:
       - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheusdata:/prometheus
+    networks:
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -58,6 +65,8 @@ services:
     volumes:
       - ./infra/observability/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - grafanadata:/var/lib/grafana
+    networks:
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -79,6 +88,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
+      - bot
     logging:
       driver: json-file
       options:
@@ -108,6 +120,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    networks:
+      - backend
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -132,6 +147,8 @@ services:
       POSTGRES_HOST: db
     entrypoint: ["celery"]
     command: ["-A", "celeryapp", "worker", "--loglevel=info"]
+    networks:
+      - backend
     logging:
       driver: json-file
       options:
@@ -160,6 +177,8 @@ services:
       POSTGRES_HOST: db
     entrypoint: ["celery"]
     command: ["-A", "celeryapp", "beat", "--loglevel=info"]
+    networks:
+      - backend
     logging:
       driver: json-file
       options:
@@ -183,6 +202,8 @@ services:
         condition: service_healthy
     entrypoint: ["python", "manage.py"]
     command: ["migrate", "--noinput"]
+    networks:
+      - backend
     profiles: ["setup"]
 
   collectstatic:
@@ -198,6 +219,8 @@ services:
     command: ["collectstatic", "--noinput"]
     volumes:
       - static:/app/backend/collected_static
+    networks:
+      - backend
     profiles: ["setup"]
 
   redis:
@@ -206,11 +229,19 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     restart: always
+    environment:
+      REDISCLI_AUTH: "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
     logging:
       driver: json-file
       options:
@@ -232,6 +263,9 @@ services:
       - ./infra/nginx/rate-limit.conf:/etc/nginx/conf.d/00-rate-limit.conf:ro
       - static:/app/backend/collected_static
       - media:/app/backend/media
+    networks:
+      - backend
+      - monitoring
     logging:
       driver: json-file
       options:
@@ -253,6 +287,8 @@ services:
       - db
     ports:
       - "127.0.0.1:3001:3000"
+    networks:
+      - backend
     logging:
       driver: json-file
       options:
@@ -273,11 +309,21 @@ services:
         condition: service_healthy
     volumes:
       - ./bots/customer_bot/qr_codes:/app/bots/customer_bot/qr_codes
+    networks:
+      - bot
     logging:
       driver: json-file
       options:
         max-size: "20m"
         max-file: "3"
+
+networks:
+  backend:
+    driver: bridge
+  monitoring:
+    driver: bridge
+  bot:
+    driver: bridge
 
 volumes:
   static:
@@ -287,3 +333,4 @@ volumes:
   grafanadata:
   prometheusdata:
   metabase-data:
+  redis_data:

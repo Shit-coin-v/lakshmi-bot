@@ -1,0 +1,5 @@
+[lint]
+select = ["F"]
+
+[lint.per-file-ignores]
+"backend/apps/*/migrations/*.py" = ["F"]
