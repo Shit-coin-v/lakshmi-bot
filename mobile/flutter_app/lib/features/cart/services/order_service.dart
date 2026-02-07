@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api_client.dart';
-import '../../auth/services/auth_service.dart';
 import '../../orders/models/order_model.dart';
 import '../models/cart_item.dart';
 
@@ -16,15 +15,7 @@ class OrderService {
   // Получить список всех заказов
   Future<List<OrderModel>> fetchMyOrders() async {
     try {
-      final authService = _ref.read(authServiceProvider);
-      final userId = await authService.getSavedUserId();
-
-      if (userId == null) throw Exception('Пользователь не авторизован');
-
-      final response = await _dio.get(
-        '/api/orders/',
-        queryParameters: {'user_id': userId},
-      );
+      final response = await _dio.get('/api/orders/');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;

@@ -17,6 +17,7 @@ class AuthService {
   // Ключи для хранения данных в памяти телефона
   static const _storageQrKey = 'auth_qr_code';
   static const _storageIdKey = 'user_db_id';
+  static const _storageTelegramIdKey = 'user_telegram_id';
 
   // Метод входа
   Future<UserModel> loginWithQr(String qrCode) async {
@@ -45,6 +46,18 @@ class AuthService {
             );
           }
 
+          // 3. Сохраняем telegram_id и устанавливаем глобальный header
+          if (data['customer']['telegram_id'] != null) {
+            final telegramId = data['customer']['telegram_id'];
+            await _storage.write(
+              key: _storageTelegramIdKey,
+              value: telegramId.toString(),
+            );
+            ApiClient().setTelegramUserId(
+              telegramId is int ? telegramId : int.parse(telegramId.toString()),
+            );
+          }
+
           return user;
         } else {
           throw Exception('Сервер не вернул данные пользователя');
@@ -66,6 +79,7 @@ class AuthService {
   // Метод выхода
   Future<void> logout() async {
     await _storage.deleteAll(); // Удаляем и QR, и ID
+    ApiClient().clearTelegramUserId();
   }
 
   // Получить сохраненный QR (для авто-входа)
@@ -80,5 +94,22 @@ class AuthService {
       return int.tryParse(idString);
     }
     return null;
+  }
+
+  // Получить сохраненный telegram_id
+  Future<int?> getSavedTelegramId() async {
+    final idString = await _storage.read(key: _storageTelegramIdKey);
+    if (idString != null) {
+      return int.tryParse(idString);
+    }
+    return null;
+  }
+
+  // Восстановить X-Telegram-User-Id header из storage (для авто-логина)
+  Future<void> restoreTelegramHeader() async {
+    final telegramId = await getSavedTelegramId();
+    if (telegramId != null) {
+      ApiClient().setTelegramUserId(telegramId);
+    }
   }
 }

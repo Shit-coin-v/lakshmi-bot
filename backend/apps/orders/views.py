@@ -29,6 +29,9 @@ class OrderCreateView(generics.CreateAPIView):
     serializer_class = OrderCreateSerializer
     permission_classes = [TelegramUserPermission]
 
+    def perform_create(self, serializer):
+        serializer.save(customer=self.request.telegram_user)
+
 
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")

@@ -123,6 +123,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "total_price",
             "items",
         ]
+        read_only_fields = ["customer"]
 
     def to_internal_value(self, data):
         if isinstance(data, dict) and "customer" not in data and "customer_id" in data:

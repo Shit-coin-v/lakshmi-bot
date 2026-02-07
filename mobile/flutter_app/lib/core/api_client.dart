@@ -12,6 +12,10 @@ class ApiClient {
     defaultValue: 'my_secret_mobile_key_2025',
   );
 
+  static final ApiClient _instance = ApiClient._internal();
+
+  factory ApiClient() => _instance;
+
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: _baseUrl,
@@ -25,7 +29,7 @@ class ApiClient {
     ),
   );
 
-  ApiClient() {
+  ApiClient._internal() {
     // Логирование запросов (синие предупреждения останутся, это нормально!)
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -42,6 +46,14 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  void setTelegramUserId(int telegramId) {
+    _dio.options.headers['X-Telegram-User-Id'] = telegramId.toString();
+  }
+
+  void clearTelegramUserId() {
+    _dio.options.headers.remove('X-Telegram-User-Id');
   }
 
   Dio get dio => _dio;

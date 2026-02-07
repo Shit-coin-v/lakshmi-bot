@@ -8,13 +8,8 @@ class NotificationsApiService {
 
   NotificationsApiService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
-  Future<List<NotificationModel>> fetchNotifications({
-    required int userId,
-  }) async {
-    final response = await _dio.get(
-      '/api/notifications/',
-      queryParameters: {'user_id': userId},
-    );
+  Future<List<NotificationModel>> fetchNotifications() async {
+    final response = await _dio.get('/api/notifications/');
 
     final data = response.data;
     if (data is! List) return [];
@@ -27,12 +22,11 @@ class NotificationsApiService {
 
   Future<void> markAsRead({
     required int notificationId,
-    required int userId,
     String source = 'inapp',
   }) async {
     await _dio.post(
       '/api/notifications/$notificationId/read/',
-      data: {'user_id': userId, 'source': source},
+      data: {'source': source},
     );
   }
 }

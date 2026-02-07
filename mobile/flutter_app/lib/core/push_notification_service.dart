@@ -4,7 +4,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/auth/services/auth_service.dart';
 import '../features/notifications/providers/notifications_provider.dart';
 import '../features/notifications/services/push_api_service.dart';
 
@@ -171,13 +170,8 @@ class PushNotificationService {
     if (token == null || token.isEmpty) return;
     debugPrint('FCM TOKEN: ${token.substring(0, 12)}...');
 
-    final authService = _ref.read(authServiceProvider);
-    final customerId = await authService.getSavedUserId();
-    if (customerId == null) return;
-
     try {
       await _pushApi.registerToken(
-        customerId: customerId,
         fcmToken: token,
         platform: 'android',
       );

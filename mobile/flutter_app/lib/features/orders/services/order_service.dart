@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api_client.dart';
-import '../../auth/services/auth_service.dart';
 import '../models/order_detail_model.dart';
 import '../models/order_model.dart';
 
@@ -16,15 +15,7 @@ class OrderService {
 
   Future<List<OrderModel>> fetchMyOrders() async {
     try {
-      final authService = _ref.read(authServiceProvider);
-      final userId = await authService.getSavedUserId();
-
-      if (userId == null) throw Exception('Пользователь не авторизован');
-
-      final response = await _dio.get(
-        '/api/orders/',
-        queryParameters: {'user_id': userId},
-      );
+      final response = await _dio.get('/api/orders/');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data as List<dynamic>;
@@ -73,12 +64,6 @@ class OrderService {
     double? changeFrom,
   }) async {
     try {
-      final authService = _ref.read(authServiceProvider);
-      final customerId = await authService.getSavedUserId();
-      if (customerId == null) {
-        throw Exception('Пользователь не авторизован');
-      }
-
       final detailRes = await _dio.get('/api/orders/$orderId/');
       if (detailRes.statusCode != 200) {
         throw Exception('Не удалось получить заказ №$orderId');
@@ -137,7 +122,6 @@ class OrderService {
       }
 
       final payload = {
-        'customer': customerId,
         'fulfillment_type': fulfillmentType,
         'address': address,
         'phone': phone,

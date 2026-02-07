@@ -8,14 +8,12 @@ class PushApiService {
   PushApiService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   Future<void> registerToken({
-    required int customerId,
     required String fcmToken,
     String platform = 'android',
   }) async {
     await _dio.post(
       '/api/fcm/token/',
       data: {
-        'customer_id': customerId,
         'fcm_token': fcmToken,
         'platform': platform,
       },

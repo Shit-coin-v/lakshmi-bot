@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../auth/services/auth_service.dart';
 import '../models/notification_model.dart';
 import '../services/notifications_api_service.dart';
 
@@ -19,19 +18,8 @@ class NotificationsNotifier
   Future<void> loadNotifications() async {
     state = const AsyncValue.loading();
     try {
-      final authService = _ref.read(authServiceProvider);
-      final userId = await authService.getSavedUserId();
-
-      if (userId == null) {
-        state = AsyncValue.error(
-          Exception('Пользователь не авторизован: нет сохранённого userId'),
-          StackTrace.current,
-        );
-        return;
-      }
-
       final api = _ref.read(notificationsApiServiceProvider);
-      final items = await api.fetchNotifications(userId: userId);
+      final items = await api.fetchNotifications();
 
       state = AsyncValue.data(items);
     } catch (e, st) {
@@ -46,13 +34,9 @@ class NotificationsNotifier
     final notifId = int.tryParse(id);
     if (notifId == null) return;
 
-    final authService = _ref.read(authServiceProvider);
-    final userId = await authService.getSavedUserId();
-    if (userId == null) return;
-
     try {
       final api = _ref.read(notificationsApiServiceProvider);
-      await api.markAsRead(notificationId: notifId, userId: userId);
+      await api.markAsRead(notificationId: notifId);
 
       final updated = [
         for (final n in current.value)

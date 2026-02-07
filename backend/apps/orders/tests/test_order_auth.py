@@ -51,6 +51,21 @@ class OrderCreateAuthTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
+    def test_order_create_with_other_customer_id_uses_authenticated_user(self, mock_task):
+        other_user = CustomUser.objects.create(telegram_id=99999)
+        payload = self._payload()
+        payload["customer_id"] = other_user.id
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
+        )
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.latest("id")
+        self.assertEqual(order.customer, self.user)
+
 
 class OrderDetailAuthTests(TestCase):
     def setUp(self):
