@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.permissions import ApiKeyPermission, TelegramUserPermission
 from apps.main.serializers import CustomerProfileSerializer
 from apps.main.models import CustomUser
 
@@ -21,12 +22,20 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
 
     queryset = CustomUser.objects.all()
     serializer_class = CustomerProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [TelegramUserPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.telegram_id != self.request.telegram_user.telegram_id:
+            self.permission_denied(self.request, message="Нет доступа к чужому профилю")
+        return obj
 
 
 class SendMessageAPIView(APIView):
     """Minimal wrapper to send a Telegram message on behalf of the bot."""
+
+    permission_classes = [ApiKeyPermission]
 
     def post(self, request):
         telegram_id = request.data.get("telegram_id")

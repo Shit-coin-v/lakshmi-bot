@@ -37,9 +37,10 @@ def _ip_allowed(request) -> bool:
 
     rules = list(_iter_ip_rules())
     if not rules:
+        logger.warning("ONEC AUTH: IP whitelist is empty, allowing all IPs")
         return True
 
-    real_ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
+    real_ip = _client_ip(request)
     for allowed in rules:
         if allowed.endswith("*"):
             if real_ip.startswith(allowed[:-1]):

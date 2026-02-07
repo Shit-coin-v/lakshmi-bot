@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock, patch
+from decimal import Decimal
 
 from django.test import Client, TestCase
 
@@ -43,40 +43,24 @@ class PurchaseAPIViewTests(TestCase):
         data.update(overrides)
         return data
 
-    @patch.object(Transaction.objects, "create")
-    @patch.object(Transaction.objects, "filter")
-    def test_valid_purchase_returns_201(self, mock_filter, mock_create):
-        mock_filter.return_value.exists.return_value = False
-        mock_txn = MagicMock(id=1, bonus_earned=10)
-        mock_create.return_value = mock_txn
-
+    def test_valid_purchase_returns_201(self):
         response = self._post(self._valid_payload())
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["msg"], "Successfully")
         self.assertTrue(data["is_first_purchase"])
-        mock_create.assert_called_once()
+        self.assertEqual(Transaction.objects.count(), 1)
 
     def test_user_not_found_returns_404(self):
         response = self._post(self._valid_payload(telegram_id=999999))
         self.assertEqual(response.status_code, 404)
 
-    @patch.object(Transaction.objects, "create")
-    @patch.object(Transaction.objects, "filter")
-    def test_creates_product_if_not_exists(self, mock_filter, mock_create):
-        mock_filter.return_value.exists.return_value = False
-        mock_create.return_value = MagicMock(id=1, bonus_earned=10)
-
+    def test_creates_product_if_not_exists(self):
         self.assertFalse(Product.objects.filter(product_code="SKU-001").exists())
         self._post(self._valid_payload())
         self.assertTrue(Product.objects.filter(product_code="SKU-001").exists())
 
-    @patch.object(Transaction.objects, "create")
-    @patch.object(Transaction.objects, "filter")
-    def test_updates_user_stats(self, mock_filter, mock_create):
-        mock_filter.return_value.exists.return_value = False
-        mock_create.return_value = MagicMock(id=1, bonus_earned=10)
-
+    def test_updates_user_stats(self):
         self._post(self._valid_payload())
         self.customer.refresh_from_db()
         self.assertEqual(float(self.customer.bonuses), 10.0)
@@ -91,3 +75,21 @@ class PurchaseAPIViewTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 401)
+
+    def test_sequential_purchases_accumulate_correctly(self):
+        """Two sequential purchases must accumulate total_spent and
+        purchase_count correctly thanks to F() expressions."""
+        self._post(self._valid_payload(product_code="SKU-001"))
+        self._post(self._valid_payload(
+            product_code="SKU-002",
+            product_name="Product 2",
+            total="50.00",
+            total_bonuses="25.00",
+            bonus_earned="5.00",
+        ))
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.total_spent, Decimal("150.00"))
+        self.assertEqual(self.customer.purchase_count, 2)
+        # bonuses — absolute value from 1C, not accumulated
+        self.assertEqual(self.customer.bonuses, Decimal("25.00"))
+        self.assertEqual(Transaction.objects.filter(customer=self.customer).count(), 2)

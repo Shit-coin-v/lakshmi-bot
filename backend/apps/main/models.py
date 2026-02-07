@@ -275,7 +275,7 @@ class Transaction(models.Model):
     receipt_bonus_spent    = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     receipt_bonus_earned   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     receipt_guid = models.CharField(max_length=64, null=True, blank=True)
-    receipt_line = models.IntegerField()
+    receipt_line = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "transactions"

@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from decimal import Decimal as D
 
 from django.conf import settings
+from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils import timezone as dj_tz
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -39,18 +41,13 @@ class PurchaseAPIView(APIView):
         if settings.USE_TZ and dj_tz.is_naive(purchase_dt):
             purchase_dt = dj_tz.make_aware(purchase_dt, timezone=timezone.utc)
 
-        customer.bonuses = data["total_bonuses"]
-        customer.last_purchase_date = purchase_dt
-        customer.total_spent = (customer.total_spent or D("0")) + data["total"]
-        customer.purchase_count = (customer.purchase_count or 0) + 1
-        customer.save(
-            update_fields=[
-                "bonuses",
-                "last_purchase_date",
-                "total_spent",
-                "purchase_count",
-            ]
+        CustomUser.objects.filter(pk=customer.pk).update(
+            bonuses=data["total_bonuses"],
+            last_purchase_date=purchase_dt,
+            total_spent=Coalesce(F("total_spent"), D("0")) + data["total"],
+            purchase_count=Coalesce(F("purchase_count"), 0) + 1,
         )
+        customer.refresh_from_db()
 
         was_first_purchase = not Transaction.objects.filter(customer=customer).exists()
 

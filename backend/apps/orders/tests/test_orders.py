@@ -60,6 +60,7 @@ class OrderCreateViewTests(TestCase):
             "/api/orders/create/",
             data=json.dumps(payload),
             content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
         )
         self.assertEqual(response.status_code, 201)
         data = response.json()
@@ -84,6 +85,7 @@ class OrderCreateViewTests(TestCase):
             "/api/orders/create/",
             data=json.dumps(payload),
             content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
         )
         self.assertEqual(response.status_code, 201)
         order = Order.objects.get(id=response.json()["id"])
@@ -101,6 +103,7 @@ class OrderCreateViewTests(TestCase):
             "/api/orders/create/",
             data=json.dumps(payload),
             content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
         )
         self.assertEqual(response.status_code, 400)
 
@@ -126,24 +129,32 @@ class OrderListAndDetailTests(TestCase):
         )
 
     def test_order_list_by_user(self):
-        response = self.client.get(f"/api/orders/?user_id={self.customer.id}")
+        response = self.client.get(
+            f"/api/orders/?user_id={self.customer.id}",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["id"], self.order.id)
 
-    def test_order_list_without_user_id_returns_empty(self):
+    def test_order_list_without_auth_returns_403(self):
         response = self.client.get("/api/orders/")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.status_code, 403)
 
     def test_order_detail(self):
-        response = self.client.get(f"/api/orders/{self.order.pk}/")
+        response = self.client.get(
+            f"/api/orders/{self.order.pk}/",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["id"], self.order.id)
         self.assertEqual(len(data["items"]), 1)
 
     def test_order_not_found_returns_404(self):
-        response = self.client.get("/api/orders/99999/")
+        response = self.client.get(
+            "/api/orders/99999/",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
         self.assertEqual(response.status_code, 404)

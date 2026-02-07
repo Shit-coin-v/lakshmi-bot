@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, patch
 
 from django.test import Client, TestCase, override_settings
 
+from apps.common import security
+import apps.common.permissions as perms_module
 from apps.main.models import CustomUser
 
 
@@ -10,12 +12,19 @@ class SendMessageAPIViewTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.customer = CustomUser.objects.create(telegram_id=8001)
+        security.API_KEY = "test-key"
+        perms_module.API_KEY = "test-key"
+
+    def tearDown(self):
+        security.API_KEY = ""
+        perms_module.API_KEY = ""
 
     def _post(self, payload):
         return self.client.post(
             "/api/send-message/",
             data=json.dumps(payload),
             content_type="application/json",
+            HTTP_X_API_KEY="test-key",
         )
 
     @override_settings(TELEGRAM_BOT_TOKEN="fake-token")

@@ -16,7 +16,10 @@ class CustomerProfileViewTests(TestCase):
         )
 
     def test_get_profile(self):
-        response = self.client.get(f"/api/customer/{self.customer.pk}/")
+        response = self.client.get(
+            f"/api/customer/{self.customer.pk}/",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["telegram_id"], 9001)
@@ -28,13 +31,17 @@ class CustomerProfileViewTests(TestCase):
             f"/api/customer/{self.customer.pk}/",
             data=json.dumps({"full_name": "Updated Name"}),
             content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
         )
         self.assertEqual(response.status_code, 200)
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.full_name, "Updated Name")
 
     def test_not_found_returns_404(self):
-        response = self.client.get("/api/customer/99999/")
+        response = self.client.get(
+            "/api/customer/99999/",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_readonly_fields_not_changed(self):
@@ -42,6 +49,7 @@ class CustomerProfileViewTests(TestCase):
             f"/api/customer/{self.customer.pk}/",
             data=json.dumps({"bonuses": 999, "telegram_id": 1111}),
             content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
         )
         self.assertEqual(response.status_code, 200)
         self.customer.refresh_from_db()
