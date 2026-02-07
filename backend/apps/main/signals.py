@@ -1,6 +1,6 @@
 import logging
 
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 
 from .models import Order, Notification
@@ -12,18 +12,11 @@ from apps.notifications.push import (
 
 logger = logging.getLogger(__name__)
 
-@receiver(pre_save, sender=Order)
-def _order_pre_save(sender, instance: Order, **kwargs):
-    if not instance.pk:
-        instance._previous_status = None
-        return
 
-    try:
-        previous = Order.objects.get(pk=instance.pk).status
-    except Order.DoesNotExist:
-        previous = None
-
-    instance._previous_status = previous
+@receiver(post_init, sender=Order)
+def _order_post_init(sender, instance: Order, **kwargs):
+    """Запоминаем текущий статус при загрузке из БД (I6: без лишнего SELECT)."""
+    instance._previous_status = instance.status if instance.pk else None
 
 
 @receiver(post_save, sender=Order)
@@ -35,7 +28,11 @@ def _order_post_save(sender, instance: Order, **kwargs):
     if previous is None:
         return
 
-    notify_order_status_change(instance, previous_status=previous)
+    if previous != instance.status:
+        notify_order_status_change(instance, previous_status=previous)
+
+    instance._previous_status = instance.status
+
 
 @receiver(post_save, sender=Notification)
 def notification_send_push(sender, instance: Notification, created: bool, **kwargs):

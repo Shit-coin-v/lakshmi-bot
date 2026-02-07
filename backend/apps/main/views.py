@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import requests
-from django.conf import settings
 
 from rest_framework import generics, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -32,7 +30,7 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
 
 
 class SendMessageAPIView(APIView):
-    """Minimal wrapper to send a Telegram message on behalf of the bot."""
+    """Queue a Telegram message for async delivery via Celery (C11)."""
 
     permission_classes = [ApiKeyPermission]
 
@@ -51,28 +49,8 @@ class SendMessageAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"err": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not settings.TELEGRAM_BOT_TOKEN:
-            logger.error("TELEGRAM_BOT_TOKEN is not configured; cannot send message")
-            return Response(
-                {"err": "Bot token is not configured."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        from apps.main.tasks import send_telegram_message_task
 
-        telegram_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": user.telegram_id,
-            "text": text,
-            "parse_mode": "HTML",
-        }
+        send_telegram_message_task.delay(user.telegram_id, text)
 
-        try:
-            response = requests.post(telegram_url, json=payload, timeout=5)
-            response.raise_for_status()
-        except requests.RequestException as exc:  # pragma: no cover
-            logger.warning("Failed to send Telegram message: %s", exc)
-            return Response(
-                {"err": "Failed to send message to Telegram."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        return Response({"msg": "Message sent successfully."}, status=status.HTTP_200_OK)
+        return Response({"msg": "Message queued."}, status=status.HTTP_200_OK)

@@ -67,7 +67,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 class OrderListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    items_count = serializers.IntegerField(source='items.count', read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Order

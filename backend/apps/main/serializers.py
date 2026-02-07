@@ -15,7 +15,6 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'bonuses',
             'qr_code',
             'avatar',
-            'newsletter_enabled',
             'promo_enabled',
             'news_enabled',
             'general_enabled',

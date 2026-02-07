@@ -78,11 +78,8 @@ class SendMessageAuthTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    @patch("apps.main.views.requests.post")
-    def test_send_message_with_api_key_returns_200(self, mock_post):
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.raise_for_status = lambda: None
-
+    @patch("apps.main.tasks.send_telegram_message_task.delay")
+    def test_send_message_with_api_key_returns_200(self, mock_delay):
         response = self.client.post(
             "/api/send-message/",
             data=json.dumps({"telegram_id": self.user.telegram_id, "text": "Hello"}),
@@ -90,3 +87,4 @@ class SendMessageAuthTests(TestCase):
             HTTP_X_API_KEY="test-key",
         )
         self.assertEqual(response.status_code, 200)
+        mock_delay.assert_called_once()

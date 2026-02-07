@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from django.db import transaction
+from django.db.models import Count
+
 from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -52,6 +55,8 @@ class OrderListUserView(generics.ListAPIView):
     def get_queryset(self):
         return Order.objects.filter(
             customer=self.request.telegram_user,
+        ).annotate(
+            items_count=Count("items"),
         ).order_by("-created_at")
 
 
@@ -61,29 +66,30 @@ class OrderCancelView(APIView):
     CANCELLABLE_STATUSES = ("new", "assembly")
 
     def post(self, request, pk):
-        try:
-            order = Order.objects.get(pk=pk)
-        except Order.DoesNotExist:
-            return Response(
-                {"detail": "Заказ не найден"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(pk=pk)
+            except Order.DoesNotExist:
+                return Response(
+                    {"detail": "Заказ не найден"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        if order.customer.telegram_id != request.telegram_user.telegram_id:
-            return Response(
-                {"detail": "Нет доступа к чужому заказу"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            if order.customer.telegram_id != request.telegram_user.telegram_id:
+                return Response(
+                    {"detail": "Нет доступа к чужому заказу"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
-        if order.status not in self.CANCELLABLE_STATUSES:
-            return Response(
-                {"detail": "Заказ нельзя отменить в текущем статусе"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if order.status not in self.CANCELLABLE_STATUSES:
+                return Response(
+                    {"detail": "Заказ нельзя отменить в текущем статусе"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        previous_status = order.status
-        order.status = "canceled"
-        order.save(update_fields=["status"])
+            previous_status = order.status
+            order.status = "canceled"
+            order.save(update_fields=["status"])
 
         from apps.notifications.push import notify_order_status_change
         notify_order_status_change(order, previous_status=previous_status)

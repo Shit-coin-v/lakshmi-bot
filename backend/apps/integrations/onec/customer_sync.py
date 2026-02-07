@@ -137,7 +137,15 @@ def onec_customer_sync(request):
         user.created_at = dt_aware if settings.USE_TZ else dt_naive
 
     if write_mode:
-        user.save()
+        update_fields = []
+        if bonus_balance is not None:
+            update_fields.append("bonuses")
+        if referrer_tid and getattr(user, "referrer", None):
+            update_fields.append("referrer")
+        if hasattr(user, "created_at") and user.created_at:
+            update_fields.append("created_at")
+        if update_fields:
+            user.save(update_fields=update_fields)
 
     if one_c_guid:
         OneCClientMap.objects.update_or_create(one_c_guid=one_c_guid, defaults={"user": user})

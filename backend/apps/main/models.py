@@ -237,6 +237,9 @@ class Order(models.Model):
         verbose_name = "Заказ доставки"
         verbose_name_plural = "Заказы доставки"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=["customer", "-created_at"], name="order_customer_created_idx"),
+        ]
 
     def __str__(self):
         return f"Заказ #{self.id} ({self.get_status_display()})"
@@ -281,6 +284,9 @@ class Transaction(models.Model):
         db_table = "transactions"
         constraints = [
             models.UniqueConstraint(fields=["receipt_guid", "receipt_line"], name="uniq_receipt_line")
+        ]
+        indexes = [
+            models.Index(fields=["customer"], name="transaction_customer_idx"),
         ]
 
     def __str__(self):

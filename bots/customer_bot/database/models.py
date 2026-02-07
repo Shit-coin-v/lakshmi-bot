@@ -139,9 +139,12 @@ class CustomUser(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     full_name = Column(String, nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String, nullable=True)
     birth_date = Column(DateTime, nullable=True)
     registration_date = Column(DateTime, default=datetime.utcnow)
     qr_code = Column(String, nullable=True)
+    avatar = Column(String, nullable=True)
     bonuses = Column(Numeric(10, 2), default=0.0)
     referrer_id = Column(BigInteger, ForeignKey("customers.telegram_id"), nullable=True)
     referrals = relationship("CustomUser", backref="referrer", remote_side=[telegram_id])
@@ -153,6 +156,7 @@ class CustomUser(Base):
     promo_enabled = Column(Boolean, default=True)
     news_enabled = Column(Boolean, default=True)
     general_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, nullable=True)
 
     transactions = relationship("Transaction", back_populates="customer")
     bot_activities = relationship("BotActivity", back_populates="customer")
@@ -184,6 +188,7 @@ class Product(Base):
 
     is_promotional = Column(Boolean, default=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    one_c_guid = Column(String(64), unique=True, nullable=True)
 
 
 # --- НОВАЯ ТАБЛИЦА: ЗАКАЗЫ ---
@@ -202,6 +207,14 @@ class Order(Base):
     products_price = Column(Numeric(10, 2), default=0)
     delivery_price = Column(Numeric(10, 2), default=0)
     total_price = Column(Numeric(10, 2), default=0)
+
+    payment_method = Column(String(20), default="card_courier")
+    fulfillment_type = Column(String(20), default="delivery")
+    onec_guid = Column(String(64), nullable=True)
+    sync_status = Column(String(20), default="new")
+    sent_to_onec_at = Column(DateTime, nullable=True)
+    last_sync_error = Column(Text, nullable=True)
+    sync_attempts = Column(Integer, default=0)
 
     # Связи
     customer = relationship("CustomUser", back_populates="orders")
@@ -235,6 +248,15 @@ class Transaction(Base):
     purchase_time = Column(Time, default=lambda: datetime.now().time())
     store_id = Column(Integer, nullable=False)
     is_promotional = Column(Boolean, default=False)
+    price = Column(Numeric(10, 2), nullable=True)
+    purchased_at = Column(DateTime, nullable=True)
+    idempotency_key = Column(String(64), unique=True, nullable=True)
+    receipt_total_amount = Column(Numeric(10, 2), nullable=True)
+    receipt_discount_total = Column(Numeric(10, 2), nullable=True)
+    receipt_bonus_spent = Column(Numeric(10, 2), nullable=True)
+    receipt_bonus_earned = Column(Numeric(10, 2), nullable=True)
+    receipt_guid = Column(String(64), nullable=True)
+    receipt_line = Column(Integer, nullable=True)
 
     customer = relationship("CustomUser", back_populates="transactions")
     product = relationship("Product")
