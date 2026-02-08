@@ -100,7 +100,7 @@ void main() {
       expect((captured['items'] as List).length, 2);
 
       final firstItem = (captured['items'] as List)[0] as Map<String, dynamic>;
-      expect(firstItem['product_id'], 'P001');
+      expect(firstItem['product_code'], 'P001');
       expect(firstItem['quantity'], 2);
       expect(firstItem['price_at_moment'], 89.90);
     });

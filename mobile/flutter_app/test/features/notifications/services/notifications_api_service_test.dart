@@ -20,7 +20,6 @@ void main() {
     test('fetchNotifications parses list of notifications', () async {
       when(() => mockDio.get(
             '/api/notifications/',
-            queryParameters: any(named: 'queryParameters'),
           )).thenAnswer((_) async => Response(
             data: [
               {
@@ -44,7 +43,7 @@ void main() {
             requestOptions: RequestOptions(path: '/api/notifications/'),
           ));
 
-      final notifications = await service.fetchNotifications(userId: 42);
+      final notifications = await service.fetchNotifications();
 
       expect(notifications, isA<List<NotificationModel>>());
       expect(notifications.length, 2);
@@ -61,40 +60,37 @@ void main() {
         () async {
       when(() => mockDio.get(
             '/api/notifications/',
-            queryParameters: any(named: 'queryParameters'),
           )).thenAnswer((_) async => Response(
             data: 'unexpected string response',
             statusCode: 200,
             requestOptions: RequestOptions(path: '/api/notifications/'),
           ));
 
-      final notifications = await service.fetchNotifications(userId: 42);
+      final notifications = await service.fetchNotifications();
 
       expect(notifications, isEmpty);
     });
 
-    test('fetchNotifications passes userId as query param', () async {
+    test('fetchNotifications calls GET /api/notifications/', () async {
       when(() => mockDio.get(
             '/api/notifications/',
-            queryParameters: {'user_id': 42},
           )).thenAnswer((_) async => Response(
             data: [],
             statusCode: 200,
             requestOptions: RequestOptions(path: '/api/notifications/'),
           ));
 
-      await service.fetchNotifications(userId: 42);
+      await service.fetchNotifications();
 
       verify(() => mockDio.get(
             '/api/notifications/',
-            queryParameters: {'user_id': 42},
           )).called(1);
     });
 
     test('markAsRead sends POST with correct payload', () async {
       when(() => mockDio.post(
             '/api/notifications/7/read/',
-            data: {'user_id': 42, 'source': 'inapp'},
+            data: {'source': 'inapp'},
           )).thenAnswer((_) async => Response(
             data: {},
             statusCode: 200,
@@ -102,11 +98,11 @@ void main() {
                 RequestOptions(path: '/api/notifications/7/read/'),
           ));
 
-      await service.markAsRead(notificationId: 7, userId: 42);
+      await service.markAsRead(notificationId: 7);
 
       verify(() => mockDio.post(
             '/api/notifications/7/read/',
-            data: {'user_id': 42, 'source': 'inapp'},
+            data: {'source': 'inapp'},
           )).called(1);
     });
   });

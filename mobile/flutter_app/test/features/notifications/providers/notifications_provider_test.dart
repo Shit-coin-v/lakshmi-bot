@@ -1,12 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:lakshmi_market/features/auth/services/auth_service.dart';
 import 'package:lakshmi_market/features/notifications/models/notification_model.dart';
 import 'package:lakshmi_market/features/notifications/providers/notifications_provider.dart';
 import 'package:lakshmi_market/features/notifications/services/notifications_api_service.dart';
-
-class MockAuthService extends Mock implements AuthService {}
 
 class MockNotificationsApiService extends Mock
     implements NotificationsApiService {}
@@ -26,18 +23,15 @@ NotificationModel _makeNotification({
     );
 
 void main() {
-  late MockAuthService mockAuth;
   late MockNotificationsApiService mockApi;
 
   setUp(() {
-    mockAuth = MockAuthService();
     mockApi = MockNotificationsApiService();
   });
 
   group('NotificationsNotifier', () {
-    test('loadNotifications succeeds with valid userId', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 1);
-      when(() => mockApi.fetchNotifications(userId: 1)).thenAnswer(
+    test('loadNotifications succeeds', () async {
+      when(() => mockApi.fetchNotifications()).thenAnswer(
         (_) async => [
           _makeNotification(id: '1', title: 'Hello'),
           _makeNotification(id: '2', title: 'World'),
@@ -45,18 +39,17 @@ void main() {
       );
 
       final container = ProviderContainer(overrides: [
-        authServiceProvider.overrideWithValue(mockAuth),
         notificationsApiServiceProvider.overrideWithValue(mockApi),
       ]);
       addTearDown(container.dispose);
 
       // Access the provider to trigger construction + loadNotifications
-      final notifier = container.read(notificationsProvider.notifier);
+      container.read(notificationsProvider.notifier);
 
       // Let async loadNotifications complete
       await Future.delayed(Duration.zero);
 
-      final state = notifier.debugState;
+      final state = container.read(notificationsProvider);
       expect(state, isA<AsyncData<List<NotificationModel>>>());
 
       final data = state.value!;
@@ -64,15 +57,14 @@ void main() {
       expect(data[0].title, 'Hello');
       expect(data[1].title, 'World');
 
-      verify(() => mockAuth.getSavedUserId()).called(1);
-      verify(() => mockApi.fetchNotifications(userId: 1)).called(1);
+      verify(() => mockApi.fetchNotifications()).called(1);
     });
 
-    test('loadNotifications errors when userId is null', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => null);
+    test('loadNotifications errors when API throws', () async {
+      when(() => mockApi.fetchNotifications())
+          .thenThrow(Exception('Network error'));
 
       final container = ProviderContainer(overrides: [
-        authServiceProvider.overrideWithValue(mockAuth),
         notificationsApiServiceProvider.overrideWithValue(mockApi),
       ]);
       addTearDown(container.dispose);
@@ -84,25 +76,19 @@ void main() {
 
       final state = container.read(notificationsProvider);
       expect(state, isA<AsyncError<List<NotificationModel>>>());
-
-      verifyNever(
-          () => mockApi.fetchNotifications(userId: any(named: 'userId')));
     });
 
     test('markAsRead updates local state', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 1);
-      when(() => mockApi.fetchNotifications(userId: 1)).thenAnswer(
+      when(() => mockApi.fetchNotifications()).thenAnswer(
         (_) async => [
           _makeNotification(id: '10', title: 'Unread', isRead: false),
         ],
       );
       when(() => mockApi.markAsRead(
             notificationId: 10,
-            userId: 1,
           )).thenAnswer((_) async {});
 
       final container = ProviderContainer(overrides: [
-        authServiceProvider.overrideWithValue(mockAuth),
         notificationsApiServiceProvider.overrideWithValue(mockApi),
       ]);
       addTearDown(container.dispose);
@@ -117,13 +103,12 @@ void main() {
 
       expect(notifier.debugState.value!.first.isRead, isTrue);
 
-      verify(() => mockApi.markAsRead(notificationId: 10, userId: 1))
+      verify(() => mockApi.markAsRead(notificationId: 10))
           .called(1);
     });
 
     test('clearAll empties the list', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 1);
-      when(() => mockApi.fetchNotifications(userId: 1)).thenAnswer(
+      when(() => mockApi.fetchNotifications()).thenAnswer(
         (_) async => [
           _makeNotification(id: '1'),
           _makeNotification(id: '2'),
@@ -131,7 +116,6 @@ void main() {
       );
 
       final container = ProviderContainer(overrides: [
-        authServiceProvider.overrideWithValue(mockAuth),
         notificationsApiServiceProvider.overrideWithValue(mockApi),
       ]);
       addTearDown(container.dispose);

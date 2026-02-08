@@ -20,7 +20,6 @@ void main() {
       when(() => mockDio.post(
             '/api/fcm/token/',
             data: {
-              'customer_id': 42,
               'fcm_token': 'abc123fcmtoken',
               'platform': 'ios',
             },
@@ -31,7 +30,6 @@ void main() {
           ));
 
       await service.registerToken(
-        customerId: 42,
         fcmToken: 'abc123fcmtoken',
         platform: 'ios',
       );
@@ -39,7 +37,6 @@ void main() {
       verify(() => mockDio.post(
             '/api/fcm/token/',
             data: {
-              'customer_id': 42,
               'fcm_token': 'abc123fcmtoken',
               'platform': 'ios',
             },
@@ -50,7 +47,6 @@ void main() {
       when(() => mockDio.post(
             '/api/fcm/token/',
             data: {
-              'customer_id': 42,
               'fcm_token': 'xyz789token',
               'platform': 'android',
             },
@@ -62,14 +58,12 @@ void main() {
 
       // Call without specifying platform to use default 'android'
       await service.registerToken(
-        customerId: 42,
         fcmToken: 'xyz789token',
       );
 
       verify(() => mockDio.post(
             '/api/fcm/token/',
             data: {
-              'customer_id': 42,
               'fcm_token': 'xyz789token',
               'platform': 'android',
             },

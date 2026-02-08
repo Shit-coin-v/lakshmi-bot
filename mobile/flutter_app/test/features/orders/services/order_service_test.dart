@@ -92,10 +92,8 @@ void main() {
 
   group('Orders OrderService', () {
     test('fetchMyOrders returns list of OrderModel', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 42);
       when(() => mockDio.get(
             '/api/orders/',
-            queryParameters: {'user_id': 42},
           )).thenAnswer((_) async => Response(
             data: [
               orderJson(id: 1, totalPrice: '500.00'),
@@ -120,8 +118,13 @@ void main() {
       expect(orders[1].status, 'delivered');
     });
 
-    test('fetchMyOrders throws when userId is null', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => null);
+    test('fetchMyOrders throws on network error', () async {
+      when(() => mockDio.get('/api/orders/')).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/api/orders/'),
+          type: DioExceptionType.connectionError,
+        ),
+      );
 
       final container = createContainer();
       addTearDown(container.dispose);
@@ -187,8 +190,6 @@ void main() {
     });
 
     test('repeatOrder creates new order from existing', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 42);
-
       // Stub GET /api/orders/10/ to return existing order detail
       when(() => mockDio.get('/api/orders/10/')).thenAnswer((_) async =>
           Response(
@@ -218,7 +219,7 @@ void main() {
       addTearDown(container.dispose);
 
       final service = container.read(orderServiceProvider);
-      final newId = await service.repeatOrder(10);
+      final newId = await service.repeatOrder(10, paymentMethod: 'cash');
 
       expect(newId, 55);
 
@@ -228,7 +229,6 @@ void main() {
             data: captureAny(named: 'data'),
           )).captured.single as Map<String, dynamic>;
 
-      expect(captured['customer'], 42);
       expect(captured['fulfillment_type'], 'delivery');
       expect(captured['address'], 'ул. Пушкина, д.10');
       expect(captured['phone'], '+79991234567');
@@ -239,8 +239,6 @@ void main() {
     });
 
     test('repeatOrder detects pickup from address "Самовывоз"', () async {
-      when(() => mockAuth.getSavedUserId()).thenAnswer((_) async => 42);
-
       // Return an order with address "Самовывоз" and no fulfillment_type
       when(() => mockDio.get('/api/orders/11/')).thenAnswer((_) async =>
           Response(
@@ -274,7 +272,7 @@ void main() {
       addTearDown(container.dispose);
 
       final service = container.read(orderServiceProvider);
-      final newId = await service.repeatOrder(11);
+      final newId = await service.repeatOrder(11, paymentMethod: 'cash');
 
       expect(newId, 56);
 
