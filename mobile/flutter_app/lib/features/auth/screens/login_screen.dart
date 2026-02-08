@@ -41,7 +41,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       await ref.read(authProvider.notifier).loginWithEmail(email, password);
-      if (mounted) context.go('/home');
+      if (mounted) {
+        final user = ref.read(authProvider);
+        if (user != null && user.telegramId == null) {
+          context.go('/telegram-link-choice');
+        } else {
+          context.go('/home');
+        }
+      }
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {

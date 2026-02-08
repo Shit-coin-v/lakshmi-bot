@@ -16,6 +16,9 @@ import 'features/auth/screens/registration_screen.dart';
 import 'features/auth/screens/qr_auth_screen.dart';
 import 'features/auth/screens/verify_email_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
+import 'features/auth/screens/telegram_link_choice_screen.dart';
+import 'features/auth/screens/link_telegram_scan_screen.dart';
+import 'features/auth/screens/generate_qr_screen.dart';
 import 'features/home/screens/main_shell.dart';
 import 'features/cart/screens/cart_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
@@ -78,6 +81,18 @@ final _router = GoRouter(
     GoRoute(
       path: '/reset-password',
       builder: (context, state) => const ResetPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/telegram-link-choice',
+      builder: (context, state) => const TelegramLinkChoiceScreen(),
+    ),
+    GoRoute(
+      path: '/link-telegram-scan',
+      builder: (context, state) => const LinkTelegramScanScreen(),
+    ),
+    GoRoute(
+      path: '/generate-qr',
+      builder: (context, state) => const GenerateQrScreen(),
     ),
     GoRoute(path: '/home', builder: (context, state) => const MainShell()),
     GoRoute(

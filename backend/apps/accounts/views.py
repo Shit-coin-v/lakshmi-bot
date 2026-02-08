@@ -13,6 +13,7 @@ from apps.main.models import CustomUser
 from . import email_service
 from .serializers import (
     LinkEmailSerializer,
+    LinkTelegramByQrSerializer,
     LinkTelegramConfirmSerializer,
     LoginSerializer,
     RefreshSerializer,
@@ -318,3 +319,57 @@ class LinkTelegramConfirmView(APIView):
             email_user.save(update_fields=["telegram_id"])
 
         return Response({"detail": "Telegram привязан", "user_id": email_user.pk})
+
+
+class LinkTelegramByQrView(APIView):
+    """POST /api/auth/link-telegram/by-qr/ — link Telegram via scanned bot QR."""
+
+    permission_classes = [CustomerPermission]
+
+    def post(self, request):
+        ser = LinkTelegramByQrSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        telegram_id = ser.validated_data["telegram_id"]
+        user = request.telegram_user
+
+        if user.telegram_id:
+            return Response(
+                {"detail": "Telegram уже привязан"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing = CustomUser.objects.filter(telegram_id=telegram_id).first()
+
+        if existing and existing.pk == user.pk:
+            return Response({"detail": "Этот Telegram уже привязан к вашему аккаунту"})
+
+        if existing:
+            from .merge import merge_accounts
+            merge_accounts(keep=user, remove=existing)
+        else:
+            user.telegram_id = telegram_id
+            user.save(update_fields=["telegram_id"])
+
+        user.refresh_from_db()
+        return Response({
+            "detail": "Telegram привязан",
+            "telegram_id": user.telegram_id,
+            "bonuses": str(user.bonuses or 0),
+            "qr_code": user.qr_code,
+        })
+
+
+class GenerateUserQrView(APIView):
+    """POST /api/auth/generate-qr/ — generate QR for email-only user."""
+
+    permission_classes = [CustomerPermission]
+
+    def post(self, request):
+        user = request.telegram_user
+
+        if user.qr_code:
+            return Response({"qr_code": user.qr_code})
+
+        user.qr_code = str(user.pk)
+        user.save(update_fields=["qr_code"])
+        return Response({"qr_code": user.qr_code, "detail": "QR-код создан"})

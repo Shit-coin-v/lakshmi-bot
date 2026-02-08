@@ -45,3 +45,7 @@ class LinkTelegramRequestSerializer(serializers.Serializer):
 class LinkTelegramConfirmSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=6)
     telegram_id = serializers.IntegerField()
+
+
+class LinkTelegramByQrSerializer(serializers.Serializer):
+    telegram_id = serializers.IntegerField()

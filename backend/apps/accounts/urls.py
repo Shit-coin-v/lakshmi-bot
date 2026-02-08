@@ -12,4 +12,6 @@ urlpatterns = [
     path("link-email/", views.LinkEmailView.as_view(), name="auth-link-email"),
     path("link-telegram/request/", views.LinkTelegramRequestView.as_view(), name="auth-link-telegram-request"),
     path("link-telegram/confirm/", views.LinkTelegramConfirmView.as_view(), name="auth-link-telegram-confirm"),
+    path("link-telegram/by-qr/", views.LinkTelegramByQrView.as_view(), name="auth-link-telegram-by-qr"),
+    path("generate-qr/", views.GenerateUserQrView.as_view(), name="auth-generate-qr"),
 ]

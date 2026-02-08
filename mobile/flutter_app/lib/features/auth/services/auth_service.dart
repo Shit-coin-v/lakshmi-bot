@@ -257,4 +257,39 @@ class AuthService {
       ApiClient().setTelegramUserId(telegramId);
     }
   }
+
+  // ─── Link Telegram by QR scan ───
+
+  Future<Map<String, dynamic>> linkTelegramByQr(int telegramId) async {
+    try {
+      final response = await _dio.post('/api/auth/link-telegram/by-qr/', data: {
+        'telegram_id': telegramId,
+      });
+
+      await _storage.write(
+        key: _storageTelegramIdKey,
+        value: telegramId.toString(),
+      );
+      ApiClient().setTelegramUserId(telegramId);
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'];
+      if (detail != null) throw Exception(detail.toString());
+      throw Exception('Ошибка привязки Telegram: ${e.message}');
+    }
+  }
+
+  // ─── Generate QR for email-only user ───
+
+  Future<Map<String, dynamic>> generateUserQr() async {
+    try {
+      final response = await _dio.post('/api/auth/generate-qr/');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'];
+      if (detail != null) throw Exception(detail.toString());
+      throw Exception('Ошибка генерации QR: ${e.message}');
+    }
+  }
 }

@@ -40,7 +40,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       await ref.read(authServiceProvider).verifyEmail(widget.email, code);
       setState(() => _verified = true);
       await Future.delayed(const Duration(seconds: 1));
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/telegram-link-choice');
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
