@@ -3,8 +3,9 @@ import logging
 import re
 from datetime import datetime
 
+import aiohttp
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ParseMode
@@ -276,6 +277,37 @@ async def callback_handler(callback: CallbackQuery):
             await callback.message.answer(f"🔗 Ваша реферальная ссылка:\n{ref_link}")
 
     await callback.answer()
+
+
+@dp.message(Command("link"))
+async def cmd_link(message: Message):
+    """Handle /link <code> — link Telegram to an email account."""
+    args = (message.text or "").split()
+    if len(args) < 2 or not args[1].strip().isdigit():
+        await message.answer(
+            "Использование: /link <6-значный код>\n"
+            "Получите код в приложении: Профиль → Привязать Telegram"
+        )
+        return
+
+    code = args[1].strip()
+    telegram_id = message.from_user.id
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"{config.BACKEND_URL}/api/auth/link-telegram/confirm/"
+            headers = {"X-Api-Key": config.ONEC_API_KEY or ""}
+            payload = {"code": code, "telegram_id": telegram_id}
+            async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                data = await resp.json()
+                if resp.status == 200:
+                    await message.answer("Аккаунты успешно связаны! Теперь вы можете входить и через Telegram, и через email.")
+                else:
+                    detail = data.get("detail", "Неизвестная ошибка")
+                    await message.answer(f"Ошибка: {detail}")
+    except Exception as e:
+        logger.exception("Error in /link command: %s", e)
+        await message.answer("Произошла ошибка. Попробуйте позже.")
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith(OPEN_CALLBACK_PREFIX))

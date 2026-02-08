@@ -75,6 +75,7 @@ def onec_orders_pending(request):
                     "customer": {
                         "id": o.customer_id,
                         "telegram_id": o.customer.telegram_id,
+                        "email": o.customer.email,
                         "full_name": o.customer.full_name,
                         "phone": o.phone,
                     },

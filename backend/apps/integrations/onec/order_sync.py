@@ -69,6 +69,7 @@ def send_order_to_onec_impl(self, order_id: int):
         "customer": {
             "id": order.customer_id,
             "telegram_id": order.customer.telegram_id,
+            "email": order.customer.email,
             "phone": order.phone,
             "full_name": order.customer.full_name,
         },

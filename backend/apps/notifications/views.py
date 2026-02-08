@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import HeaderPagination
-from apps.common.permissions import TelegramUserPermission
+from apps.common.permissions import CustomerPermission
 from .models import CustomerDevice
 from .models import Notification, NotificationOpenEvent
 from apps.notifications.serializers import (
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationViewSet(viewsets.ViewSet):
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def list(self, request):
         qs = Notification.objects.filter(user=request.telegram_user).order_by("-created_at")
@@ -66,7 +66,7 @@ class NotificationViewSet(viewsets.ViewSet):
 
 
 class UpdateFCMTokenView(APIView):
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def post(self, request):
         fcm_token = (request.data.get("fcm_token") or "").strip()
@@ -92,7 +92,7 @@ class UpdateFCMTokenView(APIView):
 
 
 class PushRegisterView(APIView):
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def post(self, request):
         fcm_token = (request.data.get("fcm_token") or "").strip()

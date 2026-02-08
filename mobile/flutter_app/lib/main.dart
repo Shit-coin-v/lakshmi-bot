@@ -14,6 +14,8 @@ import 'features/auth/screens/welcome_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/registration_screen.dart';
 import 'features/auth/screens/qr_auth_screen.dart';
+import 'features/auth/screens/verify_email_screen.dart';
+import 'features/auth/screens/reset_password_screen.dart';
 import 'features/home/screens/main_shell.dart';
 import 'features/cart/screens/cart_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
@@ -65,6 +67,17 @@ final _router = GoRouter(
     GoRoute(
       path: '/qr-auth',
       builder: (context, state) => const QrAuthScreen(),
+    ),
+    GoRoute(
+      path: '/verify-email',
+      builder: (context, state) {
+        final email = state.extra as String? ?? '';
+        return VerifyEmailScreen(email: email);
+      },
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
     ),
     GoRoute(path: '/home', builder: (context, state) => const MainShell()),
     GoRoute(

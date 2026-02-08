@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'apps.loyalty.apps.LoyaltyConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.integrations.onec.apps.OnecConfig',
+    'apps.accounts.apps.AccountsConfig',
 ]
 
 MIDDLEWARE = [
@@ -169,6 +170,22 @@ TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 GUEST_TELEGRAM_ID = _env_int("GUEST_TELEGRAM_ID", 0)
 
+# Cache (used for email verification codes)
+_cache_redis_url = os.getenv("CACHE_REDIS_URL") or os.getenv("CELERY_BROKER_URL", "")
+if _cache_redis_url and _cache_redis_url.startswith("redis"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _cache_redis_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -243,3 +260,14 @@ LOGGING = {
 
 INTEGRATION_API_KEY = os.getenv("INTEGRATION_API_KEY", "")
 ONEC_ORDER_URL = os.getenv("ONEC_ORDER_URL", "")
+
+# Email
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = _env_int("EMAIL_PORT", 587)
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@example.com")

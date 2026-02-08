@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.permissions import TelegramUserPermission
+from apps.common.permissions import CustomerPermission
 from apps.orders.serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -30,7 +30,7 @@ class ProductListView(generics.ListAPIView):
 class OrderCreateView(generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderCreateSerializer
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def perform_create(self, serializer):
         serializer.save(customer=self.request.telegram_user)
@@ -39,18 +39,18 @@ class OrderCreateView(generics.CreateAPIView):
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def get_object(self):
         obj = super().get_object()
-        if obj.customer.telegram_id != self.request.telegram_user.telegram_id:
+        if obj.customer_id != self.request.telegram_user.pk:
             self.permission_denied(self.request, message="Нет доступа к чужому заказу")
         return obj
 
 
 class OrderListUserView(generics.ListAPIView):
     serializer_class = OrderListSerializer
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     def get_queryset(self):
         return Order.objects.filter(
@@ -61,7 +61,7 @@ class OrderListUserView(generics.ListAPIView):
 
 
 class OrderCancelView(APIView):
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
 
     CANCELLABLE_STATUSES = ("new", "assembly")
 
@@ -75,7 +75,7 @@ class OrderCancelView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            if order.customer.telegram_id != request.telegram_user.telegram_id:
+            if order.customer_id != request.telegram_user.pk:
                 return Response(
                     {"detail": "Нет доступа к чужому заказу"},
                     status=status.HTTP_403_FORBIDDEN,

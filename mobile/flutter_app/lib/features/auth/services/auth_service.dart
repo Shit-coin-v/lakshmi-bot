@@ -1,27 +1,26 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// Импортируем наш настроенный клиент
 import '../../../core/api_client.dart';
 import '../models/user_model.dart';
 
-// Провайдер, чтобы мы могли использовать сервис в других местах
 final authServiceProvider = Provider((ref) => AuthService());
 
 class AuthService {
-  // ИСПОЛЬЗУЕМ НАСТРОЕННЫЙ КЛИЕНТ (С КЛЮЧАМИ)
   final Dio _dio = ApiClient().dio;
-
   final _storage = const FlutterSecureStorage();
 
-  // Ключи для хранения данных в памяти телефона
+  // Storage keys
   static const _storageQrKey = 'auth_qr_code';
   static const _storageIdKey = 'user_db_id';
   static const _storageTelegramIdKey = 'user_telegram_id';
+  static const _storageAuthMethodKey = 'auth_method'; // "qr" or "email"
 
-  // Метод входа
+  // ─── QR login (existing flow) ───
+
   Future<UserModel> loginWithQr(String qrCode) async {
     await _storage.deleteAll();
+    await ApiClient().clearTokens();
     try {
       final response = await _dio.post(
         '/onec/customer',
@@ -34,11 +33,9 @@ class AuthService {
         if (data['customer'] != null) {
           final user = UserModel.fromJson(data);
 
-          // 1. Сохраняем QR код (чтобы помнить вход)
           await _storage.write(key: _storageQrKey, value: qrCode);
+          await _storage.write(key: _storageAuthMethodKey, value: 'qr');
 
-          // 2. ВАЖНО: Сохраняем реальный ID пользователя из базы (если сервер его прислал)
-          // (Убедитесь, что в Django views.py вы добавили "id": user.id в ответ)
           if (data['customer']['id'] != null) {
             await _storage.write(
               key: _storageIdKey,
@@ -46,7 +43,6 @@ class AuthService {
             );
           }
 
-          // 3. Сохраняем telegram_id и устанавливаем глобальный header
           if (data['customer']['telegram_id'] != null) {
             final telegramId = data['customer']['telegram_id'];
             await _storage.write(
@@ -76,18 +72,165 @@ class AuthService {
     }
   }
 
-  // Метод выхода
-  Future<void> logout() async {
-    await _storage.deleteAll(); // Удаляем и QR, и ID
-    ApiClient().clearTelegramUserId();
+  // ─── Email registration ───
+
+  Future<UserModel> register({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    await _storage.deleteAll();
+    await ApiClient().clearTokens();
+
+    try {
+      final response = await _dio.post('/api/auth/register/', data: {
+        'email': email,
+        'password': password,
+        'full_name': fullName,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      });
+
+      final data = response.data;
+
+      // Save tokens
+      final tokens = data['tokens'];
+      await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
+
+      await _storage.write(key: _storageAuthMethodKey, value: 'email');
+      await _storage.write(
+        key: _storageIdKey,
+        value: data['user_id'].toString(),
+      );
+
+      // Fetch full profile
+      return await _fetchProfile(data['user_id']);
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'];
+      if (detail != null) {
+        throw Exception(detail.toString());
+      }
+      throw Exception('Ошибка регистрации: ${e.message}');
+    }
   }
 
-  // Получить сохраненный QR (для авто-входа)
+  // ─── Email login ───
+
+  Future<UserModel> loginWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    await _storage.deleteAll();
+    await ApiClient().clearTokens();
+
+    try {
+      final response = await _dio.post('/api/auth/login/', data: {
+        'email': email,
+        'password': password,
+      });
+
+      final data = response.data;
+
+      // Save tokens
+      final tokens = data['tokens'];
+      await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
+
+      await _storage.write(key: _storageAuthMethodKey, value: 'email');
+      await _storage.write(
+        key: _storageIdKey,
+        value: data['user_id'].toString(),
+      );
+
+      if (data['telegram_id'] != null) {
+        await _storage.write(
+          key: _storageTelegramIdKey,
+          value: data['telegram_id'].toString(),
+        );
+      }
+
+      // Fetch full profile
+      return await _fetchProfile(data['user_id']);
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'];
+      if (detail != null) {
+        throw Exception(detail.toString());
+      }
+      throw Exception('Ошибка входа: ${e.message}');
+    }
+  }
+
+  // ─── Token-based auto-login ───
+
+  Future<UserModel?> tryTokenAutoLogin() async {
+    final refreshToken = await ApiClient().getSavedRefreshToken();
+    if (refreshToken == null) return null;
+
+    try {
+      final response = await _dio.post('/api/auth/refresh/', data: {
+        'refresh': refreshToken,
+      });
+
+      final tokens = response.data['tokens'];
+      await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
+
+      final userId = await getSavedUserId();
+      if (userId == null) return null;
+
+      return await _fetchProfile(userId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ─── Email verification ───
+
+  Future<void> verifyEmail(String email, String code) async {
+    final response = await _dio.post('/api/auth/verify-email/', data: {
+      'email': email,
+      'code': code,
+    });
+    if (response.statusCode != 200) {
+      throw Exception(response.data?['detail'] ?? 'Ошибка подтверждения');
+    }
+  }
+
+  // ─── Password reset ───
+
+  Future<void> resetPassword(String email) async {
+    await _dio.post('/api/auth/reset-password/', data: {'email': email});
+  }
+
+  Future<void> confirmResetPassword(
+      String email, String code, String newPassword) async {
+    final response = await _dio.post('/api/auth/reset-password/confirm/', data: {
+      'email': email,
+      'code': code,
+      'new_password': newPassword,
+    });
+    if (response.statusCode != 200) {
+      throw Exception(response.data?['detail'] ?? 'Ошибка сброса пароля');
+    }
+  }
+
+  // ─── Logout ───
+
+  Future<void> logout() async {
+    await _storage.deleteAll();
+    ApiClient().clearTelegramUserId();
+    await ApiClient().clearTokens();
+  }
+
+  // ─── Helpers ───
+
+  Future<UserModel> _fetchProfile(int userId) async {
+    final response = await _dio.get('/api/customer/$userId/');
+    return UserModel.fromJson(response.data);
+  }
+
   Future<String?> getSavedQr() async {
     return await _storage.read(key: _storageQrKey);
   }
 
-  // Получить сохраненный ID пользователя (для отправки заказа)
   Future<int?> getSavedUserId() async {
     final idString = await _storage.read(key: _storageIdKey);
     if (idString != null) {
@@ -96,7 +239,6 @@ class AuthService {
     return null;
   }
 
-  // Получить сохраненный telegram_id
   Future<int?> getSavedTelegramId() async {
     final idString = await _storage.read(key: _storageTelegramIdKey);
     if (idString != null) {
@@ -105,7 +247,10 @@ class AuthService {
     return null;
   }
 
-  // Восстановить X-Telegram-User-Id header из storage (для авто-логина)
+  Future<String?> getSavedAuthMethod() async {
+    return await _storage.read(key: _storageAuthMethodKey);
+  }
+
   Future<void> restoreTelegramHeader() async {
     final telegramId = await getSavedTelegramId();
     if (telegramId != null) {

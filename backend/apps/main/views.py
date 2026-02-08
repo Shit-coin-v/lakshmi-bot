@@ -7,7 +7,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.permissions import ApiKeyPermission, TelegramUserPermission
+from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.main.serializers import CustomerProfileSerializer
 from apps.main.models import CustomUser
 
@@ -19,12 +19,12 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
 
     queryset = CustomUser.objects.all()
     serializer_class = CustomerProfileSerializer
-    permission_classes = [TelegramUserPermission]
+    permission_classes = [CustomerPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_object(self):
         obj = super().get_object()
-        if obj.telegram_id != self.request.telegram_user.telegram_id:
+        if obj.pk != self.request.telegram_user.pk:
             self.permission_denied(self.request, message="Нет доступа к чужому профилю")
         return obj
 

@@ -1,16 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../main.dart';
+import '../providers/auth_provider.dart';
 
-class RegistrationScreen extends StatefulWidget {
+class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
 
   @override
-  State<RegistrationScreen> createState() => _RegistrationScreenState();
+  ConsumerState<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
+class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _termsAccepted = false;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    final fullName = _fullNameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Заполните все обязательные поля');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      setState(() => _error = 'Пароли не совпадают');
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => _error = 'Пароль должен быть не менее 8 символов');
+      return;
+    }
+
+    if (!_termsAccepted) {
+      setState(() => _error = 'Необходимо принять условия');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(authProvider.notifier).register(
+            email: email,
+            password: password,
+            fullName: fullName,
+          );
+      if (mounted) {
+        context.go('/verify-email', extra: email);
+      }
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,27 +90,60 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           children: [
             const Text("Введите ваши данные, чтобы начать.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 30),
-            
+
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             _buildLabel("Полное имя"),
-            const TextField(decoration: InputDecoration(hintText: "Введите ваше полное имя")),
-            
+            TextField(
+              controller: _fullNameController,
+              decoration: const InputDecoration(hintText: "Введите ваше полное имя"),
+            ),
+
             const SizedBox(height: 16),
             _buildLabel("Электронная почта"),
-            const TextField(decoration: InputDecoration(hintText: "Введите вашу почту")),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(hintText: "Введите вашу почту"),
+            ),
 
             const SizedBox(height: 16),
             _buildLabel("Пароль"),
-            const TextField(obscureText: true, decoration: InputDecoration(hintText: "Введите ваш пароль", suffixIcon: Icon(Icons.visibility_off))),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: "Минимум 8 символов",
+                suffixIcon: Icon(Icons.visibility_off),
+              ),
+            ),
 
             const SizedBox(height: 16),
             _buildLabel("Подтвердите пароль"),
-            const TextField(obscureText: true, decoration: InputDecoration(hintText: "Подтвердите ваш пароль", suffixIcon: Icon(Icons.visibility_off))),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: "Подтвердите ваш пароль",
+                suffixIcon: Icon(Icons.visibility_off),
+              ),
+            ),
 
             const SizedBox(height: 20),
             Row(
               children: [
                 Checkbox(
-                  value: _termsAccepted, 
+                  value: _termsAccepted,
                   activeColor: kPrimaryGreen,
                   onChanged: (v) => setState(() => _termsAccepted = v!),
                 ),
@@ -56,12 +153,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       text: "Создавая аккаунт, вы соглашаетесь с нашими ",
                       style: TextStyle(fontSize: 12),
                       children: [
-                         TextSpan(text: "Условиями обслуживания", style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
-                         TextSpan(text: " и "),
-                         TextSpan(text: "Политикой конфиденциальности", style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
-                         TextSpan(text: "."),
-                      ]
-                    )
+                        TextSpan(text: "Условиями обслуживания", style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
+                        TextSpan(text: " и "),
+                        TextSpan(text: "Политикой конфиденциальности", style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
+                        TextSpan(text: "."),
+                      ],
+                    ),
                   ),
                 )
               ],
@@ -69,8 +166,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.go('/home'),
-              child: const Text("Создать аккаунт"),
+              onPressed: _loading ? null : _register,
+              child: _loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text("Создать аккаунт"),
             ),
 
             const SizedBox(height: 20),

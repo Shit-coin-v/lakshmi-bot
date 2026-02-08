@@ -26,13 +26,65 @@ class ApiKeyPermission(BasePermission):
 
 
 class TelegramUserPermission(BasePermission):
-    """Check X-Telegram-User-Id header and attach user to request."""
+    """Check X-Telegram-User-Id header and attach user to request.
+
+    Deprecated: use CustomerPermission instead.
+    """
 
     message = "Missing or invalid Telegram user ID"
 
     def has_permission(self, request, view):
         from apps.main.models import CustomUser
 
+        header = (
+            request.headers.get("X-Telegram-User-Id")
+            or request.META.get("HTTP_X_TELEGRAM_USER_ID")
+            or ""
+        ).strip()
+        if not header:
+            return False
+
+        try:
+            telegram_id = int(header)
+        except (ValueError, TypeError):
+            return False
+
+        try:
+            request.telegram_user = CustomUser.objects.get(telegram_id=telegram_id)
+        except CustomUser.DoesNotExist:
+            return False
+
+        return True
+
+
+class CustomerPermission(BasePermission):
+    """Unified customer auth: JWT Bearer token OR X-Telegram-User-Id header.
+
+    Sets ``request.telegram_user`` to the authenticated CustomUser instance
+    (attribute name kept for backward compatibility).
+    """
+
+    message = "Authentication required"
+
+    def has_permission(self, request, view):
+        from apps.main.models import CustomUser
+
+        # 1. Try JWT Bearer token
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if token:
+                from .authentication import decode_token
+
+                user_id = decode_token(token, expected_type="access")
+                if user_id is not None:
+                    try:
+                        request.telegram_user = CustomUser.objects.get(pk=user_id)
+                        return True
+                    except CustomUser.DoesNotExist:
+                        return False
+
+        # 2. Fallback: X-Telegram-User-Id header (backward compat)
         header = (
             request.headers.get("X-Telegram-User-Id")
             or request.META.get("HTTP_X_TELEGRAM_USER_ID")

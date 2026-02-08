@@ -25,7 +25,12 @@ class Product(models.Model):
         return self.name
 
 class CustomUser(models.Model):
-    telegram_id = models.BigIntegerField(unique=True)
+    AUTH_METHOD_CHOICES = [
+        ("telegram", "Telegram"),
+        ("email", "Email"),
+    ]
+
+    telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     full_name = models.CharField(max_length=200, null=True, blank=True)
@@ -55,14 +60,36 @@ class CustomUser(models.Model):
     news_enabled = models.BooleanField("Новости магазина", default=True)
     general_enabled = models.BooleanField("Общие уведомления", default=True)
     created_at = models.DateTimeField(null=True, blank=True)
+    # Email auth fields
+    password_hash = models.CharField(max_length=128, null=True, blank=True)
+    email_verified = models.BooleanField(default=False)
+    auth_method = models.CharField(
+        max_length=10, choices=AUTH_METHOD_CHOICES, default="telegram",
+    )
 
     class Meta:
         db_table = "customers"
         verbose_name = "Клиент"
         verbose_name_plural = "Клиенты"
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(telegram_id__isnull=False) | models.Q(email__isnull=False),
+                name="customer_has_telegram_or_email",
+            ),
+        ]
 
     def __str__(self):
-        return self.full_name or f"User {self.telegram_id}"
+        return self.full_name or (
+            f"User {self.telegram_id}" if self.telegram_id else f"User #{self.pk}"
+        )
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_password, self.password_hash)
 
 
 class BroadcastMessage(models.Model):

@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from apps.common.health import healthz
 from apps.integrations.onec.customer_sync import onec_customer_sync
@@ -42,4 +42,6 @@ urlpatterns = [
     path("api/notifications/<int:pk>/", NotificationViewSet.as_view({"get": "retrieve"}), name="notifications-detail"),
     path("api/notifications/unread-count/", NotificationViewSet.as_view({"get": "unread_count"}), name="notifications-unread-count"),
     path("api/notifications/<int:pk>/read/", NotificationViewSet.as_view({"post": "mark_read"}), name="notifications-mark-read"),
+    # Auth
+    path("api/auth/", include("apps.accounts.urls")),
 ]

@@ -4,7 +4,6 @@ import '../services/auth_service.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/push_notification_service.dart';
 
-// Состояние: Либо User (вошли), либо null (не вошли)
 class AuthState extends StateNotifier<UserModel?> {
   final Ref _ref;
   final AuthService _authService;
@@ -13,21 +12,35 @@ class AuthState extends StateNotifier<UserModel?> {
     _checkSavedSession();
   }
 
-  // При запуске приложения проверяем, входили ли мы раньше
   Future<void> _checkSavedSession() async {
+    // 1. Try token-based auto-login (email accounts)
+    final authMethod = await _authService.getSavedAuthMethod();
+    if (authMethod == 'email') {
+      try {
+        final user = await _authService.tryTokenAutoLogin();
+        if (user != null) {
+          state = user;
+          await _ref
+              .read(pushNotificationServiceProvider)
+              .registerTokenForCurrentUser();
+          return;
+        }
+      } catch (e) {
+        debugPrint("Ошибка авто-входа по токену: $e");
+      }
+    }
+
+    // 2. Fallback: QR-based auto-login (Telegram accounts)
     final savedQr = await _authService.getSavedQr();
     if (savedQr != null) {
       try {
-        // Пробуем обновить данные с сервера
         final user = await _authService.loginWithQr(savedQr);
         state = user;
         await _ref
             .read(pushNotificationServiceProvider)
             .registerTokenForCurrentUser();
       } catch (e) {
-        debugPrint("Ошибка авто-входа: $e");
-        // Восстановить header из storage даже при ошибке сети,
-        // чтобы API-запросы работали с кешированным telegram_id
+        debugPrint("Ошибка авто-входа по QR: $e");
         await _authService.restoreTelegramHeader();
       }
     }
@@ -35,7 +48,36 @@ class AuthState extends StateNotifier<UserModel?> {
 
   Future<void> login(String qrCode) async {
     final user = await _authService.loginWithQr(qrCode);
-    state = user; // Обновляем состояние, приложение поймет, что мы вошли
+    state = user;
+    await _ref
+        .read(pushNotificationServiceProvider)
+        .registerTokenForCurrentUser();
+  }
+
+  Future<void> loginWithEmail(String email, String password) async {
+    final user = await _authService.loginWithEmail(
+      email: email,
+      password: password,
+    );
+    state = user;
+    await _ref
+        .read(pushNotificationServiceProvider)
+        .registerTokenForCurrentUser();
+  }
+
+  Future<void> register({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    final user = await _authService.register(
+      email: email,
+      password: password,
+      fullName: fullName,
+      phone: phone,
+    );
+    state = user;
     await _ref
         .read(pushNotificationServiceProvider)
         .registerTokenForCurrentUser();
@@ -47,7 +89,6 @@ class AuthState extends StateNotifier<UserModel?> {
   }
 }
 
-// Глобальный провайдер авторизации
 final authProvider = StateNotifierProvider<AuthState, UserModel?>((ref) {
   final authService = ref.watch(authServiceProvider);
   return AuthState(ref, authService);
