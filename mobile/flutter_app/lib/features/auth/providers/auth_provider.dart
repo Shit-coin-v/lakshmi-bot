@@ -25,8 +25,10 @@ class AuthState extends StateNotifier<UserModel?> {
             .read(pushNotificationServiceProvider)
             .registerTokenForCurrentUser();
       } catch (e) {
-        // Если ошибка (нет инета или QR устарел) - просто не входим
         debugPrint("Ошибка авто-входа: $e");
+        // Восстановить header из storage даже при ошибке сети,
+        // чтобы API-запросы работали с кешированным telegram_id
+        await _authService.restoreTelegramHeader();
       }
     }
   }
