@@ -55,7 +55,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
         title: const Text("Подтверждение email"),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
