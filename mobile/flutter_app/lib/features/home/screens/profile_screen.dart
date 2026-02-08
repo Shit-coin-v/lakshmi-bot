@@ -7,6 +7,7 @@ import '../widgets/edit_profile_modal.dart';
 import '../providers/profile_provider.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/api_client.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -73,7 +74,7 @@ class ProfileScreen extends ConsumerWidget {
                         backgroundColor: Colors.grey.shade300,
                         // Если есть URL, показываем картинку, иначе букву
                         backgroundImage: user.avatarUrl != null
-                            ? NetworkImage(user.avatarUrl!)
+                            ? NetworkImage(ApiClient.resolveMediaUrl(user.avatarUrl!))
                             : null,
                         child: user.avatarUrl == null
                             ? Text(

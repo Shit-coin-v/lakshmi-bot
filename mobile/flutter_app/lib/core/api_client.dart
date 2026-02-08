@@ -12,6 +12,14 @@ class ApiClient {
     defaultValue: 'my_secret_mobile_key_2025',
   );
 
+  /// Resolves a media URL returned by the API to use the correct base URL.
+  /// DRF may return URLs with wrong host/port (e.g. http://127.0.0.1/media/...)
+  /// so we extract the path and prepend our known base URL.
+  static String resolveMediaUrl(String url) {
+    final path = Uri.parse(url).path;
+    return '$_baseUrl$path';
+  }
+
   static final ApiClient _instance = ApiClient._internal();
 
   factory ApiClient() => _instance;
