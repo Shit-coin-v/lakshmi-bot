@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../main.dart';
+import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -37,7 +38,10 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     });
 
     try {
-      await ref.read(authServiceProvider).verifyEmail(widget.email, code);
+      final user = await ref.read(authServiceProvider).verifyEmail(widget.email, code);
+      if (user != null) {
+        await ref.read(authProvider.notifier).completeVerification(user);
+      }
       setState(() => _verified = true);
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) context.go('/telegram-link-choice');
@@ -54,6 +58,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       appBar: AppBar(
         title: const Text("Подтверждение email"),
         centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -114,11 +119,6 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text("Подтвердить"),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.go('/home'),
-                child: const Text("Пропустить", style: TextStyle(color: Colors.grey)),
               ),
             ],
           ],

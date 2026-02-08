@@ -74,37 +74,20 @@ class AuthService {
 
   // ─── Email registration ───
 
-  Future<UserModel> register({
+  Future<void> register({
     required String email,
     required String password,
     required String fullName,
     String? phone,
   }) async {
-    await _storage.deleteAll();
-    await ApiClient().clearTokens();
-
     try {
-      final response = await _dio.post('/api/auth/register/', data: {
+      await _dio.post('/api/auth/register/', data: {
         'email': email,
         'password': password,
         'full_name': fullName,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
       });
-
-      final data = response.data;
-
-      // Save tokens
-      final tokens = data['tokens'];
-      await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
-
-      await _storage.write(key: _storageAuthMethodKey, value: 'email');
-      await _storage.write(
-        key: _storageIdKey,
-        value: data['user_id'].toString(),
-      );
-
-      // Fetch full profile
-      return await _fetchProfile(data['user_id']);
+      // No tokens returned — user is created only after email verification
     } on DioException catch (e) {
       final detail = e.response?.data?['detail'];
       if (detail != null) {
@@ -184,7 +167,7 @@ class AuthService {
 
   // ─── Email verification ───
 
-  Future<void> verifyEmail(String email, String code) async {
+  Future<UserModel?> verifyEmail(String email, String code) async {
     final response = await _dio.post('/api/auth/verify-email/', data: {
       'email': email,
       'code': code,
@@ -192,6 +175,17 @@ class AuthService {
     if (response.statusCode != 200) {
       throw Exception(response.data?['detail'] ?? 'Ошибка подтверждения');
     }
+
+    final data = response.data;
+    // New registration — tokens are returned
+    if (data['tokens'] != null) {
+      final tokens = data['tokens'];
+      await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
+      await _storage.write(key: _storageAuthMethodKey, value: 'email');
+      await _storage.write(key: _storageIdKey, value: data['user_id'].toString());
+      return await _fetchProfile(data['user_id']);
+    }
+    return null;
   }
 
   // ─── Password reset ───

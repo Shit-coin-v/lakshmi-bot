@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class RegisterView(APIView):
-    """POST /api/auth/register/ — create an email-based account."""
+    """POST /api/auth/register/ — save registration data to cache, send verification code."""
 
     permission_classes = [AllowAny]
 
@@ -44,33 +45,24 @@ class RegisterView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        user = CustomUser(
-            email=email,
-            full_name=d["full_name"],
-            phone=d.get("phone") or None,
-            auth_method="email",
-            email_verified=False,
-            registration_date=timezone.now(),
-            created_at=timezone.now(),
+        # Save to cache, NOT to DB — user is created only after email verification
+        cache.set(
+            f"pending_reg:{email}",
+            {
+                "email": email,
+                "password": d["password"],
+                "full_name": d["full_name"],
+                "phone": d.get("phone") or None,
+            },
+            timeout=600,
         )
-        user.set_password(d["password"])
-        user.save()
 
         try:
             email_service.send_verification_code(email)
         except Exception:
             logger.exception("Failed to send verification email to %s", email)
 
-        tokens = generate_tokens(user)
-        return Response(
-            {
-                "user_id": user.pk,
-                "email": user.email,
-                "email_verified": False,
-                "tokens": tokens,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response({"detail": "Код подтверждения отправлен", "email": email})
 
 
 class LoginView(APIView):
@@ -155,6 +147,33 @@ class VerifyEmailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Check if this is a new registration (data in cache)
+        pending = cache.get(f"pending_reg:{email}")
+
+        if pending:
+            # New registration — create user in DB now
+            user = CustomUser(
+                email=pending["email"],
+                full_name=pending["full_name"],
+                phone=pending.get("phone"),
+                auth_method="email",
+                email_verified=True,
+                registration_date=timezone.now(),
+                created_at=timezone.now(),
+            )
+            user.set_password(pending["password"])
+            user.save()
+            cache.delete(f"pending_reg:{email}")
+
+            tokens = generate_tokens(user)
+            return Response({
+                "detail": "Email подтверждён",
+                "user_id": user.pk,
+                "email": user.email,
+                "tokens": tokens,
+            })
+
+        # Existing user (link-email, re-verification)
         try:
             user = CustomUser.objects.get(email__iexact=email)
         except CustomUser.DoesNotExist:

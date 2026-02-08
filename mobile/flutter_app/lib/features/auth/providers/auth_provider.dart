@@ -71,12 +71,16 @@ class AuthState extends StateNotifier<UserModel?> {
     required String fullName,
     String? phone,
   }) async {
-    final user = await _authService.register(
+    await _authService.register(
       email: email,
       password: password,
       fullName: fullName,
       phone: phone,
     );
+    // No state change — user is not created until email verification
+  }
+
+  Future<void> completeVerification(UserModel user) async {
     state = user;
     await _ref
         .read(pushNotificationServiceProvider)
