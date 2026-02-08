@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @require_onec_auth
 def onec_order_status(request):
     from apps.orders.models import Order
-    from apps.notifications.push import notify_order_status_change
+    from apps.notifications.tasks import send_order_push_task
 
     raw = request.body or b"{}"
     if isinstance(raw, (bytes, bytearray)):
@@ -85,17 +85,8 @@ def onec_order_status(request):
                     o._skip_signal_notification = True
                 o.save(update_fields=updates)
 
-            # ✅ ВАЖНО: пуш не должен ломать эндпоинт статуса
             if status_changed:
-                try:
-                    notify_order_status_change(o, previous_status=previous_status)
-                except Exception:  # pragma: no cover — defensive: push must not break status endpoint
-                    logger.exception(
-                        "Failed to send push for order status change: order_id=%s %s->%s",
-                        o.id,
-                        previous_status,
-                        o.status,
-                    )
+                send_order_push_task.delay(o.id, previous_status)
 
     except Order.DoesNotExist:
         return onec_error(

@@ -31,7 +31,7 @@ class OneCOrderStatusTests(TestCase):
             **extra,
         )
 
-    @patch("apps.notifications.push.notify_order_status_change")
+    @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_update_status(self, mock_notify):
         response = self._post({"order_id": self.order.id, "status": "delivery"})
         self.assertEqual(response.status_code, 200)
@@ -42,7 +42,7 @@ class OneCOrderStatusTests(TestCase):
         self.assertEqual(self.order.status, "delivery")
         mock_notify.assert_called_once()
 
-    @patch("apps.notifications.push.notify_order_status_change")
+    @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_set_onec_guid(self, mock_notify):
         response = self._post({
             "order_id": self.order.id,

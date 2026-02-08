@@ -23,7 +23,7 @@ class OrderCancelViewTests(TestCase):
     def _auth_header(self):
         return {"HTTP_X_TELEGRAM_USER_ID": str(self.customer.telegram_id)}
 
-    @patch("apps.notifications.push.notify_order_status_change")
+    @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_cancel_from_new(self, mock_notify):
         order = self._create_order("new")
         response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
@@ -32,7 +32,7 @@ class OrderCancelViewTests(TestCase):
         self.assertEqual(order.status, "canceled")
         mock_notify.assert_called_once()
 
-    @patch("apps.notifications.push.notify_order_status_change")
+    @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_cancel_from_assembly(self, mock_notify):
         order = self._create_order("assembly")
         response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())

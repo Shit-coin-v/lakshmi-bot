@@ -176,7 +176,7 @@ class OrderCancelAuthTests(TestCase):
         response = self.client.post(f"/api/orders/{self.order.pk}/cancel/")
         self.assertEqual(response.status_code, 403)
 
-    @patch("apps.notifications.push.notify_order_status_change")
+    @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_order_cancel_own_order_returns_200(self, mock_notify):
         response = self.client.post(
             f"/api/orders/{self.order.pk}/cancel/",

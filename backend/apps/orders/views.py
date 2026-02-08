@@ -87,11 +87,8 @@ class OrderCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            previous_status = order.status
             order.status = "canceled"
             order.save(update_fields=["status"])
 
-        from apps.notifications.push import notify_order_status_change
-        notify_order_status_change(order, previous_status=previous_status)
-
+        # Push notification handled by _order_post_save signal
         return Response({"detail": "Заказ отменён"})

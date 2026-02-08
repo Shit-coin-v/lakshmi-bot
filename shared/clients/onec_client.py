@@ -5,6 +5,7 @@ bot config or Django settings, so this module can be used from both
 the backend and bots.
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -13,6 +14,9 @@ from typing import Any
 import aiohttp
 
 logger = logging.getLogger(__name__)
+
+_TIMEOUT = aiohttp.ClientTimeout(total=10)
+_MAX_RETRIES = 3
 
 
 async def post_to_onec(
@@ -35,25 +39,39 @@ async def post_to_onec(
         Parsed JSON response dict on HTTP 200, or ``None`` on error.
     """
     body = json.dumps(payload, ensure_ascii=False)
+    idem_key = idempotency_key or str(uuid.uuid4())
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": api_key,
-        "X-Idempotency-Key": idempotency_key or str(uuid.uuid4()),
+        "X-Idempotency-Key": idem_key,
     }
 
-    try:
-        async with aiohttp.ClientSession() as client:
-            async with client.post(url, data=body, headers=headers) as resp:
-                text = await resp.text()
-                if resp.status == 200:
-                    try:
-                        return json.loads(text)
-                    except Exception:
-                        logger.error("1C: invalid JSON response: %s", text)
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            async with aiohttp.ClientSession(timeout=_TIMEOUT) as client:
+                async with client.post(url, data=body, headers=headers) as resp:
+                    text = await resp.text()
+                    if resp.status == 200:
+                        try:
+                            return json.loads(text)
+                        except Exception:
+                            logger.error("1C: invalid JSON response: %s", text)
+                            return None
+                    else:
+                        logger.error("1C request failed (HTTP %s): %s", resp.status, text)
                         return None
-                else:
-                    logger.error("1C request failed (HTTP %s): %s", resp.status, text)
-                    return None
-    except Exception:
-        logger.exception("Failed to reach 1C endpoint %s", url)
-        return None
+        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+            last_exc = exc
+            delay = 2 ** attempt  # 1s, 2s, 4s
+            logger.warning(
+                "1C request attempt %d/%d failed (%s), retrying in %ds",
+                attempt + 1, _MAX_RETRIES, exc, delay,
+            )
+            await asyncio.sleep(delay)
+        except Exception:
+            logger.exception("Failed to reach 1C endpoint %s", url)
+            return None
+
+    logger.error("1C request failed after %d attempts: %s", _MAX_RETRIES, last_exc)
+    return None

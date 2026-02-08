@@ -10,6 +10,48 @@ from apps.loyalty.models import CustomUser
 logger = logging.getLogger(__name__)
 
 
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=60,
+)
+def send_order_push_task(self, order_id: int, previous_status: str):
+    """Send FCM push for order status change (non-blocking via Celery)."""
+    from apps.orders.models import Order
+    from apps.notifications.push import notify_order_status_change
+
+    order = Order.objects.select_related("customer").get(id=order_id)
+    notify_order_status_change(order, previous_status=previous_status)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=60,
+)
+def send_push_notification_task(self, notification_id: int):
+    """Send FCM push for a newly created notification (non-blocking via Celery)."""
+    from django.core.exceptions import ImproperlyConfigured
+    from apps.notifications.models import Notification
+    from apps.notifications.push import notify_notification_created
+
+    notification = Notification.objects.select_related("user").get(id=notification_id)
+    try:
+        result = notify_notification_created(notification)
+    except ImproperlyConfigured:
+        logger.warning("Firebase not configured; skipping push for notification id=%s", notification_id)
+        return
+    logger.info(
+        "Push sent for notification id=%s result=%s",
+        notification_id,
+        {k: result.get(k) for k in ("sent", "success", "failure")},
+    )
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def send_birthday_congratulations(self):
     from django.conf import settings as django_settings

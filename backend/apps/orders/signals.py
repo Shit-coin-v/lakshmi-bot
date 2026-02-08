@@ -4,7 +4,7 @@ from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 
 from .models import Order
-from apps.notifications.push import notify_order_status_change
+from apps.notifications.tasks import send_order_push_task
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,6 @@ def _order_post_save(sender, instance: Order, **kwargs):
         return
 
     if previous != instance.status:
-        notify_order_status_change(instance, previous_status=previous)
+        send_order_push_task.delay(instance.id, previous)
 
     instance._previous_status = instance.status
