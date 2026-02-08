@@ -19,6 +19,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   bool _termsAccepted = false;
   bool _loading = false;
   String? _error;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -121,10 +123,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             _buildLabel("Пароль"),
             TextField(
               controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
                 hintText: "Минимум 8 символов",
-                suffixIcon: Icon(Icons.visibility_off),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
               ),
             ),
 
@@ -132,10 +137,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             _buildLabel("Подтвердите пароль"),
             TextField(
               controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _obscureConfirm,
+              decoration: InputDecoration(
                 hintText: "Подтвердите ваш пароль",
-                suffixIcon: Icon(Icons.visibility_off),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                ),
               ),
             ),
 
