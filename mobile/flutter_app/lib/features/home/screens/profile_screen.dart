@@ -98,6 +98,9 @@ class ProfileScreen extends ConsumerWidget {
                             final ImagePicker picker = ImagePicker();
                             final XFile? image = await picker.pickImage(
                               source: ImageSource.gallery,
+                              maxWidth: 512,
+                              maxHeight: 512,
+                              imageQuality: 85,
                             );
 
                             if (image != null) {

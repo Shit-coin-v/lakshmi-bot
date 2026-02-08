@@ -21,9 +21,8 @@ class ApiClient {
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
+      contentType: Headers.jsonContentType,
       headers: {
-        'Content-Type': 'application/json',
-        // Заголовок для Django
         'X-Api-Key': _apiKey,
       },
     ),
