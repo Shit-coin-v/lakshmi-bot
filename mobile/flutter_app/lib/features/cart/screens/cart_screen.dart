@@ -7,6 +7,7 @@ import '../providers/cart_provider.dart';
 import '../services/order_service.dart';
 import '../../address/providers/address_provider.dart';
 import '../../address/models/address_model.dart';
+import '../../home/providers/profile_provider.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -20,6 +21,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   AddressModel? _selectedAddress;
 
   bool _isPickup = false;
+  bool _phoneInitialized = false;
 
   // По умолчанию
   String _paymentMethod = 'card_courier';
@@ -31,7 +33,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   @override
   void initState() {
     super.initState();
-    _phoneController = TextEditingController(text: "+7 999 000-00-00");
+    _phoneController = TextEditingController();
     _commentController = TextEditingController();
   }
 
@@ -341,6 +343,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_phoneInitialized) {
+      final profile = ref.read(profileProvider);
+      final phone = profile.valueOrNull?.phone ?? "";
+      _phoneController.text = phone;
+      _phoneInitialized = true;
+    }
+
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
 

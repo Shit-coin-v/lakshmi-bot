@@ -332,6 +332,7 @@ services:
         condition: service_healthy
     networks:
       - bot
+      - backend
     logging:
       driver: json-file
       options:

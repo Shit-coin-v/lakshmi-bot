@@ -7,10 +7,12 @@ from apps.main.models import Product  # noqa: F401
 class Order(models.Model):
     STATUS_CHOICES = [
         ('new', 'Новый'),
-        ('assembly', 'В сборке'),
-        ('delivery', 'Курьер едет'),
-        ('completed', 'Доставлен'),
-        ('canceled', 'Отменен'),
+        ('assembly', 'Заказ собирается'),
+        ('ready', 'Заказ собран, ждёт курьера'),
+        ('delivery', 'Курьер забрал заказ и в пути'),
+        ('arrived', 'Курьер пришёл и ждёт вас'),
+        ('completed', 'Заказ доставлен'),
+        ('canceled', 'Отменён'),
     ]
 
     FULFILLMENT_CHOICES = [

@@ -6,6 +6,7 @@ load_dotenv(override=False)
 
 COURIER_BOT_TOKEN = os.getenv("COURIER_BOT_TOKEN", "")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://app:8000")
+INTEGRATION_API_KEY = os.getenv("INTEGRATION_API_KEY", "")
 
 # Whitelist Telegram IDs для курьеров
 _raw_ids = os.getenv("COURIER_ALLOWED_TG_IDS", "")

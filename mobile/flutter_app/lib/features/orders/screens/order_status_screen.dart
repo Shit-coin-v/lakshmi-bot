@@ -126,34 +126,64 @@ class OrderStatusScreen extends ConsumerWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                  child: ListView(
-                    children: [
-                      _StatusStep(
-                        isActive: true,
-                        isLast: false,
-                        icon: Icons.shopping_basket,
-                        title: "Заказ собирается",
-                        time: timeFormat.format(order.createdAt),
-                        isCompleted: order.status != 'new',
-                      ),
-                      _StatusStep(
-                        isActive: [
-                          'delivery',
-                          'completed',
-                        ].contains(order.status),
-                        isLast: false,
-                        icon: Icons.local_shipping,
-                        title: "Курьер забрал заказ",
-                        subtitle: "Скоро",
-                        isCompleted: order.status == 'completed',
-                      ),
-                      _StatusStep(
-                        isActive: order.status == 'completed',
-                        isLast: true,
-                        icon: Icons.route,
-                        title: "Курьер в пути",
-                      ),
-                    ],
+                  child: Builder(
+                    builder: (context) {
+                      final status = order.status;
+                      final isCanceled = status == 'canceled';
+                      const statusOrder = ['new', 'assembly', 'ready', 'delivery', 'arrived', 'completed'];
+                      final activeIndex = isCanceled ? -1 : statusOrder.indexOf(status);
+
+                      bool isStepActive(int stepIndex) => !isCanceled && stepIndex <= activeIndex;
+                      bool isStepCompleted(int stepIndex) => !isCanceled && stepIndex < activeIndex;
+
+                      return ListView(
+                        children: [
+                          _StatusStep(
+                            isActive: isStepActive(0),
+                            isLast: false,
+                            icon: Icons.check_circle,
+                            title: "Заказ принят",
+                            time: timeFormat.format(order.createdAt),
+                            isCompleted: isStepCompleted(0),
+                          ),
+                          _StatusStep(
+                            isActive: isStepActive(1),
+                            isLast: false,
+                            icon: Icons.shopping_basket,
+                            title: "Заказ собирается",
+                            isCompleted: isStepCompleted(1),
+                          ),
+                          _StatusStep(
+                            isActive: isStepActive(2),
+                            isLast: false,
+                            icon: Icons.inventory_2,
+                            title: "Заказ собран, ждёт курьера",
+                            isCompleted: isStepCompleted(2),
+                          ),
+                          _StatusStep(
+                            isActive: isStepActive(3),
+                            isLast: false,
+                            icon: Icons.local_shipping,
+                            title: "Курьер забрал заказ",
+                            isCompleted: isStepCompleted(3),
+                          ),
+                          _StatusStep(
+                            isActive: isStepActive(4),
+                            isLast: false,
+                            icon: Icons.place,
+                            title: "Курьер пришёл и ждёт вас",
+                            isCompleted: isStepCompleted(4),
+                          ),
+                          _StatusStep(
+                            isActive: isStepActive(5),
+                            isLast: true,
+                            icon: Icons.done_all,
+                            title: "Заказ доставлен",
+                            isCompleted: false,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),

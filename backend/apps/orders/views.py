@@ -63,7 +63,7 @@ class OrderListUserView(generics.ListAPIView):
 class OrderCancelView(APIView):
     permission_classes = [CustomerPermission]
 
-    CANCELLABLE_STATUSES = ("new", "assembly")
+    CANCELLABLE_STATUSES = ("new", "assembly", "ready")
 
     def post(self, request, pk):
         with transaction.atomic():

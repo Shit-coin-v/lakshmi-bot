@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 _STATUS_MESSAGES = {
     "assembly": "Заказ собирается",
-    "delivery": "Курьер выехал",
+    "ready": "Заказ собран, ждёт курьера",
+    "delivery": "Курьер забрал ваш заказ и в пути",
+    "arrived": "Курьер пришёл и ждёт вас",
     "completed": "Заказ доставлен",
     "canceled": "Заказ отменён",
 }

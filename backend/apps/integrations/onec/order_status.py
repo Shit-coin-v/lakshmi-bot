@@ -42,7 +42,7 @@ def onec_order_status(request):
             details={"order_id": ["required"]},
         )
 
-    allowed = {"new", "assembly", "delivery", "completed", "canceled"}
+    allowed = {"new", "assembly", "ready", "delivery", "arrived", "completed", "canceled"}
     if status_in and status_in not in allowed:
         return onec_error(
             "invalid_status",
