@@ -97,11 +97,11 @@ void main() {
       await Future.delayed(Duration.zero);
 
       // Verify loaded as unread
-      expect(notifier.debugState.value!.first.isRead, isFalse);
+      expect(notifier.state.value!.first.isRead, isFalse);
 
       await notifier.markAsRead('10');
 
-      expect(notifier.debugState.value!.first.isRead, isTrue);
+      expect(notifier.state.value!.first.isRead, isTrue);
 
       verify(() => mockApi.markAsRead(notificationId: 10))
           .called(1);
@@ -124,12 +124,12 @@ void main() {
       await Future.delayed(Duration.zero);
 
       // Verify we have items first
-      expect(notifier.debugState.value!, hasLength(2));
+      expect(notifier.state.value!, hasLength(2));
 
       notifier.clearAll();
 
-      expect(notifier.debugState, isA<AsyncData<List<NotificationModel>>>());
-      expect(notifier.debugState.value!, isEmpty);
+      expect(notifier.state, isA<AsyncData<List<NotificationModel>>>());
+      expect(notifier.state.value!, isEmpty);
     });
   });
 }

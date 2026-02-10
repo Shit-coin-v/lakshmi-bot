@@ -31,7 +31,7 @@ void main() {
       // Let the async _loadAddresses() complete
       await Future.delayed(Duration.zero);
 
-      expect(notifier.debugState, isEmpty);
+      expect(notifier.state, isEmpty);
     });
 
     test('addAddress adds to state and calls storage.write', () async {
@@ -48,9 +48,9 @@ void main() {
       final address = _makeAddress();
       notifier.addAddress(address);
 
-      expect(notifier.debugState, hasLength(1));
-      expect(notifier.debugState.first.id, 'addr-1');
-      expect(notifier.debugState.first.fullAddress, 'ул. Тестовая, д. 1');
+      expect(notifier.state, hasLength(1));
+      expect(notifier.state.first.id, 'addr-1');
+      expect(notifier.state.first.fullAddress, 'ул. Тестовая, д. 1');
 
       verify(() => mockStorage.write(
             key: 'user_addresses_v1',
@@ -73,8 +73,8 @@ void main() {
       notifier.updateAddress(
           _makeAddress(id: 'addr-1', fullAddress: 'Updated'));
 
-      expect(notifier.debugState, hasLength(1));
-      expect(notifier.debugState.first.fullAddress, 'Updated');
+      expect(notifier.state, hasLength(1));
+      expect(notifier.state.first.fullAddress, 'Updated');
     });
 
     test('removeAddress removes by id', () async {
@@ -92,8 +92,8 @@ void main() {
       notifier.addAddress(_makeAddress(id: 'addr-2', fullAddress: 'Другая'));
       notifier.removeAddress('addr-1');
 
-      expect(notifier.debugState, hasLength(1));
-      expect(notifier.debugState.first.id, 'addr-2');
+      expect(notifier.state, hasLength(1));
+      expect(notifier.state.first.id, 'addr-2');
     });
 
     test('_loadAddresses loads from storage on construction', () async {
@@ -110,11 +110,11 @@ void main() {
       // Let the async _loadAddresses() complete
       await Future.delayed(Duration.zero);
 
-      expect(notifier.debugState, hasLength(2));
-      expect(notifier.debugState[0].id, 'saved-1');
-      expect(notifier.debugState[0].fullAddress, 'Saved Address 1');
-      expect(notifier.debugState[1].id, 'saved-2');
-      expect(notifier.debugState[1].fullAddress, 'Saved Address 2');
+      expect(notifier.state, hasLength(2));
+      expect(notifier.state[0].id, 'saved-1');
+      expect(notifier.state[0].fullAddress, 'Saved Address 1');
+      expect(notifier.state[1].id, 'saved-2');
+      expect(notifier.state[1].fullAddress, 'Saved Address 2');
     });
   });
 }

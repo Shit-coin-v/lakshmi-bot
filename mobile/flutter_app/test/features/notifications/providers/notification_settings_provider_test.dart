@@ -10,7 +10,7 @@ void main() {
     });
 
     test('initial state has all settings enabled', () {
-      final state = notifier.debugState;
+      final state = notifier.state;
 
       expect(state.pushOrders, isTrue);
       expect(state.pushPromos, isTrue);
@@ -19,7 +19,7 @@ void main() {
 
     test('togglePushOrders(false) disables pushOrders, others unchanged', () {
       notifier.togglePushOrders(false);
-      final state = notifier.debugState;
+      final state = notifier.state;
 
       expect(state.pushOrders, isFalse);
       expect(state.pushPromos, isTrue);
@@ -28,7 +28,7 @@ void main() {
 
     test('togglePushPromos(false) disables pushPromos, others unchanged', () {
       notifier.togglePushPromos(false);
-      final state = notifier.debugState;
+      final state = notifier.state;
 
       expect(state.pushOrders, isTrue);
       expect(state.pushPromos, isFalse);
@@ -37,7 +37,7 @@ void main() {
 
     test('toggleNews(false) disables news, others unchanged', () {
       notifier.toggleNews(false);
-      final state = notifier.debugState;
+      final state = notifier.state;
 
       expect(state.pushOrders, isTrue);
       expect(state.pushPromos, isTrue);

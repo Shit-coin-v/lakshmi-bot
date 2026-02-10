@@ -54,7 +54,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (_, __) => const Padding(
+                error: (_, _) => const Padding(
                   padding: EdgeInsets.all(16),
                   child: Text('Не удалось загрузить настройки'),
                 ),
