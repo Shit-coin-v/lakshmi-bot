@@ -13,6 +13,11 @@ class ApiClient {
     defaultValue: 'my_secret_mobile_key_2025',
   );
 
+  static const String botUsername = String.fromEnvironment(
+    'BOT_USERNAME',
+    defaultValue: 'lakshmi_test_bot',
+  );
+
   /// Resolves a media URL returned by the API to use the correct base URL.
   static String resolveMediaUrl(String url) {
     final path = Uri.parse(url).path;

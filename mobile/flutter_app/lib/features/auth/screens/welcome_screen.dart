@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.push('/register'),
+                  onPressed: () => context.push('/register-choice'),
                   child: const Text("Зарегистрироваться"),
                 ),
               ),
