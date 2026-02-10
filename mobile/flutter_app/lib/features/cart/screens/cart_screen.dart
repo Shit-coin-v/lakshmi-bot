@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -274,6 +275,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
+    if (_phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Укажите телефон для связи с курьером')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -332,8 +340,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String message = 'Ошибка оформления заказа';
+        if (e is DioException && e.response?.data is Map) {
+          final errors = e.response!.data as Map;
+          final parts = <String>[];
+          errors.forEach((key, value) {
+            if (value is List) {
+              parts.add(value.join(', '));
+            }
+          });
+          if (parts.isNotEmpty) message = parts.join('\n');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -539,6 +558,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Телефон для связи",
                                     prefixIcon: const Icon(Icons.phone_outlined),
+                                    filled: true,
+                                    fillColor: const Color(0xFFF5F5F5),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -556,6 +577,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     labelText: "Комментарий к заказу",
                                     hintText: "Подъезд, этаж, код домофона...",
                                     prefixIcon: const Icon(Icons.comment_outlined),
+                                    filled: true,
+                                    fillColor: const Color(0xFFF5F5F5),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),

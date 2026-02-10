@@ -12,10 +12,11 @@ from apps.orders.models import Order
 logger = logging.getLogger(__name__)
 
 
-def _get_onec_order_url() -> str:
+def _get_onec_order_url() -> str | None:
+    """Return 1C order URL or None if not configured (dev environment)."""
     url = getattr(settings, "ONEC_ORDER_URL", None) or getattr(settings, "ONEC_CUSTOMER_URL", None)
-    if not url:
-        raise RuntimeError("ONEC_ORDER_URL is not configured")
+    if not url or url.startswith("CHANGE_ME"):
+        return None
     return url
 
 
@@ -38,7 +39,13 @@ def send_order_to_onec_impl(self, order_id: int):
         order.last_sync_error = None
         order.save(update_fields=["sync_status", "sync_attempts", "last_sync_error"])
 
-    # 2) Собираем payload
+    # 2) Проверяем, настроен ли 1С URL
+    url = _get_onec_order_url()
+    if url is None:
+        logger.warning("ONEC_ORDER_URL not configured, skipping 1C sync for order %s", order_id)
+        return {"status": "skipped", "order_id": order_id, "reason": "onec_url_not_configured"}
+
+    # 3) Собираем payload
     items = []
     store_ids = set()
 
@@ -89,8 +96,7 @@ def send_order_to_onec_impl(self, order_id: int):
         "items": items,
     }
 
-    # 3) Отправляем в 1С (или в твой proxy)
-    url = _get_onec_order_url()
+    # 4) Отправляем в 1С (или в твой proxy)
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),
