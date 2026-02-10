@@ -1,7 +1,7 @@
 import logging
 
-from aiogram import F, Router
-from aiogram.types import CallbackQuery, Message
+from aiogram import Bot, F, Router
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -9,6 +9,7 @@ from bots.customer_bot.database.models import SessionLocal, Order, OrderItem
 from shared.clients.onec_client import post_to_onec
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
 from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
+from retry import is_in_flight, schedule_retry
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,13 @@ async def noop_callback(callback: CallbackQuery):
     await callback.answer()
 
 
+# --- Callback: pending button noop ---
+
+@router.callback_query(F.data.startswith("order:") & F.data.endswith(":pending"))
+async def order_pending_noop(callback: CallbackQuery):
+    await callback.answer("Статус обновляется, подождите...", show_alert=False)
+
+
 # --- Callback: order detail ---
 
 @router.callback_query(F.data.startswith("order:") & F.data.endswith(":detail"))
@@ -156,6 +164,66 @@ async def order_detail(callback: CallbackQuery):
     keyboard = get_order_detail_keyboard(order)
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
+
+
+# --- Retry callbacks ---
+
+async def _on_retry_success(
+    bot: Bot, chat_id: int, message_id: int, order_id: int, new_status: str,
+) -> None:
+    try:
+        if new_status == "completed":
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=f"✅ Заказ #{order_id} доставлен!",
+            )
+            return
+
+        order = await _fetch_order_with_items(order_id)
+        if not order:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=f"✅ Статус заказа #{order_id} обновлён.",
+            )
+            return
+
+        text = _format_order_detail(order)
+        keyboard = get_order_detail_keyboard(order)
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Failed to update message after retry success for order %d", order_id)
+
+
+async def _on_retry_failure(
+    bot: Bot, chat_id: int, message_id: int, order_id: int, new_status: str,
+) -> None:
+    try:
+        order = await _fetch_order_with_items(order_id)
+        if order:
+            text = _format_order_detail(order)
+            text += "\n\n❌ <b>Не удалось обновить статус. Попробуйте снова.</b>"
+            keyboard = get_order_detail_keyboard(order)
+        else:
+            text = f"❌ Не удалось обновить статус заказа #{order_id}. Попробуйте снова."
+            keyboard = None
+
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Failed to update message after retry failure for order %d", order_id)
 
 
 # --- Callback: status transitions (pickup, arrived, complete) ---
@@ -183,7 +251,12 @@ async def order_status_change(callback: CallbackQuery):
 
     expected_status, new_status = transition
 
-    # Verify current status
+    # Guard: reject if retry already in flight for this order
+    if is_in_flight(order_id):
+        await callback.answer("Статус уже обновляется, подождите...", show_alert=False)
+        return
+
+    # Verify current order status
     order = await _fetch_order_with_items(order_id)
     if not order:
         await callback.answer("Заказ не найден.", show_alert=True)
@@ -191,33 +264,29 @@ async def order_status_change(callback: CallbackQuery):
 
     if order.status != expected_status:
         await callback.answer(
-            f"Заказ уже в статусе \"{_STATUS_DISPLAY.get(order.status, order.status)}\".",
+            f'Заказ уже в статусе "{_STATUS_DISPLAY.get(order.status, order.status)}".',
             show_alert=True,
         )
         return
 
-    # Update status via backend API
-    success = await _update_order_status(order_id, new_status)
-    if not success:
-        await callback.answer("Ошибка обновления статуса. Попробуйте позже.", show_alert=True)
-        return
+    # Immediate response: replace buttons with "Updating..."
+    pending_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="⏳ Обновляю статус...",
+            callback_data=f"order:{order_id}:pending",
+        )]
+    ])
+    await callback.message.edit_reply_markup(reply_markup=pending_kb)
+    await callback.answer("Обновляю статус...")
 
-    # completed -> order disappears from list
-    if new_status == "completed":
-        await callback.message.edit_text(
-            f"\u2705 Заказ #{order_id} доставлен!",
-            reply_markup=None,
-        )
-        await callback.answer("Заказ доставлен!")
-        return
-
-    # Reload order with new status and show updated details
-    order = await _fetch_order_with_items(order_id)
-    if not order:
-        await callback.answer("Заказ не найден после обновления.", show_alert=True)
-        return
-
-    text = _format_order_detail(order)
-    keyboard = get_order_detail_keyboard(order)
-    await callback.message.edit_text(text, reply_markup=keyboard)
-    await callback.answer("Статус обновлён!")
+    # Launch background retry task
+    schedule_retry(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        order_id=order_id,
+        new_status=new_status,
+        update_fn=_update_order_status,
+        on_success=_on_retry_success,
+        on_failure=_on_retry_failure,
+    )
