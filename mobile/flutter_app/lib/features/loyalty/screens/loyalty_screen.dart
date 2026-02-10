@@ -91,12 +91,32 @@ class LoyaltyScreen extends ConsumerWidget {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: QrImageView(
-                          data: user.qrCode ?? "ERROR", // Берем QR из профиля
-                          version: QrVersions.auto,
-                          size: 200.0,
-                          backgroundColor: Colors.white,
-                        ),
+                        child: (user.qrCode != null && user.qrCode!.isNotEmpty)
+                            ? QrImageView(
+                                data: user.qrCode!,
+                                version: QrVersions.auto,
+                                size: 200.0,
+                                backgroundColor: Colors.white,
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.qr_code_scanner,
+                                      size: 80, color: Colors.grey[400]),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'QR-код создаётся...',
+                                    style: TextStyle(
+                                        color: Colors.grey[600], fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        ref.refresh(loyaltyProfileProvider),
+                                    child: const Text('Обновить'),
+                                  ),
+                                ],
+                              ),
                       ),
 
                       const SizedBox(height: 20),

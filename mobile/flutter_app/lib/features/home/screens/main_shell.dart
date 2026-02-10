@@ -38,7 +38,7 @@ class MainShell extends ConsumerWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.qr_code),
-            label: "Карта лояльности",
+            label: "Моя карта",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
         ],

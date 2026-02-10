@@ -2,22 +2,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/models/user_model.dart';
 
-// Провайдер, который загружает профиль пользователя (используя сохраненный QR)
+/// Провайдер профиля для экрана лояльности.
+/// Поддерживает оба метода авторизации: email (JWT) и QR (Telegram).
 final loyaltyProfileProvider = FutureProvider<UserModel?>((ref) async {
   final authService = ref.read(authServiceProvider);
+  final authMethod = await authService.getSavedAuthMethod();
 
-  // 1. Достаем сохраненный QR из памяти телефона
-  final savedQr = await authService.getSavedQr();
+  UserModel? user;
 
-  if (savedQr == null) return null;
-
-  // 2. Делаем "тихий" вход, чтобы обновить данные (баланс бонусов)
-  // Это работает, так как API /onec/customer возвращает актуального юзера
-  try {
-    final user = await authService.loginWithQr(savedQr);
-    return user;
-  } catch (e) {
-    // Если ошибка сети - попробуем вернуть хотя бы то, что есть (тут можно доработать кэширование)
-    rethrow;
+  if (authMethod == 'email') {
+    user = await authService.tryTokenAutoLogin();
+  } else if (authMethod == 'qr') {
+    final savedQr = await authService.getSavedQr();
+    if (savedQr == null) return null;
+    user = await authService.loginWithQr(savedQr);
+  } else {
+    return null;
   }
+
+  if (user == null) return null;
+
+  // Auto-generate QR for email-only users who don't have one yet
+  if (user.qrCode == null || user.qrCode!.isEmpty) {
+    try {
+      await authService.generateUserQr();
+      final userId = await authService.getSavedUserId();
+      if (userId != null) {
+        return await authService.fetchProfile(userId);
+      }
+    } catch (_) {
+      // QR generation failed — return user as-is, screen will show fallback UI
+    }
+  }
+
+  return user;
 });

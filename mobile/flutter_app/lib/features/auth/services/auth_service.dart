@@ -132,7 +132,7 @@ class AuthService {
       }
 
       // Fetch full profile
-      return await _fetchProfile(data['user_id']);
+      return await fetchProfile(data['user_id']);
     } on DioException catch (e) {
       final detail = e.response?.data?['detail'];
       if (detail != null) {
@@ -159,7 +159,7 @@ class AuthService {
       final userId = await getSavedUserId();
       if (userId == null) return null;
 
-      return await _fetchProfile(userId);
+      return await fetchProfile(userId);
     } catch (e) {
       return null;
     }
@@ -183,7 +183,7 @@ class AuthService {
       await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
       await _storage.write(key: _storageAuthMethodKey, value: 'email');
       await _storage.write(key: _storageIdKey, value: data['user_id'].toString());
-      return await _fetchProfile(data['user_id']);
+      return await fetchProfile(data['user_id']);
     }
     return null;
   }
@@ -216,7 +216,7 @@ class AuthService {
 
   // ─── Helpers ───
 
-  Future<UserModel> _fetchProfile(int userId) async {
+  Future<UserModel> fetchProfile(int userId) async {
     final response = await _dio.get('/api/customer/$userId/');
     return UserModel.fromJson(response.data);
   }
