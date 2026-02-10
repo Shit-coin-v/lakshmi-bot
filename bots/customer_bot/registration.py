@@ -39,6 +39,7 @@ class UserRegistration:
             qr_code=qr_code,
             referrer_id=referrer_id,
             personal_data_consent=personal_data_consent,
+            auth_method="telegram",
         )
         self.session.add(user)
         await self.session.commit()

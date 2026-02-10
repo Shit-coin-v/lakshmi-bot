@@ -157,6 +157,9 @@ class CustomUser(Base):
     news_enabled = Column(Boolean, default=True)
     general_enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, nullable=True)
+    password_hash = Column(String(128), nullable=True)
+    email_verified = Column(Boolean, default=False)
+    auth_method = Column(String(10), default="telegram", nullable=False)
 
     transactions = relationship("Transaction", back_populates="customer")
     bot_activities = relationship("BotActivity", back_populates="customer")
