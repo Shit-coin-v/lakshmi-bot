@@ -5,7 +5,8 @@ import '../models/address_model.dart';
 import '../widgets/address_modal.dart';
 
 class SavedAddressesScreen extends ConsumerWidget {
-  const SavedAddressesScreen({super.key});
+  final bool selectionMode;
+  const SavedAddressesScreen({super.key, this.selectionMode = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -14,7 +15,7 @@ class SavedAddressesScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Мои адреса'),
+        title: Text(selectionMode ? 'Выберите адрес' : 'Мои адреса'),
         centerTitle: true,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -43,7 +44,12 @@ class SavedAddressesScreen extends ConsumerWidget {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final address = addresses[index];
-                return _AddressCard(address: address);
+                return _AddressCard(
+                  address: address,
+                  onTap: selectionMode
+                      ? () => Navigator.pop(context, address)
+                      : null,
+                );
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -61,8 +67,9 @@ class SavedAddressesScreen extends ConsumerWidget {
 
 class _AddressCard extends StatelessWidget {
   final AddressModel address;
+  final VoidCallback? onTap;
 
-  const _AddressCard({required this.address});
+  const _AddressCard({required this.address, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +79,9 @@ class _AddressCard extends StatelessWidget {
       if (address.floor.isNotEmpty) '${address.floor} эт.',
     ].join(', ');
 
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -132,12 +141,16 @@ class _AddressCard extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Colors.grey),
-            onPressed: () => showAddressModal(context, address),
-          ),
+          if (onTap != null)
+            const Icon(Icons.chevron_right, color: Colors.grey)
+          else
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.grey),
+              onPressed: () => showAddressModal(context, address),
+            ),
         ],
       ),
+    ),
     );
   }
 

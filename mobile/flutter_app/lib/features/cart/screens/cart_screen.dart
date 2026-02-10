@@ -50,22 +50,37 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _AddressPickerSheet(
+      builder: (sheetContext) => _AddressPickerSheet(
         onSelect: (address) {
-          setState(() {
-            _selectedAddress = address;
-            final details = [
-              if (address.entrance.isNotEmpty) 'Подъезд ${address.entrance}',
-              if (address.floor.isNotEmpty) 'Этаж ${address.floor}',
-              if (address.intercom.isNotEmpty) 'Домофон ${address.intercom}',
-              if (address.comment.isNotEmpty) address.comment,
-            ].join(', ');
-            if (details.isNotEmpty) _commentController.text = details;
-          });
-          Navigator.pop(context);
+          _applySelectedAddress(address);
+          Navigator.pop(sheetContext);
+        },
+        onNavigateToAddresses: () {
+          Navigator.pop(sheetContext);
+          _navigateToAddresses();
         },
       ),
     );
+  }
+
+  void _applySelectedAddress(AddressModel address) {
+    setState(() {
+      _selectedAddress = address;
+      final details = [
+        if (address.entrance.isNotEmpty) 'Подъезд ${address.entrance}',
+        if (address.floor.isNotEmpty) 'Этаж ${address.floor}',
+        if (address.intercom.isNotEmpty) 'Домофон ${address.intercom}',
+        if (address.comment.isNotEmpty) address.comment,
+      ].join(', ');
+      if (details.isNotEmpty) _commentController.text = details;
+    });
+  }
+
+  Future<void> _navigateToAddresses() async {
+    final result = await context.push<AddressModel>('/saved-addresses?select=true');
+    if (result != null && mounted) {
+      _applySelectedAddress(result);
+    }
   }
 
   // --- ВЫБОР ОПЛАТЫ (НОВЫЙ МЕТОД) ---
@@ -756,7 +771,11 @@ class _PaymentOption extends StatelessWidget {
 // ... Остальные виджеты (_AddressPickerSheet, _CartItemRow, _CountBtn, _SummaryRow)
 class _AddressPickerSheet extends ConsumerWidget {
   final Function(AddressModel) onSelect;
-  const _AddressPickerSheet({required this.onSelect});
+  final VoidCallback onNavigateToAddresses;
+  const _AddressPickerSheet({
+    required this.onSelect,
+    required this.onNavigateToAddresses,
+  });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final addresses = ref.watch(addressProvider);
@@ -791,10 +810,7 @@ class _AddressPickerSheet extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        context.push('/saved-addresses');
-                      },
+                      onPressed: onNavigateToAddresses,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4CAF50),
                         foregroundColor: Colors.white,
@@ -863,10 +879,7 @@ class _AddressPickerSheet extends ConsumerWidget {
           if (addresses.isNotEmpty) ...[
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push('/saved-addresses');
-              },
+              onPressed: onNavigateToAddresses,
               child: const Text(
                 "Управление адресами",
                 style: TextStyle(fontSize: 16),

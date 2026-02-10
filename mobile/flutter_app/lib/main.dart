@@ -118,7 +118,10 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/saved-addresses',
-      builder: (context, state) => const SavedAddressesScreen(),
+      builder: (context, state) {
+        final select = state.uri.queryParameters['select'] == 'true';
+        return SavedAddressesScreen(selectionMode: select);
+      },
     ),
     GoRoute(
       path: '/order-status/:id',
