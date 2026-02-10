@@ -38,7 +38,7 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             onPressed: () {
-              context.push('/notifications');
+              context.push('/home/notifications');
             },
             icon: Stack(
               clipBehavior: Clip.none,
@@ -70,7 +70,7 @@ class HomeScreen extends ConsumerWidget {
 
               return IconButton(
                 onPressed: () {
-                  context.push('/cart');
+                  context.push('/home/cart');
                 },
                 icon: Badge(
                   isLabelVisible: cartCount > 0,
@@ -347,7 +347,7 @@ class _CartTotalBar extends ConsumerWidget {
           height: 54,
           child: ElevatedButton(
             onPressed: () {
-              context.push('/cart');
+              context.push('/home/cart');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,

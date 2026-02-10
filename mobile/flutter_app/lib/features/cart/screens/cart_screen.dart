@@ -79,7 +79,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _navigateToAddresses() async {
-    final result = await context.push<AddressModel>('/saved-addresses?select=true');
+    final result = await context.push<AddressModel>('/home/saved-addresses?select=true');
     if (result != null && mounted) {
       _applySelectedAddress(result);
     }
@@ -315,7 +315,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           );
           context.go(
             Uri(
-              path: '/order-status/$orderId',
+              path: '/home/order-status/$orderId',
               queryParameters: {'new': 'true'},
             ).toString(),
           );

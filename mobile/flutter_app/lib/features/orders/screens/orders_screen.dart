@@ -53,11 +53,11 @@ class OrdersScreen extends ConsumerWidget {
 
               return GestureDetector(
                 // ✅ ВАЖНО: тап по карточке -> СТАТУС (как на твоём скрине)
-                onTap: () => context.push('/order-status/${order.id}'),
+                onTap: () => context.push('/profile/order-status/${order.id}'),
                 child: _OrderCard(
                   order: order,
                   // ✅ Отдельно "Детали"
-                  onDetails: () => context.push('/order-details/${order.id}'),
+                  onDetails: () => context.push('/profile/order-details/${order.id}'),
                 ),
               );
             },

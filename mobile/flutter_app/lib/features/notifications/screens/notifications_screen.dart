@@ -171,7 +171,7 @@ class _NotificationCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => context.push('/notifications/${notification.id}'),
+          onTap: () => context.push('/home/notifications/${notification.id}'),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Stack(

@@ -243,19 +243,19 @@ class ProfileScreen extends ConsumerWidget {
                       _SettingsItem(
                         icon: Icons.receipt_long,
                         title: "Мои заказы",
-                        route: '/orders',
+                        route: '/profile/orders',
                       ),
                       Divider(height: 1, indent: 50),
                       _SettingsItem(
                         icon: Icons.home_filled,
                         title: "Сохраненные адреса",
-                        route: '/saved-addresses',
+                        route: '/profile/saved-addresses',
                       ),
                       Divider(height: 1, indent: 50),
                       _SettingsItem(
                         icon: Icons.notifications,
                         title: "Настройки уведомлений",
-                        route: '/notification-settings',
+                        route: '/profile/notification-settings',
                       ),
                     ],
                   ),

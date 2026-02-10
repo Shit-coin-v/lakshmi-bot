@@ -192,7 +192,7 @@ class PushNotificationService {
   }
 
   void _openOrderStatus(GoRouter router, String orderId) {
-    router.go('/order-status/$orderId');
+    router.go('/profile/order-status/$orderId');
   }
 
   String? _statusText(String? status) {

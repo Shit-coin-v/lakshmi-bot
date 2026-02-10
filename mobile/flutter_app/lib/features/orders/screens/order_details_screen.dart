@@ -172,7 +172,7 @@ class OrderDetailsScreen extends ConsumerWidget {
             duration: Duration(seconds: 2),
           ),
         );
-        context.push('/order-status/$newOrderId');
+        context.push('/profile/order-status/$newOrderId');
       }
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();

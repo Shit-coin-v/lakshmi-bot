@@ -1,32 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../main.dart';
-import 'home_screen.dart';
-import 'profile_screen.dart';
-import '../../loyalty/screens/loyalty_screen.dart';
 
-// Simple state provider for bottom nav index
-final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
-
-class MainShell extends ConsumerWidget {
-  const MainShell({super.key});
+class MainShell extends StatelessWidget {
+  const MainShell({super.key, required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = ref.watch(bottomNavIndexProvider);
-
-    final List<Widget> pages = [
-      const HomeScreen(),
-      const LoyaltyScreen(),
-      const ProfileScreen(),
-    ];
-
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: currentIndex, children: pages),
+      body: navigationShell,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) =>
-            ref.read(bottomNavIndexProvider.notifier).state = index,
+        currentIndex: navigationShell.currentIndex,
+        onTap: (index) => navigationShell.goBranch(index),
         selectedItemColor: kPrimaryGreen,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,

@@ -23,6 +23,8 @@ import 'features/auth/screens/registration_choice_screen.dart';
 import 'features/auth/screens/login_choice_screen.dart';
 import 'features/auth/screens/telegram_register_info_screen.dart';
 import 'features/home/screens/main_shell.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/home/screens/profile_screen.dart';
 import 'features/cart/screens/cart_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
 import 'features/orders/screens/order_status_screen.dart';
@@ -109,49 +111,100 @@ final _router = GoRouter(
       path: '/generate-qr',
       builder: (context, state) => const GenerateQrScreen(),
     ),
-    GoRoute(path: '/home', builder: (context, state) => const MainShell()),
-    GoRoute(
-      path: '/loyalty',
-      builder: (context, state) => const LoyaltyScreen(),
-    ),
-    GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
-    GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
-    GoRoute(
-      path: '/notifications',
-      builder: (context, state) => const NotificationsScreen(),
-    ),
-    GoRoute(
-      path: '/notifications/:id',
-      builder: (context, state) {
-        final id = state.pathParameters['id']!;
-        return NotificationDetailScreen(notificationId: id);
-      },
-    ),
-    GoRoute(
-      path: '/notification-settings',
-      builder: (context, state) => const NotificationSettingsScreen(),
-    ),
-    GoRoute(
-      path: '/saved-addresses',
-      builder: (context, state) {
-        final select = state.uri.queryParameters['select'] == 'true';
-        return SavedAddressesScreen(selectionMode: select);
-      },
-    ),
-    GoRoute(
-      path: '/order-status/:id',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        final isNew = state.uri.queryParameters['new'] == 'true';
-        return OrderStatusScreen(orderId: id, fromOrderCreation: isNew);
-      },
-    ),
-    GoRoute(
-      path: '/order-details/:id',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        return OrderDetailsScreen(orderId: id);
-      },
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          MainShell(navigationShell: navigationShell),
+      branches: [
+        // Tab 0: Продукты
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/home',
+            builder: (ctx, st) => const HomeScreen(),
+            routes: [
+              GoRoute(
+                path: 'cart',
+                builder: (ctx, st) => const CartScreen(),
+              ),
+              GoRoute(
+                path: 'notifications',
+                builder: (ctx, st) => const NotificationsScreen(),
+              ),
+              GoRoute(
+                path: 'notifications/:id',
+                builder: (ctx, st) {
+                  final id = st.pathParameters['id']!;
+                  return NotificationDetailScreen(notificationId: id);
+                },
+              ),
+              GoRoute(
+                path: 'saved-addresses',
+                builder: (ctx, st) {
+                  final select =
+                      st.uri.queryParameters['select'] == 'true';
+                  return SavedAddressesScreen(selectionMode: select);
+                },
+              ),
+              GoRoute(
+                path: 'order-status/:id',
+                builder: (ctx, st) {
+                  final id = int.parse(st.pathParameters['id']!);
+                  final isNew =
+                      st.uri.queryParameters['new'] == 'true';
+                  return OrderStatusScreen(
+                      orderId: id, fromOrderCreation: isNew);
+                },
+              ),
+            ],
+          ),
+        ]),
+        // Tab 1: Моя карта
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/loyalty',
+            builder: (ctx, st) => const LoyaltyScreen(),
+          ),
+        ]),
+        // Tab 2: Профиль
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/profile',
+            builder: (ctx, st) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'orders',
+                builder: (ctx, st) => const OrdersScreen(),
+              ),
+              GoRoute(
+                path: 'order-status/:id',
+                builder: (ctx, st) {
+                  final id = int.parse(st.pathParameters['id']!);
+                  return OrderStatusScreen(orderId: id);
+                },
+              ),
+              GoRoute(
+                path: 'order-details/:id',
+                builder: (ctx, st) {
+                  final id = int.parse(st.pathParameters['id']!);
+                  return OrderDetailsScreen(orderId: id);
+                },
+              ),
+              GoRoute(
+                path: 'saved-addresses',
+                builder: (ctx, st) {
+                  final select =
+                      st.uri.queryParameters['select'] == 'true';
+                  return SavedAddressesScreen(selectionMode: select);
+                },
+              ),
+              GoRoute(
+                path: 'notification-settings',
+                builder: (ctx, st) =>
+                    const NotificationSettingsScreen(),
+              ),
+            ],
+          ),
+        ]),
+      ],
     ),
   ],
 );
