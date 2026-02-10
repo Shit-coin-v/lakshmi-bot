@@ -7,8 +7,6 @@ from unittest.mock import patch
 from django.test import TestCase, Client
 from django.core.cache import cache
 
-from apps.common import security
-from apps.common.permissions import API_KEY as PERM_API_KEY
 from apps.common.authentication import generate_tokens, decode_token
 from apps.main.models import CustomUser
 
@@ -288,7 +286,7 @@ class LinkTelegramTests(TestCase):
 
     def test_confirm_link_simple(self):
         """Link Telegram when no separate Telegram account exists."""
-        cache.set(f"link_telegram:123456", self.email_user.pk, timeout=600)
+        cache.set("link_telegram:123456", self.email_user.pk, timeout=600)
         resp = self.client.post(
             "/api/auth/link-telegram/confirm/",
             data={"code": "123456", "telegram_id": 444555666},
@@ -309,7 +307,7 @@ class LinkTelegramTests(TestCase):
         self.email_user.bonuses = 50
         self.email_user.save()
 
-        cache.set(f"link_telegram:654321", self.email_user.pk, timeout=600)
+        cache.set("link_telegram:654321", self.email_user.pk, timeout=600)
         resp = self.client.post(
             "/api/auth/link-telegram/confirm/",
             data={"code": "654321", "telegram_id": 777888999},

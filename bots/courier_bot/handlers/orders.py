@@ -62,7 +62,7 @@ def _format_order_detail(order) -> str:
     """Format order details for the courier message."""
     lines = [
         f"<b>Заказ #{order.id}</b>",
-        f"\U0001f4cd село Намцы",
+        "\U0001f4cd село Намцы",
         f"\U0001f3e0 Адрес: {order.address}",
         f"\U0001f4de Телефон: {order.phone}",
     ]
