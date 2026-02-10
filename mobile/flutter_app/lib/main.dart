@@ -20,6 +20,7 @@ import 'features/auth/screens/telegram_link_choice_screen.dart';
 import 'features/auth/screens/link_telegram_scan_screen.dart';
 import 'features/auth/screens/generate_qr_screen.dart';
 import 'features/auth/screens/registration_choice_screen.dart';
+import 'features/auth/screens/login_choice_screen.dart';
 import 'features/auth/screens/telegram_register_info_screen.dart';
 import 'features/home/screens/main_shell.dart';
 import 'features/cart/screens/cart_screen.dart';
@@ -65,6 +66,10 @@ final _router = GoRouter(
   routes: [
     GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(
+      path: '/login-choice',
+      builder: (context, state) => const LoginChoiceScreen(),
+    ),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegistrationScreen(),

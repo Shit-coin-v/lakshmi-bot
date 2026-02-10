@@ -34,7 +34,7 @@ class ProfileScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(authServiceProvider).logout();
               ref.read(cartProvider.notifier).clear();
-              if (context.mounted) context.go('/qr-auth');
+              if (context.mounted) context.go('/login-choice');
             },
           ),
         ],
