@@ -1,0 +1,38 @@
+import logging
+
+from aiogram import F, Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+from config import COURIER_ALLOWED_TG_IDS
+
+logger = logging.getLogger(__name__)
+
+router = Router()
+
+HELP_TEXT = (
+    "Доступные команды:\n\n"
+    "/start \u2014 Начало работы\n"
+    "/help \u2014 Справка\n\n"
+    "Кнопки меню:\n"
+    "\U0001f4e6 Мои заказы \u2014 Просмотр назначенных заказов\n"
+    "\u2753 Помощь \u2014 Эта справка"
+)
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    if message.from_user.id not in COURIER_ALLOWED_TG_IDS:
+        await message.answer("Доступ запрещён.")
+        return
+
+    await message.answer(HELP_TEXT)
+
+
+@router.message(F.text == "\u2753 \u041f\u043e\u043c\u043e\u0449\u044c")
+async def btn_help(message: Message):
+    if message.from_user.id not in COURIER_ALLOWED_TG_IDS:
+        await message.answer("Доступ запрещён.")
+        return
+
+    await message.answer(HELP_TEXT)
