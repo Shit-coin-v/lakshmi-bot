@@ -18,7 +18,7 @@ def get_main_menu() -> ReplyKeyboardMarkup:
 
 
 _STATUS_LABELS = {
-    "ready": "\u2705 \u0421\u043e\u0431\u0440\u0430\u043d",
+    "ready": "\u2705 \u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437",
     "delivery": "\U0001f697 \u0412 \u043f\u0443\u0442\u0438",
     "arrived": "\U0001f4cd \u041d\u0430 \u043c\u0435\u0441\u0442\u0435",
 }
