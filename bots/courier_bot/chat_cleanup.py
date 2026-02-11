@@ -1,6 +1,6 @@
 import logging
 
-from aiogram.types import InlineKeyboardMarkup, Message
+from aiogram.types import Message
 
 from keyboards import get_main_menu
 
@@ -28,26 +28,14 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
         except Exception:
             logger.debug("Could not delete old bot message %d", old_id)
 
-    # 3) Extract InlineKeyboard if passed — will add via edit after send
-    inline_kb = None
-    if isinstance(kwargs.get("reply_markup"), InlineKeyboardMarkup):
-        inline_kb = kwargs.pop("reply_markup")
-
-    # 4) Default to ReplyKeyboard (re-establishes menu buttons)
+    # 3) Default to ReplyKeyboard if no reply_markup specified
     if "reply_markup" not in kwargs:
         kwargs["reply_markup"] = get_main_menu()
 
-    # 5) Send message + handle InlineKeyboard
-    if inline_kb:
-        # Send placeholder with ReplyKeyboard (re-establishes menu buttons),
-        # then edit_text with real content + InlineKeyboard.
-        # Text MUST differ for Telegram to accept the edit.
-        sent = await message.answer("\u23f3", **kwargs)
-        sent = await sent.edit_text(text, reply_markup=inline_kb)
-    else:
-        sent = await message.answer(text, **kwargs)
+    # 4) Send new message
+    sent = await message.answer(text, **kwargs)
 
-    # 6) Track it
+    # 5) Track it
     _last_bot_msg[chat_id] = sent.message_id
 
     return sent

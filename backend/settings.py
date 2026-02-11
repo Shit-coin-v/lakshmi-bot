@@ -167,6 +167,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
+COURIER_BOT_TOKEN = os.getenv("COURIER_BOT_TOKEN", "")
+COURIER_ALLOWED_TG_IDS = [
+    int(x) for x in os.getenv("COURIER_ALLOWED_TG_IDS", "").split(",")
+    if x.strip().isdigit()
+]
 
 GUEST_TELEGRAM_ID = _env_int("GUEST_TELEGRAM_ID", 0)
 

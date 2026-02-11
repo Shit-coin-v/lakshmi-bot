@@ -88,3 +88,63 @@ def send_birthday_congratulations(self):
             errors += 1
 
     logger.info("Birthday congratulations: sent=%d, errors=%d", sent, errors)
+
+
+_COURIER_STATUS_LABELS = {
+    "ready": "\u2705 \u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437",
+    "delivery": "\U0001f697 \u0412 \u043f\u0443\u0442\u0438",
+    "arrived": "\U0001f4cd \u041d\u0430 \u043c\u0435\u0441\u0442\u0435",
+}
+
+_COURIER_ACTIVE_STATUSES = ("ready", "delivery", "arrived")
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=5)
+def notify_couriers_new_order(self, order_id: int):
+    """Send active orders list to all couriers via courier bot when new order is ready."""
+    import json
+    from django.conf import settings as django_settings
+    from apps.orders.models import Order
+
+    bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
+    courier_ids = getattr(django_settings, "COURIER_ALLOWED_TG_IDS", [])
+    if not bot_token or not courier_ids:
+        logger.warning("COURIER_BOT_TOKEN or COURIER_ALLOWED_TG_IDS not configured; skipping courier notification")
+        return
+
+    active_orders = (
+        Order.objects
+        .filter(status__in=_COURIER_ACTIVE_STATUSES)
+        .order_by("created_at")
+        .only("id", "status", "total_price")
+    )
+
+    buttons = []
+    for o in active_orders:
+        label = _COURIER_STATUS_LABELS.get(o.status, o.status)
+        total = int(o.total_price) if o.total_price == int(o.total_price) else float(o.total_price)
+        text = f"#{o.id} {label} \u2014 {total}\u20bd"
+        buttons.append([{"text": text, "callback_data": f"order:{o.id}:detail"}])
+
+    if not buttons:
+        return
+
+    reply_markup = json.dumps({"inline_keyboard": buttons})
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    sent, errors = 0, 0
+    for courier_id in courier_ids:
+        try:
+            resp = requests.post(url, json={
+                "chat_id": courier_id,
+                "text": "\U0001f4e6 \u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b:",
+                "parse_mode": "HTML",
+                "reply_markup": reply_markup,
+            }, timeout=5)
+            resp.raise_for_status()
+            sent += 1
+        except requests.RequestException as e:
+            logger.error("Courier notification failed for %s: %s", courier_id, e)
+            errors += 1
+
+    logger.info("Courier notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
