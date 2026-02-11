@@ -110,7 +110,8 @@ async def my_orders(message: Message):
 
     orders = await _fetch_active_orders()
     keyboard = get_orders_list_keyboard(orders)
-    await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)
+    sent = await send_clean(message, "\U0001f4e6 Активные заказы:")
+    await sent.edit_reply_markup(reply_markup=keyboard)
 
 
 # --- Callback: back to orders list ---
