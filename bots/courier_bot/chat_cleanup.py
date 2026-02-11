@@ -2,6 +2,8 @@ import logging
 
 from aiogram.types import Message
 
+from keyboards import get_main_menu
+
 logger = logging.getLogger(__name__)
 
 # chat_id -> last bot message_id
@@ -26,7 +28,11 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
         except Exception:
             logger.debug("Could not delete old bot message %d", old_id)
 
-    # 3) Send new message
+    # 3) Keep ReplyKeyboard visible if no other reply_markup specified
+    if "reply_markup" not in kwargs:
+        kwargs["reply_markup"] = get_main_menu()
+
+    # 4) Send new message
     sent = await message.answer(text, **kwargs)
 
     # 4) Track it
