@@ -46,7 +46,7 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured("SECRET_KEY environment variable must be set")
 
-ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1", "app"])
 if not ALLOWED_HOSTS and not DEBUG:
     raise ImproperlyConfigured("ALLOWED_HOSTS must be configured in production")
 
