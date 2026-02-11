@@ -10,6 +10,7 @@ from shared.clients.onec_client import post_to_onec
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
 from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
 from retry import is_in_flight, schedule_retry
+from chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 
@@ -104,12 +105,12 @@ async def _update_order_status(order_id: int, new_status: str) -> bool:
 @router.message(F.text == "\U0001f4e6 \u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b")
 async def my_orders(message: Message):
     if not _check_courier(message.from_user.id):
-        await message.answer("Доступ запрещён.")
+        await send_clean(message, "Доступ запрещён.")
         return
 
     orders = await _fetch_active_orders()
     keyboard = get_orders_list_keyboard(orders)
-    await message.answer("\U0001f4e6 Активные заказы:", reply_markup=keyboard)
+    await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)
 
 
 # --- Callback: back to orders list ---

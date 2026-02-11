@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from config import COURIER_ALLOWED_TG_IDS
+from chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +29,16 @@ HELP_TEXT = (
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     if message.from_user.id not in COURIER_ALLOWED_TG_IDS:
-        await message.answer("Доступ запрещён.")
+        await send_clean(message, "Доступ запрещён.")
         return
 
-    await message.answer(HELP_TEXT)
+    await send_clean(message, HELP_TEXT)
 
 
 @router.message(F.text == "\u2753 \u041f\u043e\u043c\u043e\u0449\u044c")
 async def btn_help(message: Message):
     if message.from_user.id not in COURIER_ALLOWED_TG_IDS:
-        await message.answer("Доступ запрещён.")
+        await send_clean(message, "Доступ запрещён.")
         return
 
-    await message.answer(HELP_TEXT)
+    await send_clean(message, HELP_TEXT)
