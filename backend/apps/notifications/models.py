@@ -110,3 +110,14 @@ class CustomerDevice(models.Model):
 
     def __str__(self):
         return f"{self.customer_id} | {self.platform}"
+
+
+class CourierNotificationMessage(models.Model):
+    """Tracks Telegram message_ids sent to couriers by Celery, so the bot can delete them."""
+
+    courier_tg_id = models.BigIntegerField(db_index=True)
+    telegram_message_id = models.BigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "courier_notification_messages"

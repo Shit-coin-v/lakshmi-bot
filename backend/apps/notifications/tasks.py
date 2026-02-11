@@ -121,6 +121,8 @@ def notify_couriers_new_order(self, order_id: int):
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
+    from apps.notifications.models import CourierNotificationMessage
+
     sent, errors = 0, 0
     for courier_id in courier_ids:
         try:
@@ -131,6 +133,12 @@ def notify_couriers_new_order(self, order_id: int):
                 "reply_markup": reply_markup,
             }, timeout=5)
             resp.raise_for_status()
+            msg_data = resp.json()
+            if msg_data.get("ok"):
+                CourierNotificationMessage.objects.create(
+                    courier_tg_id=courier_id,
+                    telegram_message_id=msg_data["result"]["message_id"],
+                )
             sent += 1
         except requests.RequestException as e:
             logger.error("Courier notification failed for %s: %s", courier_id, e)

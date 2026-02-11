@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from bots.customer_bot.database.models import SessionLocal, Order, OrderItem
+from bots.customer_bot.database.models import SessionLocal, Order, OrderItem, CourierNotificationMessage
 from shared.clients.onec_client import post_to_onec
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
 from chat_cleanup import send_clean
@@ -100,6 +100,26 @@ async def _update_order_status(order_id: int, new_status: str) -> bool:
     return False
 
 
+# --- Cleanup: delete Celery-sent notification messages ---
+
+async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
+    """Delete tracked courier notification messages sent by Celery."""
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(CourierNotificationMessage)
+            .where(CourierNotificationMessage.courier_tg_id == user_id)
+        )
+        notifications = result.scalars().all()
+        for n in notifications:
+            try:
+                await bot.delete_message(chat_id, n.telegram_message_id)
+            except Exception:
+                pass  # Already deleted or too old
+            await session.delete(n)
+        if notifications:
+            await session.commit()
+
+
 # --- ReplyKeyboard: orders list button ---
 
 @router.message(F.text == "\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b")
@@ -107,6 +127,7 @@ async def btn_orders(message: Message):
     if not _check_courier(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
+    await _cleanup_notifications(message.bot, message.chat.id, message.from_user.id)
     orders = await _fetch_active_orders()
     keyboard = get_orders_list_keyboard(orders)
     await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)

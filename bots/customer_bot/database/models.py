@@ -393,6 +393,15 @@ async def upsert_onec_client_map(session: AsyncSession, user_id: int, onec_guid:
     await session.commit()
 
 
+class CourierNotificationMessage(Base):
+    __tablename__ = "courier_notification_messages"
+
+    id = Column(Integer, primary_key=True)
+    courier_tg_id = Column(BigInteger, index=True)
+    telegram_message_id = Column(BigInteger)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 async def create_db():
     if not hasattr(engine, "begin"):
         return
