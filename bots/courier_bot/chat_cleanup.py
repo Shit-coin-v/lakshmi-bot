@@ -42,7 +42,7 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
 
     # 6) Add InlineKeyboard via edit if requested
     if inline_kb:
-        sent = await sent.edit_reply_markup(reply_markup=inline_kb)
+        sent = await sent.edit_text(text, reply_markup=inline_kb)
 
     # 7) Track it
     _last_bot_msg[chat_id] = sent.message_id
