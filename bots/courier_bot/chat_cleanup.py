@@ -37,14 +37,17 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
     if "reply_markup" not in kwargs:
         kwargs["reply_markup"] = get_main_menu()
 
-    # 5) Send new message (with ReplyKeyboard)
-    sent = await message.answer(text, **kwargs)
-
-    # 6) Add InlineKeyboard via edit_text (ReplyKeyboard persists as chat-level)
+    # 5) Send message + handle InlineKeyboard
     if inline_kb:
+        # Send placeholder with ReplyKeyboard (re-establishes menu buttons),
+        # then edit_text with real content + InlineKeyboard.
+        # Text MUST differ for Telegram to accept the edit.
+        sent = await message.answer("\u23f3", **kwargs)
         sent = await sent.edit_text(text, reply_markup=inline_kb)
+    else:
+        sent = await message.answer(text, **kwargs)
 
-    # 7) Track it
+    # 6) Track it
     _last_bot_msg[chat_id] = sent.message_id
 
     return sent
