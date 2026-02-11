@@ -163,7 +163,7 @@ class OrderDetailsScreen extends ConsumerWidget {
       final repeat = ref.read(repeatOrderProvider);
       final newOrderId = await repeat(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom);
 
-      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,7 +175,7 @@ class OrderDetailsScreen extends ConsumerWidget {
         context.push('/profile/order-status/$newOrderId');
       }
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
