@@ -90,19 +90,10 @@ def send_birthday_congratulations(self):
     logger.info("Birthday congratulations: sent=%d, errors=%d", sent, errors)
 
 
-_COURIER_STATUS_LABELS = {
-    "ready": "\u2705 \u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437",
-    "delivery": "\U0001f697 \u0412 \u043f\u0443\u0442\u0438",
-    "arrived": "\U0001f4cd \u041d\u0430 \u043c\u0435\u0441\u0442\u0435",
-}
-
-_COURIER_ACTIVE_STATUSES = ("ready", "delivery", "arrived")
-
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def notify_couriers_new_order(self, order_id: int):
-    """Send active orders list to all couriers via courier bot when new order is ready."""
-    import json
+    """Send new order notification to all couriers with ReplyKeyboard reinforcement."""
     from django.conf import settings as django_settings
     from apps.orders.models import Order
 
@@ -112,24 +103,22 @@ def notify_couriers_new_order(self, order_id: int):
         logger.warning("COURIER_BOT_TOKEN or COURIER_ALLOWED_TG_IDS not configured; skipping courier notification")
         return
 
-    active_orders = (
-        Order.objects
-        .filter(status__in=_COURIER_ACTIVE_STATUSES)
-        .order_by("created_at")
-        .only("id", "status", "total_price")
-    )
-
-    buttons = []
-    for o in active_orders:
-        label = _COURIER_STATUS_LABELS.get(o.status, o.status)
-        total = int(o.total_price) if o.total_price == int(o.total_price) else float(o.total_price)
-        text = f"#{o.id} {label} \u2014 {total}\u20bd"
-        buttons.append([{"text": text, "callback_data": f"order:{o.id}:detail"}])
-
-    if not buttons:
+    order = Order.objects.filter(id=order_id).only("id", "total_price", "address").first()
+    if not order:
         return
 
-    reply_markup = json.dumps({"inline_keyboard": buttons})
+    total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
+    text = f"\U0001f514 <b>\u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #{order_id}!</b>\n\U0001f4b0 {total}\u20bd"
+    if order.address:
+        text += f"\n\U0001f3e0 {order.address}"
+    text += "\n\n\u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u00ab\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b\u00bb \u0434\u043b\u044f \u043f\u043e\u0434\u0440\u043e\u0431\u043d\u043e\u0441\u0442\u0435\u0439."
+
+    reply_markup = {
+        "keyboard": [[{"text": "\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b"}, {"text": "\u2753 \u041f\u043e\u043c\u043e\u0449\u044c"}]],
+        "resize_keyboard": True,
+        "is_persistent": True,
+    }
+
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     sent, errors = 0, 0
@@ -137,7 +126,7 @@ def notify_couriers_new_order(self, order_id: int):
         try:
             resp = requests.post(url, json={
                 "chat_id": courier_id,
-                "text": "\U0001f4e6 \u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b:",
+                "text": text,
                 "parse_mode": "HTML",
                 "reply_markup": reply_markup,
             }, timeout=5)
