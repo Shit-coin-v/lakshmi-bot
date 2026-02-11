@@ -1,6 +1,6 @@
 import logging
 
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardMarkup, Message
 
 from keyboards import get_main_menu
 
@@ -28,14 +28,23 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
         except Exception:
             logger.debug("Could not delete old bot message %d", old_id)
 
-    # 3) Default to ReplyKeyboard if no reply_markup specified
+    # 3) Extract InlineKeyboard — send ReplyKeyboard first, then add inline via edit
+    inline_kb = None
+    if isinstance(kwargs.get("reply_markup"), InlineKeyboardMarkup):
+        inline_kb = kwargs.pop("reply_markup")
+
+    # 4) Default to ReplyKeyboard if no reply_markup specified
     if "reply_markup" not in kwargs:
         kwargs["reply_markup"] = get_main_menu()
 
-    # 4) Send new message
+    # 5) Send new message (with ReplyKeyboard to maintain chat keyboard)
     sent = await message.answer(text, **kwargs)
 
-    # 5) Track it
+    # 6) Add InlineKeyboard via edit if requested
+    if inline_kb:
+        sent = await sent.edit_reply_markup(reply_markup=inline_kb)
+
+    # 7) Track it
     _last_bot_msg[chat_id] = sent.message_id
 
     return sent
