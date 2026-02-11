@@ -42,8 +42,13 @@ def send_order_to_onec_impl(self, order_id: int):
     # 2) Проверяем, настроен ли 1С URL
     url = _get_onec_order_url()
     if url is None:
-        logger.warning("ONEC_ORDER_URL not configured, skipping 1C sync for order %s", order_id)
-        return {"status": "skipped", "order_id": order_id, "reason": "onec_url_not_configured"}
+        logger.warning("ONEC_ORDER_URL not configured, auto-advancing order %s to 'ready'", order_id)
+        with transaction.atomic():
+            o = Order.objects.select_for_update().get(id=order_id)
+            if o.status == "new":
+                o.status = "ready"
+                o.save(update_fields=["status"])
+        return {"status": "skipped", "order_id": order_id, "reason": "auto_ready_dev_mode"}
 
     # 3) Собираем payload
     items = []
