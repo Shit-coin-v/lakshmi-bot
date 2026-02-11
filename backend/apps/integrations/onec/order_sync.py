@@ -46,6 +46,7 @@ def send_order_to_onec_impl(self, order_id: int):
         with transaction.atomic():
             o = Order.objects.select_for_update().get(id=order_id)
             if o.status == "new":
+                o._skip_signal_notification = True
                 o.status = "ready"
                 o.save(update_fields=["status"])
         return {"status": "skipped", "order_id": order_id, "reason": "auto_ready_dev_mode"}

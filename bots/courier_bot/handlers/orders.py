@@ -140,6 +140,29 @@ async def order_pending_noop(callback: CallbackQuery):
     await callback.answer("Статус обновляется, подождите...", show_alert=False)
 
 
+# --- Callback: show customer phone ---
+
+@router.callback_query(F.data.startswith("order:") & F.data.endswith(":phone"))
+async def order_phone(callback: CallbackQuery):
+    if not _check_courier(callback.from_user.id):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+
+    parts = callback.data.split(":")
+    try:
+        order_id = int(parts[1])
+    except (IndexError, ValueError):
+        await callback.answer("Неверные данные.", show_alert=True)
+        return
+
+    order = await _fetch_order_with_items(order_id)
+    if not order or not order.phone:
+        await callback.answer("Телефон не найден.", show_alert=True)
+        return
+
+    await callback.answer(f"\U0001f4de {order.phone}", show_alert=True)
+
+
 # --- Callback: order detail ---
 
 @router.callback_query(F.data.startswith("order:") & F.data.endswith(":detail"))

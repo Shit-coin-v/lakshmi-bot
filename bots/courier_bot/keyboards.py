@@ -75,8 +75,8 @@ def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
     if order.phone:
         buttons.append(
             [InlineKeyboardButton(
-                text="\U0001f4de \u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u043c",
-                url=f"tel:{order.phone}",
+                text=f"\U0001f4de {order.phone}",
+                callback_data=f"order:{order.id}:phone",
             )]
         )
 
