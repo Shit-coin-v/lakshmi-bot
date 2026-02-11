@@ -33,7 +33,7 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
 
     if isinstance(reply_markup, InlineKeyboardMarkup):
         # Send ReplyKeyboard first to keep menu visible
-        menu_msg = await message.answer("☰ Меню", reply_markup=get_main_menu())
+        menu_msg = await message.answer("·", reply_markup=get_main_menu())
         msg_ids.append(menu_msg.message_id)
         # Then send the actual content with InlineKeyboard
         sent = await message.answer(text, **kwargs)
