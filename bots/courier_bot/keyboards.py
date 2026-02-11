@@ -13,6 +13,7 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="\u2753 \u041f\u043e\u043c\u043e\u0449\u044c")],
         ],
         resize_keyboard=True,
+        is_persistent=True,
     )
 
 
