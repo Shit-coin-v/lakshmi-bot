@@ -194,7 +194,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     Padding(
                                       padding: const EdgeInsets.only(top: 12),
                                       child: Text(
-                                        "Сдача курьеру: ${selectedChange! - finalTotal.toInt()} \u20bd",
+                                        "Сдача вам: ${selectedChange! - finalTotal.toInt()} \u20bd",
                                         style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
@@ -324,7 +324,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       String comment = _commentController.text;
       if (_paymentMethod == 'cash' && _changeFrom != null) {
         final changeAmount = _changeFrom!.toInt() - totalPrice.toInt();
-        final changeLine = 'СДАЧА с ${_changeFrom!.toInt()} рб. Сдача курьеру: $changeAmount рб';
+        final changeLine = 'СДАЧА с ${_changeFrom!.toInt()} рб. Сдача клиенту: $changeAmount рб';
         comment = comment.isEmpty ? changeLine : '$comment\n$changeLine';
       }
 

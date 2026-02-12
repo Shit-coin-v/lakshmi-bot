@@ -119,7 +119,7 @@ class OrderService {
       String commentText = 'Повтор заказа №$orderId. $oldComment'.trim();
       if (changeFrom != null && totalPrice != null) {
         final changeAmount = changeFrom.toInt() - totalPrice.toInt();
-        commentText += ' СДАЧА с ${changeFrom.toInt()} рб. Сдача курьеру: $changeAmount рб';
+        commentText += ' СДАЧА с ${changeFrom.toInt()} рб. Сдача клиенту: $changeAmount рб';
       } else if (changeFrom != null) {
         commentText += ' СДАЧА с ${changeFrom.toInt()} рб';
       }

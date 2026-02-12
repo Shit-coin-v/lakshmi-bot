@@ -116,7 +116,7 @@ class OrderDetailsScreen extends ConsumerWidget {
                                     Padding(
                                       padding: const EdgeInsets.only(top: 12),
                                       child: Text(
-                                        "Сдача курьеру: ${selectedChange! - totalPrice.toInt()} \u20bd",
+                                        "Сдача вам: ${selectedChange! - totalPrice.toInt()} \u20bd",
                                         style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
