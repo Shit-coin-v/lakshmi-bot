@@ -12,7 +12,7 @@ class OrderDetailsScreen extends ConsumerWidget {
 
   void _showPaymentAndRepeat(BuildContext context, WidgetRef ref, int orderId, String oldPaymentMethod, double totalPrice) {
     String selectedMethod = oldPaymentMethod;
-    final changeController = TextEditingController();
+    int? selectedChange;
     String? changeError;
 
     showModalBottomSheet(
@@ -79,28 +79,59 @@ class OrderDetailsScreen extends ConsumerWidget {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: changeController,
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      hintText: "Например, 1000",
-                                      suffixText: "₽",
-                                      errorText: changeError,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (final amount in [500, 1000, 5000])
+                                        ChoiceChip(
+                                          label: Text("$amount \u20bd"),
+                                          selected: selectedChange == amount,
+                                          onSelected: amount < totalPrice
+                                              ? null
+                                              : (sel) {
+                                                  setSheetState(() {
+                                                    selectedChange = sel ? amount : null;
+                                                    changeError = null;
+                                                  });
+                                                },
+                                          selectedColor: Colors.green.withValues(alpha: 0.2),
+                                          disabledColor: Colors.grey[200],
+                                        ),
+                                      ChoiceChip(
+                                        label: const Text("Без сдачи"),
+                                        selected: selectedChange == 0,
+                                        onSelected: (sel) {
+                                          setSheetState(() {
+                                            selectedChange = sel ? 0 : null;
+                                            changeError = null;
+                                          });
+                                        },
+                                        selectedColor: Colors.green.withValues(alpha: 0.2),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 14,
+                                    ],
+                                  ),
+                                  if (selectedChange != null && selectedChange! > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: Text(
+                                        "Сдача курьеру: ${selectedChange! - totalPrice.toInt()} \u20bd",
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF4CAF50),
+                                        ),
                                       ),
                                     ),
-                                    onChanged: (_) {
-                                      if (changeError != null) {
-                                        setSheetState(() => changeError = null);
-                                      }
-                                    },
-                                  ),
+                                  if (changeError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        changeError!,
+                                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                                      ),
+                                    ),
                                 ],
                               ),
                             )
@@ -114,19 +145,18 @@ class OrderDetailsScreen extends ConsumerWidget {
                         onPressed: () {
                           double? changeFrom;
                           if (selectedMethod == 'cash') {
-                            final parsed = double.tryParse(changeController.text);
-                            if (parsed == null || parsed < totalPrice) {
+                            if (selectedChange == null) {
                               setSheetState(() {
-                                changeError = parsed == null
-                                    ? "Введите сумму"
-                                    : "Сумма должна быть не менее ${totalPrice.toStringAsFixed(0)} ₽";
+                                changeError = "Выберите сумму";
                               });
                               return;
                             }
-                            changeFrom = parsed;
+                            changeFrom = selectedChange == 0
+                                ? null
+                                : selectedChange!.toDouble();
                           }
                           Navigator.pop(sheetContext);
-                          _executeRepeat(context, ref, orderId, selectedMethod, changeFrom);
+                          _executeRepeat(context, ref, orderId, selectedMethod, changeFrom, totalPrice);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4CAF50),
@@ -152,7 +182,7 @@ class OrderDetailsScreen extends ConsumerWidget {
     );
   }
 
-  void _executeRepeat(BuildContext context, WidgetRef ref, int orderId, String paymentMethod, double? changeFrom) async {
+  void _executeRepeat(BuildContext context, WidgetRef ref, int orderId, String paymentMethod, double? changeFrom, double totalPrice) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -161,7 +191,7 @@ class OrderDetailsScreen extends ConsumerWidget {
 
     try {
       final repeat = ref.read(repeatOrderProvider);
-      final newOrderId = await repeat(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom);
+      final newOrderId = await repeat(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom, totalPrice: totalPrice);
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
 

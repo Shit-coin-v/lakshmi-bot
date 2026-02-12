@@ -89,9 +89,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // --- ВЫБОР ОПЛАТЫ (НОВЫЙ МЕТОД) ---
   void _showPaymentMethodPicker(double finalTotal) {
     String selectedMethod = _paymentMethod;
-    final changeController = TextEditingController(
-      text: _changeFrom != null ? _changeFrom!.toInt().toString() : '',
-    );
+    int? selectedChange = _changeFrom != null ? _changeFrom!.toInt() : null;
     String? changeError;
 
     showModalBottomSheet(
@@ -142,7 +140,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         });
                       },
                     ),
-                    // Поле ввода сдачи (только для наличных)
+                    // Кнопки выбора суммы сдачи (только для наличных)
                     AnimatedSize(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
@@ -159,28 +157,59 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: changeController,
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      hintText: "Например, 1000",
-                                      suffixText: "\u20bd",
-                                      errorText: changeError,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (final amount in [500, 1000, 5000])
+                                        ChoiceChip(
+                                          label: Text("$amount \u20bd"),
+                                          selected: selectedChange == amount,
+                                          onSelected: amount < finalTotal
+                                              ? null
+                                              : (sel) {
+                                                  setSheetState(() {
+                                                    selectedChange = sel ? amount : null;
+                                                    changeError = null;
+                                                  });
+                                                },
+                                          selectedColor: Colors.green.withValues(alpha: 0.2),
+                                          disabledColor: Colors.grey[200],
+                                        ),
+                                      ChoiceChip(
+                                        label: const Text("Без сдачи"),
+                                        selected: selectedChange == 0,
+                                        onSelected: (sel) {
+                                          setSheetState(() {
+                                            selectedChange = sel ? 0 : null;
+                                            changeError = null;
+                                          });
+                                        },
+                                        selectedColor: Colors.green.withValues(alpha: 0.2),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 14,
+                                    ],
+                                  ),
+                                  if (selectedChange != null && selectedChange! > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: Text(
+                                        "Сдача курьеру: ${selectedChange! - finalTotal.toInt()} \u20bd",
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF4CAF50),
+                                        ),
                                       ),
                                     ),
-                                    onChanged: (_) {
-                                      if (changeError != null) {
-                                        setSheetState(() => changeError = null);
-                                      }
-                                    },
-                                  ),
+                                  if (changeError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        changeError!,
+                                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                                      ),
+                                    ),
                                 ],
                               ),
                             )
@@ -193,18 +222,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           if (selectedMethod == 'cash') {
-                            final parsed = double.tryParse(changeController.text);
-                            if (parsed == null || parsed < finalTotal) {
+                            if (selectedChange == null) {
                               setSheetState(() {
-                                changeError = parsed == null
-                                    ? "Введите сумму"
-                                    : "Сумма должна быть не менее ${finalTotal.toStringAsFixed(0)} \u20bd";
+                                changeError = "Выберите сумму";
                               });
                               return;
                             }
                             setState(() {
                               _paymentMethod = selectedMethod;
-                              _changeFrom = parsed;
+                              _changeFrom = selectedChange == 0
+                                  ? null
+                                  : selectedChange!.toDouble();
                             });
                           } else {
                             setState(() {
@@ -248,7 +276,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         return 'Картой курьеру';
       case 'cash':
         if (_changeFrom != null) {
-          return 'Наличными \u00b7 Сдача с ${_changeFrom!.toInt()} \u20bd';
+          return 'Наличными \u00b7 Сдача с ${_changeFrom!.toInt()} рб';
         }
         return 'Наличными';
       default:
@@ -295,7 +323,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
       String comment = _commentController.text;
       if (_paymentMethod == 'cash' && _changeFrom != null) {
-        final changeLine = 'Сдача с ${_changeFrom!.toInt()} \u20bd';
+        final changeAmount = _changeFrom!.toInt() - totalPrice.toInt();
+        final changeLine = 'СДАЧА с ${_changeFrom!.toInt()} рб. Сдача курьеру: $changeAmount рб';
         comment = comment.isEmpty ? changeLine : '$comment\n$changeLine';
       }
 

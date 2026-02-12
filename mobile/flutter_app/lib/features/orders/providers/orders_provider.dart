@@ -26,10 +26,10 @@ final orderDetailByIdProvider = FutureProvider.family
       return service.fetchOrderDetailById(id);
     });
 final repeatOrderProvider =
-    Provider.autoDispose<Future<int> Function(int orderId, {required String paymentMethod, double? changeFrom})>((ref) {
+    Provider.autoDispose<Future<int> Function(int orderId, {required String paymentMethod, double? changeFrom, double? totalPrice})>((ref) {
       final service = ref.watch(orderServiceProvider);
-      return (orderId, {required paymentMethod, changeFrom}) =>
-          service.repeatOrder(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom);
+      return (orderId, {required paymentMethod, changeFrom, totalPrice}) =>
+          service.repeatOrder(orderId, paymentMethod: paymentMethod, changeFrom: changeFrom, totalPrice: totalPrice);
     });
 
 final cancelOrderProvider =

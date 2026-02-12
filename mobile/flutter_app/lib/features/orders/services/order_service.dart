@@ -61,6 +61,7 @@ class OrderService {
     int orderId, {
     required String paymentMethod,
     double? changeFrom,
+    double? totalPrice,
   }) async {
     try {
       final detailRes = await _dio.get('/api/orders/$orderId/');
@@ -116,8 +117,11 @@ class OrderService {
       }).toList();
 
       String commentText = 'Повтор заказа №$orderId. $oldComment'.trim();
-      if (changeFrom != null) {
-        commentText += ' Сдача с ${changeFrom.toInt()} ₽';
+      if (changeFrom != null && totalPrice != null) {
+        final changeAmount = changeFrom.toInt() - totalPrice.toInt();
+        commentText += ' СДАЧА с ${changeFrom.toInt()} рб. Сдача курьеру: $changeAmount рб';
+      } else if (changeFrom != null) {
+        commentText += ' СДАЧА с ${changeFrom.toInt()} рб';
       }
 
       final payload = {
