@@ -1,9 +1,10 @@
 import logging
+from datetime import date
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from bots.customer_bot.database.models import SessionLocal, Order, OrderItem, CourierNotificationMessage
@@ -47,6 +48,23 @@ async def _fetch_active_orders():
             .order_by(Order.created_at)
         )
         return result.scalars().all()
+
+
+async def _fetch_completed_today():
+    """Fetch count and total sum of completed orders for today."""
+    today = date.today()
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(
+                func.count(Order.id),
+                func.coalesce(func.sum(Order.total_price), 0),
+            ).where(
+                Order.status == "completed",
+                func.date(Order.updated_at) == today,
+            )
+        )
+        row = result.one()
+        return row[0], float(row[1])
 
 
 async def _fetch_order_with_items(order_id: int):
@@ -134,14 +152,26 @@ async def cmd_orders(message: Message):
     await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)
 
 
-# --- Command: /completed (stub) ---
+# --- Command: /completed ---
 
 @router.message(Command("completed"))
 async def cmd_completed(message: Message):
     if not _check_courier(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
-    await send_clean(message, "\U0001f6a7 Раздел выполненных заказов в разработке.")
+
+    count, total = await _fetch_completed_today()
+
+    if count == 0:
+        await send_clean(message, "📋 Сегодня выполненных заказов пока нет.")
+        return
+
+    text = (
+        f"📋 Выполненные заказы за сегодня:\n\n"
+        f"📦 Количество: {count}\n"
+        f"💰 Сумма: {int(total)} ₽"
+    )
+    await send_clean(message, text)
 
 
 # --- Callback: back to orders list ---

@@ -152,13 +152,27 @@ class TestCompletedHandler:
         config.COURIER_ALLOWED_TG_IDS = {100}
 
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
-    def test_completed_stub(self, mock_send):
+    @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
+    def test_completed_no_orders(self, mock_fetch, mock_send):
         from handlers.orders import cmd_completed
+        mock_fetch.return_value = (0, 0.0)
         msg = _make_message(user_id=100)
         asyncio.run(cmd_completed(msg))
         mock_send.assert_awaited_once()
         text = mock_send.call_args[0][1]
-        assert "в разработке" in text
+        assert "пока нет" in text
+
+    @patch("handlers.orders.send_clean", new_callable=AsyncMock)
+    @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
+    def test_completed_with_orders(self, mock_fetch, mock_send):
+        from handlers.orders import cmd_completed
+        mock_fetch.return_value = (5, 3200.0)
+        msg = _make_message(user_id=100)
+        asyncio.run(cmd_completed(msg))
+        mock_send.assert_awaited_once()
+        text = mock_send.call_args[0][1]
+        assert "5" in text
+        assert "3200" in text
 
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
     def test_completed_unauthorized(self, mock_send):
