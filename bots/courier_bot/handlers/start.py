@@ -2,10 +2,9 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 
 from config import COURIER_ALLOWED_TG_IDS
-from keyboards import get_main_menu
 from chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
@@ -25,6 +24,6 @@ async def cmd_start(message: Message):
     await send_clean(
         message,
         "Добро пожаловать в бот курьера!\n"
-        "Используйте меню для навигации.",
-        reply_markup=get_main_menu(),
+        "Используйте кнопку меню \u2630 для навигации.",
+        reply_markup=ReplyKeyboardRemove(),
     )

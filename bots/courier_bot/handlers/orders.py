@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import Bot, F, Router
+from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -120,10 +121,10 @@ async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
             await session.commit()
 
 
-# --- ReplyKeyboard: orders list button ---
+# --- Command: /orders ---
 
-@router.message(F.text == "\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b")
-async def btn_orders(message: Message):
+@router.message(Command("orders"))
+async def cmd_orders(message: Message):
     if not _check_courier(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
@@ -131,6 +132,16 @@ async def btn_orders(message: Message):
     orders = await _fetch_active_orders()
     keyboard = get_orders_list_keyboard(orders)
     await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)
+
+
+# --- Command: /completed (stub) ---
+
+@router.message(Command("completed"))
+async def cmd_completed(message: Message):
+    if not _check_courier(message.from_user.id):
+        await send_clean(message, "Доступ запрещён.")
+        return
+    await send_clean(message, "\U0001f6a7 Раздел выполненных заказов в разработке.")
 
 
 # --- Callback: back to orders list ---
