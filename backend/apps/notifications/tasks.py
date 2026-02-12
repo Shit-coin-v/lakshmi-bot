@@ -93,7 +93,7 @@ def send_birthday_congratulations(self):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def notify_couriers_new_order(self, order_id: int):
-    """Send new order notification to all couriers with ReplyKeyboard reinforcement."""
+    """Send new order notification to all couriers."""
     from django.conf import settings as django_settings
     from apps.orders.models import Order
 
@@ -111,13 +111,7 @@ def notify_couriers_new_order(self, order_id: int):
     text = f"\U0001f514 <b>\u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #{order_id}!</b>\n\U0001f4b0 {total}\u20bd"
     if order.address:
         text += f"\n\U0001f3e0 {order.address}"
-    text += "\n\n\u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u00ab\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b\u00bb \u0434\u043b\u044f \u043f\u043e\u0434\u0440\u043e\u0431\u043d\u043e\u0441\u0442\u0435\u0439."
-
-    reply_markup = {
-        "keyboard": [[{"text": "\U0001f4e6 \u0417\u0430\u043a\u0430\u0437\u044b"}, {"text": "\u2753 \u041f\u043e\u043c\u043e\u0449\u044c"}]],
-        "resize_keyboard": True,
-        "is_persistent": True,
-    }
+    text += "\n\nНажмите /orders для подробностей."
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
@@ -130,7 +124,6 @@ def notify_couriers_new_order(self, order_id: int):
                 "chat_id": courier_id,
                 "text": text,
                 "parse_mode": "HTML",
-                "reply_markup": reply_markup,
             }, timeout=5)
             resp.raise_for_status()
             msg_data = resp.json()
