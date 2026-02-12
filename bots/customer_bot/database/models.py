@@ -219,6 +219,10 @@ class Order(Base):
     last_sync_error = Column(Text, nullable=True)
     sync_attempts = Column(Integer, default=0)
 
+    # Доставка
+    delivered_by = Column(BigInteger, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
     # Связи
     customer = relationship("CustomUser", back_populates="orders")
     items = relationship("OrderItem", back_populates="order")

@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from functools import partial
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -50,8 +51,8 @@ async def _fetch_active_orders():
         return result.scalars().all()
 
 
-async def _fetch_completed_today():
-    """Fetch count and total sum of completed orders for today."""
+async def _fetch_completed_today(courier_tg_id: int):
+    """Fetch count and total sum of completed orders for today by this courier."""
     today = date.today()
     async with SessionLocal() as session:
         result = await session.execute(
@@ -60,7 +61,8 @@ async def _fetch_completed_today():
                 func.coalesce(func.sum(Order.total_price), 0),
             ).where(
                 Order.status == "completed",
-                cast(Order.updated_at, Date) == today,
+                Order.delivered_by == courier_tg_id,
+                cast(Order.completed_at, Date) == today,
             )
         )
         row = result.one()
@@ -108,10 +110,12 @@ def _format_order_detail(order) -> str:
     return "\n".join(lines)
 
 
-async def _update_order_status(order_id: int, new_status: str) -> bool:
+async def _update_order_status(order_id: int, new_status: str, courier_id: int | None = None) -> bool:
     """POST status change to backend via onec endpoint. Returns True on success."""
     url = f"{BACKEND_URL}/onec/order/status"
     payload = {"order_id": order_id, "status": new_status}
+    if courier_id:
+        payload["courier_id"] = courier_id
     result = await post_to_onec(url, INTEGRATION_API_KEY, payload)
     if result and result.get("status") == "ok":
         return True
@@ -160,7 +164,7 @@ async def cmd_completed(message: Message):
         await send_clean(message, "Доступ запрещён.")
         return
 
-    count, total = await _fetch_completed_today()
+    count, total = await _fetch_completed_today(message.from_user.id)
 
     if count == 0:
         await send_clean(message, "📋 Сегодня выполненных заказов пока нет.")
@@ -375,13 +379,14 @@ async def order_status_change(callback: CallbackQuery):
     await callback.answer("Обновляю статус...")
 
     # Launch background retry task
+    update_fn = partial(_update_order_status, courier_id=callback.from_user.id)
     schedule_retry(
         bot=callback.bot,
         chat_id=callback.message.chat.id,
         message_id=callback.message.message_id,
         order_id=order_id,
         new_status=new_status,
-        update_fn=_update_order_status,
+        update_fn=update_fn,
         on_success=_on_retry_success,
         on_failure=_on_retry_failure,
     )

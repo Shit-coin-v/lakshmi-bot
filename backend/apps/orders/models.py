@@ -55,6 +55,10 @@ class Order(models.Model):
         verbose_name="Способ получения",
     )
 
+    # --- Доставка ---
+    delivered_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID курьера")
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Время завершения")
+
     # --- 1C sync ---
     onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")
     sync_status = models.CharField(max_length=20, default="new", db_index=True, verbose_name="Синхр. статус")

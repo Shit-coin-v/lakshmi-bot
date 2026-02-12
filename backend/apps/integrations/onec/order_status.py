@@ -34,6 +34,7 @@ def onec_order_status(request):
     order_id = payload.get("order_id")
     status_in = (payload.get("status") or "").strip()
     onec_guid = (payload.get("onec_guid") or "").strip() or None
+    courier_id = payload.get("courier_id")
 
     if not order_id:
         return onec_error(
@@ -62,6 +63,13 @@ def onec_order_status(request):
                 o.status = status_in
                 updates.append("status")
                 status_changed = True
+
+                if status_in == "completed":
+                    o.completed_at = dj_tz.now()
+                    updates.append("completed_at")
+                    if courier_id:
+                        o.delivered_by = int(courier_id)
+                        updates.append("delivered_by")
 
             if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
                 o.onec_guid = onec_guid
