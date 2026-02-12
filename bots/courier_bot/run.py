@@ -21,9 +21,9 @@ dp.include_router(help.router)
 async def on_startup(bot: Bot):
     await bot.set_my_commands(
         commands=[
-            BotCommand(command="orders", description="Новые заказы"),
-            BotCommand(command="completed", description="Выполненные заказы"),
-            BotCommand(command="help", description="Помощь"),
+            BotCommand(command="orders", description="📦 Заказы"),
+            BotCommand(command="completed", description="📋 Отчёт заказов"),
+            BotCommand(command="help", description="❓ Помощь"),
         ],
         scope=BotCommandScopeAllPrivateChats(),
     )

@@ -155,7 +155,7 @@ class TestCompletedHandler:
     @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
     def test_completed_no_orders(self, mock_fetch, mock_send):
         from handlers.orders import cmd_completed
-        mock_fetch.return_value = (0, 0.0)
+        mock_fetch.return_value = 0
         msg = _make_message(user_id=100)
         asyncio.run(cmd_completed(msg))
         mock_send.assert_awaited_once()
@@ -166,13 +166,13 @@ class TestCompletedHandler:
     @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
     def test_completed_with_orders(self, mock_fetch, mock_send):
         from handlers.orders import cmd_completed
-        mock_fetch.return_value = (5, 3200.0)
+        mock_fetch.return_value = 5
         msg = _make_message(user_id=100)
         asyncio.run(cmd_completed(msg))
         mock_send.assert_awaited_once()
         text = mock_send.call_args[0][1]
         assert "5" in text
-        assert "3200" in text
+        assert "750" in text  # 5 * 150₽
 
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
     def test_completed_unauthorized(self, mock_send):

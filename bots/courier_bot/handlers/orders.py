@@ -21,6 +21,7 @@ router = Router()
 
 # Statuses visible to couriers
 _ACTIVE_STATUSES = ("ready", "delivery", "arrived")
+DELIVERY_RATE = 150  # ₽ за доставку
 
 _STATUS_DISPLAY = {
     "ready": "Заказ собран, ждёт курьера",
@@ -52,21 +53,17 @@ async def _fetch_active_orders():
 
 
 async def _fetch_completed_today(courier_tg_id: int):
-    """Fetch count and total sum of completed orders for today by this courier."""
+    """Fetch count of completed orders for today by this courier."""
     today = date.today()
     async with SessionLocal() as session:
         result = await session.execute(
-            select(
-                func.count(Order.id),
-                func.coalesce(func.sum(Order.total_price), 0),
-            ).where(
+            select(func.count(Order.id)).where(
                 Order.status == "completed",
                 Order.delivered_by == courier_tg_id,
                 cast(Order.completed_at, Date) == today,
             )
         )
-        row = result.one()
-        return row[0], float(row[1])
+        return result.scalar_one()
 
 
 async def _fetch_order_with_items(order_id: int):
@@ -164,16 +161,17 @@ async def cmd_completed(message: Message):
         await send_clean(message, "Доступ запрещён.")
         return
 
-    count, total = await _fetch_completed_today(message.from_user.id)
+    count = await _fetch_completed_today(message.from_user.id)
 
     if count == 0:
-        await send_clean(message, "📋 Сегодня выполненных заказов пока нет.")
+        await send_clean(message, "📋 Сегодня доставленных заказов пока нет.")
         return
 
+    total = count * DELIVERY_RATE
     text = (
-        f"📋 Выполненные заказы за сегодня:\n\n"
+        f"📋 Отчёт за сегодня:\n\n"
         f"📦 Количество: {count}\n"
-        f"💰 Сумма: {int(total)} ₽"
+        f"💰 Сумма: {total} ₽"
     )
     await send_clean(message, text)
 
