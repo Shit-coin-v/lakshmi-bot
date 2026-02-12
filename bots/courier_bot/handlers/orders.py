@@ -4,7 +4,7 @@ from datetime import date
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from sqlalchemy import func, select
+from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import selectinload
 
 from bots.customer_bot.database.models import SessionLocal, Order, OrderItem, CourierNotificationMessage
@@ -60,7 +60,7 @@ async def _fetch_completed_today():
                 func.coalesce(func.sum(Order.total_price), 0),
             ).where(
                 Order.status == "completed",
-                func.date(Order.updated_at) == today,
+                cast(Order.updated_at, Date) == today,
             )
         )
         row = result.one()
