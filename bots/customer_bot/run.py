@@ -17,7 +17,7 @@ from aiogram.fsm.context import FSMContext
 
 import config
 from onec_client import send_customer_to_onec
-from chat_cleanup import send_clean
+from chat_cleanup import send_clean, track_message
 from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
 from qr_code import (
@@ -194,16 +194,24 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         "qr_code": qr_code,
     })
 
+    # Delete the consent message
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
     if user:
         await send_customer_to_onec(user, data.get("referrer_id"))
-        await callback.message.answer(
+        sent = await callback.message.answer(
             "Спасибо! Вы успешно зарегистрированы.\n\n🏠 Вы в главном меню",
             reply_markup=get_qr_code_button(),
         )
+        track_message(callback.message.chat.id, sent.message_id)
     else:
-        await callback.message.answer(
+        sent = await callback.message.answer(
             "Произошла ошибка при регистрации. Попробуйте позже или напишите /start."
         )
+        track_message(callback.message.chat.id, sent.message_id)
     await state.clear()
     await callback.answer()
 

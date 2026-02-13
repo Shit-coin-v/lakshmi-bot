@@ -33,3 +33,8 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
     _last_bot_msg[chat_id] = sent.message_id
 
     return sent
+
+
+def track_message(chat_id: int, message_id: int):
+    """Track a bot message sent outside send_clean (e.g. from callbacks)."""
+    _last_bot_msg[chat_id] = message_id
