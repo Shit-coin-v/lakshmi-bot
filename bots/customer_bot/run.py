@@ -173,17 +173,20 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
 
     if user:
         await send_customer_to_onec(user, data.get("referrer_id"))
-
-    await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
-    if user and user.get("qr_code"):
-        qr_path, _ = resolve_qr_code_path(
-            user["qr_code"], telegram_id=user["telegram_id"]
-        )
-        if qr_path.exists():
-            await callback.message.answer(
-                "Вот ваша кнопка для получения QR-кода:",
-                reply_markup=get_qr_code_button(),
+        await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
+        if user.get("qr_code"):
+            qr_path, _ = resolve_qr_code_path(
+                user["qr_code"], telegram_id=user["telegram_id"]
             )
+            if qr_path.exists():
+                await callback.message.answer(
+                    "Вот ваша кнопка для получения QR-кода:",
+                    reply_markup=get_qr_code_button(),
+                )
+    else:
+        await callback.message.answer(
+            "Произошла ошибка при регистрации. Попробуйте позже или напишите /start."
+        )
     await state.clear()
     await callback.answer()
 
