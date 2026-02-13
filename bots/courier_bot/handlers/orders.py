@@ -44,7 +44,12 @@ def _check_courier(user_id: int) -> bool:
 async def _fetch_active_orders():
     """Fetch orders with active statuses via HTTP API."""
     orders = await backend.get_active_orders()
-    return [SimpleNamespace(**o) for o in orders]
+    result = []
+    for o in orders:
+        if "total_price" in o and o["total_price"] is not None:
+            o["total_price"] = float(o["total_price"])
+        result.append(SimpleNamespace(**o))
+    return result
 
 
 async def _fetch_completed_today(courier_tg_id: int):

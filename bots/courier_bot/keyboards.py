@@ -22,7 +22,8 @@ def get_orders_list_keyboard(orders) -> InlineKeyboardMarkup:
     buttons = []
     for o in orders:
         label = _STATUS_LABELS.get(o.status, o.status)
-        total = int(o.total_price) if o.total_price == int(o.total_price) else o.total_price
+        tp = float(o.total_price)
+        total = int(tp) if tp == int(tp) else tp
         text = f"#{o.id} {label} \u2014 {total}\u20bd"
         buttons.append(
             [InlineKeyboardButton(text=text, callback_data=f"order:{o.id}:detail")]
