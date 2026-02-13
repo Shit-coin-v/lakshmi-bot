@@ -32,6 +32,7 @@ class ProfileService {
     bool? promoEnabled,
     bool? newsEnabled,
     bool? generalEnabled,
+    bool? orderStatusEnabled,
   }) async {
     final userId = await _ref.read(authServiceProvider).getSavedUserId();
     if (userId == null) throw Exception("Не найден ID пользователя");
@@ -44,6 +45,7 @@ class ProfileService {
     if (promoEnabled != null) data['promo_enabled'] = promoEnabled;
     if (newsEnabled != null) data['news_enabled'] = newsEnabled;
     if (generalEnabled != null) data['general_enabled'] = generalEnabled;
+    if (orderStatusEnabled != null) data['order_status_enabled'] = orderStatusEnabled;
 
     await _dio.patch('/api/customer/$userId/', data: data);
   }

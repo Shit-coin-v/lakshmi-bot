@@ -29,4 +29,8 @@ class NotificationsApiService {
       data: {'source': source},
     );
   }
+
+  Future<void> markAllAsRead() async {
+    await _dio.post('/api/notifications/read-all/');
+  }
 }

@@ -23,6 +23,7 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
     bool? promoEnabled,
     bool? newsEnabled,
     bool? generalEnabled,
+    bool? orderStatusEnabled,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -34,6 +35,7 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
         promoEnabled: promoEnabled,
         newsEnabled: newsEnabled,
         generalEnabled: generalEnabled,
+        orderStatusEnabled: orderStatusEnabled,
       );
 
       // 2. Обновляем данные локально (перезапрашиваем с сервера)

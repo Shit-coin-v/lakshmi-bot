@@ -41,6 +41,13 @@ class NotificationViewSet(viewsets.ViewSet):
         cnt = Notification.objects.filter(user=request.telegram_user, is_read=False).count()
         return Response({"unread_count": cnt}, status=200)
 
+    @action(detail=False, methods=["post"], url_path="read-all")
+    def mark_all_read(self, request):
+        updated = Notification.objects.filter(
+            user=request.telegram_user, is_read=False
+        ).update(is_read=True)
+        return Response({"status": "ok", "updated_count": updated}, status=200)
+
     @action(detail=True, methods=["post"], url_path="read")
     def mark_read(self, request, pk=None):
         source = (request.data.get("source") or "inapp")

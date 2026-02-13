@@ -12,6 +12,7 @@ class UserModel {
   final bool promoEnabled;
   final bool newsEnabled;
   final bool generalEnabled;
+  final bool orderStatusEnabled;
 
   UserModel({
     required this.id,
@@ -27,6 +28,7 @@ class UserModel {
     this.promoEnabled = true,
     this.newsEnabled = true,
     this.generalEnabled = true,
+    this.orderStatusEnabled = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +54,7 @@ class UserModel {
       promoEnabled: data['promo_enabled'] ?? true,
       newsEnabled: data['news_enabled'] ?? true,
       generalEnabled: data['general_enabled'] ?? true,
+      orderStatusEnabled: data['order_status_enabled'] ?? true,
     );
   }
 }

@@ -39,8 +39,9 @@ urlpatterns = [
     path("api/customer/<int:pk>/", CustomerProfileView.as_view(), name="customer-profile"),
     # Notifications
     path("api/notifications/", NotificationViewSet.as_view({"get": "list"}), name="notifications-list"),
-    path("api/notifications/<int:pk>/", NotificationViewSet.as_view({"get": "retrieve"}), name="notifications-detail"),
+    path("api/notifications/read-all/", NotificationViewSet.as_view({"post": "mark_all_read"}), name="notifications-read-all"),
     path("api/notifications/unread-count/", NotificationViewSet.as_view({"get": "unread_count"}), name="notifications-unread-count"),
+    path("api/notifications/<int:pk>/", NotificationViewSet.as_view({"get": "retrieve"}), name="notifications-detail"),
     path("api/notifications/<int:pk>/read/", NotificationViewSet.as_view({"post": "mark_read"}), name="notifications-mark-read"),
     # Auth
     path("api/auth/", include("apps.accounts.urls")),

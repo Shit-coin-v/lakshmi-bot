@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/notification_settings_provider.dart';
 import '../../home/providers/profile_provider.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
@@ -8,8 +7,6 @@ class NotificationSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(notificationSettingsProvider);
-    final notifier = ref.read(notificationSettingsProvider.notifier);
     final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
@@ -20,51 +17,50 @@ class NotificationSettingsScreen extends ConsumerWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 16, bottom: 8, top: 8),
-              child: Text(
-                'PUSH-УВЕДОМЛЕНИЯ',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+      body: profileAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => const Center(child: Text('Не удалось загрузить настройки')),
+        data: (user) => SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- PUSH section ---
+              const Padding(
+                padding: EdgeInsets.only(left: 16, bottom: 8, top: 8),
+                child: Text(
+                  'PUSH-УВЕДОМЛЕНИЯ',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
                   ),
-                ],
+                ),
               ),
-              child: profileAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                error: (_, _) => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Не удалось загрузить настройки'),
-                ),
-                data: (user) => Column(
+                child: Column(
                   children: [
                     _SwitchTile(
                       title: 'Статусы заказов',
                       subtitle: 'Узнавайте, когда заказ собран или едет к вам',
-                      value: settings.pushOrders,
-                      onChanged: notifier.togglePushOrders,
+                      value: user.orderStatusEnabled,
+                      onChanged: (value) {
+                        ref.read(profileProvider.notifier).updateData(
+                          orderStatusEnabled: value,
+                        );
+                      },
                     ),
                     const Divider(height: 1, indent: 16),
                     _SwitchTile(
@@ -102,9 +98,47 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-            ),
 
-          ],
+              const SizedBox(height: 24),
+
+              // --- РАССЫЛКИ section ---
+              const Padding(
+                padding: EdgeInsets.only(left: 16, bottom: 8),
+                child: Text(
+                  'РАССЫЛКИ',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _SwitchTile(
+                  title: 'Подписка на рассылки',
+                  subtitle: 'Рассылки через Telegram-бот',
+                  value: user.newsletterEnabled,
+                  onChanged: (value) {
+                    ref.read(profileProvider.notifier).updateData(
+                      newsletterEnabled: value,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

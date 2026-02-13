@@ -124,6 +124,10 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
     message_text = _STATUS_MESSAGES.get(order.status)
     if not message_text:
         return
+
+    customer = getattr(order, "customer", None)
+    if customer and not getattr(customer, "order_status_enabled", True):
+        return
     
     notif = DBNotification(
         user=order.customer,

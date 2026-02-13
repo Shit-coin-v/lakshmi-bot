@@ -57,9 +57,10 @@ class CustomUserAdmin(admin.ModelAdmin):
         'promo_enabled',
         'news_enabled',
         'general_enabled',
+        'order_status_enabled',
     )
     search_fields = ('full_name', 'telegram_id')
-    list_filter = ('newsletter_enabled', 'promo_enabled', 'news_enabled', 'general_enabled')
+    list_filter = ('newsletter_enabled', 'promo_enabled', 'news_enabled', 'general_enabled', 'order_status_enabled')
     readonly_fields = ('registration_date',)
     inlines = [ReferralInline]
 

@@ -48,6 +48,23 @@ class NotificationsNotifier
     }
   }
 
+  Future<void> markAllAsRead() async {
+    final current = state;
+    if (current is! AsyncData<List<NotificationModel>>) return;
+
+    try {
+      final api = _ref.read(notificationsApiServiceProvider);
+      await api.markAllAsRead();
+
+      final updated = [
+        for (final n in current.value) n.copyWith(isRead: true),
+      ];
+      state = AsyncValue.data(updated);
+    } catch (_) {
+      state = current;
+    }
+  }
+
   void clearAll() {
     state = const AsyncValue.data([]);
   }

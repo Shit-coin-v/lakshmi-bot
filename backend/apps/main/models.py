@@ -59,6 +59,7 @@ class CustomUser(models.Model):
     promo_enabled = models.BooleanField("Акции и скидки", default=True)
     news_enabled = models.BooleanField("Новости магазина", default=True)
     general_enabled = models.BooleanField("Общие уведомления", default=True)
+    order_status_enabled = models.BooleanField("Статусы заказов", default=True)
     created_at = models.DateTimeField(null=True, blank=True)
     # Email auth fields
     password_hash = models.CharField(max_length=128, null=True, blank=True)
