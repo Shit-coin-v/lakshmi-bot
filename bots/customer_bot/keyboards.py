@@ -12,6 +12,14 @@ def get_qr_code_button() -> InlineKeyboardMarkup:
     return keyboard
 
 
+def get_back_to_menu_button() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_menu")]
+        ]
+    )
+
+
 def get_consent_button() -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[

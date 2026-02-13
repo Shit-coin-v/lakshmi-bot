@@ -5,7 +5,10 @@ import re
 import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import (
+    BotCommand, BotCommandScopeAllPrivateChats, CallbackQuery,
+    FSInputFile, MenuButtonCommands, Message,
+)
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -14,7 +17,8 @@ from aiogram.fsm.context import FSMContext
 
 import config
 from onec_client import send_customer_to_onec
-from keyboards import get_qr_code_button, get_consent_button
+from chat_cleanup import send_clean
+from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
 from qr_code import (
     resolve_qr_code_path,
@@ -31,6 +35,28 @@ dp = Dispatcher()
 
 OPEN_CALLBACK_PREFIX = "open:"
 TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
+
+HELP_TEXT = (
+    "❓ Как пользоваться ботом:\n\n"
+    "📲 Показать QR-код — покажите QR-код на кассе для начисления бонусов\n"
+    "💰 Показать бонусы — текущий баланс бонусных баллов\n"
+    "👥 Пригласить друга — реферальная ссылка для друзей\n\n"
+    "Команды:\n"
+    "/menu — 🏠 Главное меню\n"
+    "/help — ❓ Помощь"
+)
+
+
+@dp.startup()
+async def on_startup(started_bot: Bot):
+    await started_bot.set_my_commands(
+        commands=[
+            BotCommand(command="menu", description="🏠 Главное меню"),
+            BotCommand(command="help", description="❓ Помощь"),
+        ],
+        scope=BotCommandScopeAllPrivateChats(),
+    )
+    await started_bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
 
 async def register_newsletter_open(
@@ -108,12 +134,9 @@ async def command_start_handler(message: Message, state: FSMContext):
     user = await backend.get_user_by_telegram_id(message.from_user.id)
 
     if user:
-        text = "Привет!"
-        qr_path = await ensure_qr_code_path(user)
-        if qr_path and qr_path.exists():
-            await message.answer(text, reply_markup=get_qr_code_button())
-            return
-        await message.answer(text)
+        await ensure_qr_code_path(user)
+        await send_clean(message, "🏠 Вы в главном меню", reply_markup=get_qr_code_button())
+        return
     else:
         command_args = message.text.split()
         referrer_id = None
@@ -173,16 +196,10 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
 
     if user:
         await send_customer_to_onec(user, data.get("referrer_id"))
-        await callback.message.answer("Спасибо! Вы успешно зарегистрированы.")
-        if user.get("qr_code"):
-            qr_path, _ = resolve_qr_code_path(
-                user["qr_code"], telegram_id=user["telegram_id"]
-            )
-            if qr_path.exists():
-                await callback.message.answer(
-                    "Вот ваша кнопка для получения QR-кода:",
-                    reply_markup=get_qr_code_button(),
-                )
+        await callback.message.answer(
+            "Спасибо! Вы успешно зарегистрированы.\n\n🏠 Вы в главном меню",
+            reply_markup=get_qr_code_button(),
+        )
     else:
         await callback.message.answer(
             "Произошла ошибка при регистрации. Попробуйте позже или напишите /start."
@@ -191,34 +208,78 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+@dp.message(Command("menu"))
+async def cmd_menu(message: Message):
+    user = await backend.get_user_by_telegram_id(message.from_user.id)
+    if user:
+        await ensure_qr_code_path(user)
+        await send_clean(message, "🏠 Вы в главном меню", reply_markup=get_qr_code_button())
+    else:
+        await send_clean(message, "Вы ещё не зарегистрированы. Нажмите /start")
+
+
+@dp.message(Command("help"))
+async def cmd_help(message: Message):
+    await send_clean(message, HELP_TEXT)
+
+
 @dp.callback_query(lambda c: c.data in ["show_qr", "show_bonuses", "invite_friend"])
 async def callback_handler(callback: CallbackQuery):
     user = await backend.get_user_by_telegram_id(callback.from_user.id)
 
     if not user:
-        await callback.message.answer("Пользователь не найден")
-        return await callback.answer()
+        await callback.answer("Пользователь не найден", show_alert=True)
+        return
 
     await save_bot_activity(telegram_id=callback.from_user.id, action=callback.data)
 
     if callback.data == "show_qr":
         qr_path = await ensure_qr_code_path(user)
         if not qr_path or not qr_path.exists():
-            await callback.message.answer("QR-код не найден. Пожалуйста, обратитесь в поддержку")
-            return await callback.answer()
+            await callback.answer("QR-код не найден. Обратитесь в поддержку", show_alert=True)
+            return
 
         photo = FSInputFile(str(qr_path))
-        await callback.message.answer_photo(photo)
+        await callback.message.delete()
+        await callback.message.answer_photo(photo, reply_markup=get_back_to_menu_button())
 
     elif callback.data == "show_bonuses":
-        await callback.message.answer(f"Ваши бонусы: {user['bonuses']}")
+        await callback.message.edit_text(
+            f"💰 Ваши бонусы: {user['bonuses']}",
+            reply_markup=get_back_to_menu_button(),
+        )
 
     elif callback.data == "invite_friend":
         bot_info = await get_bot().get_me()
         bot_username = bot_info.username
         ref_link = f"https://t.me/{bot_username}?start=ref{user['telegram_id']}"
-        await callback.message.answer(f"🔗 Ваша реферальная ссылка:\n{ref_link}")
+        await callback.message.edit_text(
+            f"🔗 Ваша реферальная ссылка:\n{ref_link}",
+            reply_markup=get_back_to_menu_button(),
+        )
 
+    await callback.answer()
+
+
+@dp.callback_query(lambda c: c.data == "back_to_menu")
+async def back_to_menu(callback: CallbackQuery):
+    user = await backend.get_user_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.answer("Пользователь не найден", show_alert=True)
+        return
+
+    try:
+        await callback.message.edit_text(
+            "🏠 Вы в главном меню",
+            reply_markup=get_qr_code_button(),
+        )
+    except TelegramBadRequest:
+        # Message is a photo (from show_qr) — can't edit_text, delete and send new
+        await callback.message.delete()
+        await callback.message.answer(
+            "🏠 Вы в главном меню",
+            reply_markup=get_qr_code_button(),
+        )
     await callback.answer()
 
 
@@ -227,9 +288,10 @@ async def cmd_link(message: Message):
     """Handle /link <code> — link Telegram to an email account."""
     args = (message.text or "").split()
     if len(args) < 2 or not args[1].strip().isdigit():
-        await message.answer(
+        await send_clean(
+            message,
             "Использование: /link <6-значный код>\n"
-            "Получите код в приложении: Профиль → Привязать Telegram"
+            "Получите код в приложении: Профиль → Привязать Telegram",
         )
         return
 
@@ -244,13 +306,13 @@ async def cmd_link(message: Message):
             async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 data = await resp.json()
                 if resp.status == 200:
-                    await message.answer("Аккаунты успешно связаны! Теперь вы можете входить и через Telegram, и через email.")
+                    await send_clean(message, "Аккаунты успешно связаны! Теперь вы можете входить и через Telegram, и через email.")
                 else:
                     detail = data.get("detail", "Неизвестная ошибка")
-                    await message.answer(f"Ошибка: {detail}")
+                    await send_clean(message, f"Ошибка: {detail}")
     except Exception as e:
         logger.exception("Error in /link command: %s", e)
-        await message.answer("Произошла ошибка. Попробуйте позже.")
+        await send_clean(message, "Произошла ошибка. Попробуйте позже.")
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith(OPEN_CALLBACK_PREFIX))
