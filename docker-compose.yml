@@ -309,6 +309,7 @@ services:
       - ./bots/customer_bot/qr_codes:/app/bots/customer_bot/qr_codes
     networks:
       - bot
+      - backend
     logging:
       driver: json-file
       options:
