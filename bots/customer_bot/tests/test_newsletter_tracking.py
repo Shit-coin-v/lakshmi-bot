@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
 

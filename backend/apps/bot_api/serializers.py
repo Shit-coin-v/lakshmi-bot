@@ -3,10 +3,7 @@ from rest_framework import serializers
 from apps.main.models import (
     BotActivity,
     CustomUser,
-    NewsletterDelivery,
-    NewsletterOpenEvent,
 )
-from apps.api.models import OneCClientMap
 from apps.notifications.models import CourierNotificationMessage
 from apps.orders.models import Order, OrderItem
 

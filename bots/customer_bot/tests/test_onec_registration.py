@@ -1,6 +1,5 @@
 import asyncio
 import json
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import aiohttp

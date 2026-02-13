@@ -1,9 +1,8 @@
 import asyncio
-import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
