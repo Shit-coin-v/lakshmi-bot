@@ -48,15 +48,15 @@ HELP_TEXT = (
 
 
 @dp.startup()
-async def on_startup(started_bot: Bot):
-    await started_bot.set_my_commands(
+async def on_startup(bot: Bot):
+    await bot.set_my_commands(
         commands=[
             BotCommand(command="menu", description="🏠 Главное меню"),
             BotCommand(command="help", description="❓ Помощь"),
         ],
         scope=BotCommandScopeAllPrivateChats(),
     )
-    await started_bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
 
 async def register_newsletter_open(
