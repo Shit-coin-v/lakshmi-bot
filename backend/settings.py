@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'apps.notifications.apps.NotificationsConfig',
     'apps.integrations.onec.apps.OnecConfig',
     'apps.accounts.apps.AccountsConfig',
+    'apps.bot_api.apps.BotApiConfig',
 ]
 
 MIDDLEWARE = [

@@ -1,18 +1,23 @@
 import logging
-from datetime import timezone
+from datetime import datetime, timezone
 
 import config
-from database.models import upsert_onec_client_map
+from shared.clients.backend_client import BackendClient
 from shared.clients.onec_client import post_to_onec
 
+backend = BackendClient(config.BACKEND_URL, config.ONEC_API_KEY or "")
 
-async def send_customer_to_onec(session, user, referrer_id=None):
+
+async def send_customer_to_onec(user_data, referrer_id=None):
     """
     Отправляет данные клиента в 1С (или в ваш Django-/proxy-эндпоинт).
     Требуются переменные окружения:
       - ONEC_CUSTOMER_URL
       - INTEGRATION_API_KEY
-    Заголовки: X-Api-Key, X-Idempotency-Key
+
+    Args:
+        user_data: dict from API response (keys: id, telegram_id, qr_code, registration_date, ...)
+        referrer_id: optional referrer telegram_id
     """
     if not config.ONEC_CUSTOMER_URL or not config.ONEC_API_KEY:
         logging.info(
@@ -20,22 +25,34 @@ async def send_customer_to_onec(session, user, referrer_id=None):
         )
         return
 
-    # Готовим payload (created_at в UTC ISO-8601)
-    reg_dt = user.registration_date
-    if getattr(reg_dt, "tzinfo", None) is None:
+    # Parse registration_date from ISO string
+    reg_dt_str = user_data.get("registration_date")
+    if reg_dt_str:
+        reg_dt = datetime.fromisoformat(str(reg_dt_str).replace("Z", "+00:00"))
+    else:
+        reg_dt = datetime.now(timezone.utc)
+
+    if reg_dt.tzinfo is None:
         reg_dt = reg_dt.replace(tzinfo=timezone.utc)
     else:
         reg_dt = reg_dt.astimezone(timezone.utc)
 
     payload = {
-        "telegram_id": user.telegram_id,
-        "qr_code": user.qr_code,
+        "telegram_id": user_data["telegram_id"],
+        "qr_code": user_data.get("qr_code"),
         "created_at": reg_dt.isoformat(),
     }
-    if getattr(user, "full_name", None):
-        payload["full_name"] = user.full_name
-    if getattr(user, "birth_date", None):
-        payload["birth_date"] = user.birth_date.isoformat()
+    full_name = user_data.get("full_name")
+    if full_name:
+        payload["full_name"] = full_name
+
+    birth_date = user_data.get("birth_date")
+    if birth_date:
+        # birth_date may be a string from API
+        if isinstance(birth_date, str):
+            payload["birth_date"] = birth_date
+        else:
+            payload["birth_date"] = birth_date.isoformat()
 
     if referrer_id is not None:
         payload["referrer_telegram_id"] = referrer_id
@@ -56,24 +73,12 @@ async def send_customer_to_onec(session, user, referrer_id=None):
     if bonus is None:
         bonus = customer_block.get("bonus_balance")
 
+    user_id = user_data["id"]
+
     if guid:
-        await upsert_onec_client_map(session, user.id, guid)
+        await backend.upsert_onec_map(user_id, guid)
 
     if bonus is not None:
-        try:
-            user.bonuses = bonus
-            session.add(user)
-            await session.commit()
-            refresh = getattr(session, "refresh", None)
-            if callable(refresh):
-                await refresh(user)
-        except Exception as e:
-            logging.warning("Failed to update bonuses locally: %s", e)
-            rollback = getattr(session, "rollback", None)
-            if callable(rollback):
-                try:
-                    await rollback()
-                except Exception:
-                    logging.exception("Failed to rollback bonuses update")
+        await backend.patch_user(user_id, {"bonuses": str(bonus)})
 
-    logging.info("1C registration OK for tg=%s", user.telegram_id)
+    logging.info("1C registration OK for tg=%s", user_data.get("telegram_id"))

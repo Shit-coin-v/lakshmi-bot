@@ -7,7 +7,6 @@ amqp==5.3.1
 annotated-types==0.7.0
 asgiref==3.8.1
 async-timeout==5.0.1
-asyncpg==0.30.0
 attrs==25.3.0
 billiard==4.2.1
 celery==5.5.2
@@ -27,7 +26,6 @@ django-timezone-field==7.1
 djangorestframework==3.15.2
 firebase-admin==6.6.0
 frozenlist==1.5.0
-greenlet==3.1.1
 idna==3.10
 kombu==5.5.3
 magic-filter==1.0.12
@@ -47,7 +45,6 @@ qrcode==8.1
 redis==5.2.1
 requests==2.32.3
 six==1.17.0
-SQLAlchemy==2.0.38
 sqlparse==0.5.3
 typing_extensions==4.13.2
 tzdata==2025.2

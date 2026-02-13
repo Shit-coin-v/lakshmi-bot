@@ -1,14 +1,13 @@
 import logging
 from datetime import date
 from functools import partial
+from types import SimpleNamespace
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from sqlalchemy import Date, cast, func, select
-from sqlalchemy.orm import selectinload
 
-from bots.customer_bot.database.models import SessionLocal, Order, OrderItem, CourierNotificationMessage
+from shared.clients.backend_client import BackendClient
 from shared.clients.onec_client import post_to_onec
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
 from chat_cleanup import send_clean
@@ -18,6 +17,8 @@ from retry import is_in_flight, schedule_retry
 logger = logging.getLogger(__name__)
 
 router = Router()
+
+backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 # Statuses visible to couriers
 _ACTIVE_STATUSES = ("ready", "delivery", "arrived")
@@ -42,39 +43,50 @@ def _check_courier(user_id: int) -> bool:
 
 
 async def _fetch_active_orders():
-    """Fetch orders with active statuses, sorted by created_at."""
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(Order)
-            .where(Order.status.in_(_ACTIVE_STATUSES))
-            .order_by(Order.created_at)
-        )
-        return result.scalars().all()
+    """Fetch orders with active statuses via HTTP API."""
+    orders = await backend.get_active_orders()
+    return [SimpleNamespace(**o) for o in orders]
 
 
 async def _fetch_completed_today(courier_tg_id: int):
     """Fetch count of completed orders for today by this courier."""
-    today = date.today()
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(func.count(Order.id)).where(
-                Order.status == "completed",
-                Order.delivered_by == courier_tg_id,
-                cast(Order.completed_at, Date) == today,
-            )
-        )
-        return result.scalar_one()
+    result = await backend.get_completed_today(courier_tg_id)
+    if result is None:
+        return 0
+    return result.get("count", 0)
 
 
 async def _fetch_order_with_items(order_id: int):
-    """Fetch a single order with items and products eagerly loaded."""
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(Order)
-            .where(Order.id == order_id)
-            .options(selectinload(Order.items).selectinload(OrderItem.product))
+    """Fetch a single order with items and products via HTTP API."""
+    data = await backend.get_order_detail(order_id)
+    if data is None:
+        return None
+
+    # Build SimpleNamespace with nested items/product for compatibility
+    # with _format_order_detail, get_order_detail_keyboard, etc.
+    items = []
+    for item_data in data.get("items", []):
+        product = SimpleNamespace(
+            name=item_data.get("product_name", ""),
+            id=item_data.get("product_id"),
         )
-        return result.scalar_one_or_none()
+        item = SimpleNamespace(
+            product=product,
+            product_id=item_data.get("product_id"),
+            quantity=item_data["quantity"],
+            price_at_moment=float(item_data["price_at_moment"]),
+        )
+        items.append(item)
+
+    order_fields = {k: v for k, v in data.items() if k != "items"}
+    # Convert decimal strings to float for arithmetic in _format_order_detail
+    for field in ("total_price", "products_price", "delivery_price"):
+        if field in order_fields and order_fields[field] is not None:
+            order_fields[field] = float(order_fields[field])
+
+    order = SimpleNamespace(**order_fields)
+    order.items = items
+    return order
 
 
 def _format_order_detail(order) -> str:
@@ -123,21 +135,17 @@ async def _update_order_status(order_id: int, new_status: str, courier_id: int |
 # --- Cleanup: delete Celery-sent notification messages ---
 
 async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
-    """Delete tracked courier notification messages sent by Celery."""
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(CourierNotificationMessage)
-            .where(CourierNotificationMessage.courier_tg_id == user_id)
-        )
-        notifications = result.scalars().all()
-        for n in notifications:
-            try:
-                await bot.delete_message(chat_id, n.telegram_message_id)
-            except Exception:
-                pass  # Already deleted or too old
-            await session.delete(n)
-        if notifications:
-            await session.commit()
+    """Delete tracked courier notification messages via HTTP API."""
+    notifications = await backend.get_courier_messages(user_id)
+    if not notifications:
+        return
+    for n in notifications:
+        try:
+            await bot.delete_message(chat_id, n["telegram_message_id"])
+        except Exception:
+            pass  # Already deleted or too old
+    ids = [n["id"] for n in notifications]
+    await backend.bulk_delete_courier_messages(ids)
 
 
 # --- Command: /orders ---
