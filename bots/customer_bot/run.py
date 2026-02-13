@@ -155,18 +155,17 @@ async def command_start_handler(message: Message, state: FSMContext):
             referrer_id=referrer_id
         )
 
-        await message.answer(
-            text=(
-                "👋 Здравствуйте!\n"
-                "Добро пожаловать в нашу систему лояльности.\n"
-                "Прежде чем начать, пожалуйста, ознакомьтесь с условиями обработки персональных данных.\n\n"
-                "📄 Полный текст политики доступен здесь:\n"
-                "👉 https://docs.google.com/document/d/13BI-g30MvueQS2fSvaVdnKA9M2LkyEBUTaJ0GFI5f2g/edit?usp=sharing\n\n"
-                "Нажимая кнопку «Я согласен», вы подтверждаете своё согласие на обработку персональных данных "
-                "в соответствии с Федеральным законом №152-ФЗ.\n\n"
-                "⬇️ Пожалуйста, нажмите кнопку «Я согласен», чтобы продолжить."
-            ),
-            reply_markup=get_consent_button()
+        await send_clean(
+            message,
+            "👋 Здравствуйте!\n"
+            "Добро пожаловать в нашу систему лояльности.\n"
+            "Прежде чем начать, пожалуйста, ознакомьтесь с условиями обработки персональных данных.\n\n"
+            "📄 Полный текст политики доступен здесь:\n"
+            "👉 https://docs.google.com/document/d/13BI-g30MvueQS2fSvaVdnKA9M2LkyEBUTaJ0GFI5f2g/edit?usp=sharing\n\n"
+            "Нажимая кнопку «Я согласен», вы подтверждаете своё согласие на обработку персональных данных "
+            "в соответствии с Федеральным законом №152-ФЗ.\n\n"
+            "⬇️ Пожалуйста, нажмите кнопку «Я согласен», чтобы продолжить.",
+            reply_markup=get_consent_button(),
         )
 
 
@@ -284,10 +283,11 @@ async def back_to_menu(callback: CallbackQuery):
     except TelegramBadRequest:
         # Message is a photo (from show_qr) — can't edit_text, delete and send new
         await callback.message.delete()
-        await callback.message.answer(
+        sent = await callback.message.answer(
             "🏠 Вы в главном меню",
             reply_markup=get_qr_code_button(),
         )
+        track_message(callback.message.chat.id, sent.message_id)
     await callback.answer()
 
 
