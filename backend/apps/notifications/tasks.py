@@ -174,8 +174,14 @@ def notify_couriers_new_order(self, order_id: int):
                 logger.error("Courier notification failed for %s: %s", courier_id, e)
                 errors += 1
 
-        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
         logger.info("Courier notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
+        if errors > 0 and self.request.retries < self.max_retries:
+            cache.delete(cache_key)  # разрешить retry
+            raise self.retry(
+                exc=RuntimeError(f"Partial delivery: sent={sent}, errors={errors}"),
+                countdown=10 + self.request.retries * 5,
+            )
+        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
     except Exception:
         cache.delete(cache_key)
         raise
