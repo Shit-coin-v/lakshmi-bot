@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 
@@ -25,8 +26,9 @@ def _order_post_save(sender, instance: Order, **kwargs):
         return
 
     if previous != instance.status:
-        send_order_push_task.delay(instance.id, previous)
-        if instance.status == "ready":
-            notify_couriers_new_order.delay(instance.id)
+        order_id, prev_status, new_status = instance.id, previous, instance.status
+        transaction.on_commit(lambda: send_order_push_task.delay(order_id, prev_status, new_status))
+        if new_status == "ready":
+            transaction.on_commit(lambda: notify_couriers_new_order.delay(order_id))
 
     instance._previous_status = instance.status

@@ -26,7 +26,8 @@ class OrderCancelViewTests(TestCase):
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_cancel_from_new(self, mock_notify):
         order = self._create_order("new")
-        response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
         self.assertEqual(response.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.status, "canceled")
@@ -35,7 +36,8 @@ class OrderCancelViewTests(TestCase):
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_cancel_from_assembly(self, mock_notify):
         order = self._create_order("assembly")
-        response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
         self.assertEqual(response.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.status, "canceled")

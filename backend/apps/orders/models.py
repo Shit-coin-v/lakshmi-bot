@@ -65,6 +65,7 @@ class Order(models.Model):
     sent_to_onec_at = models.DateTimeField(null=True, blank=True, verbose_name="Отправлен в 1С")
     last_sync_error = models.TextField(null=True, blank=True, verbose_name="Ошибка синхронизации")
     sync_attempts = models.IntegerField(default=0, verbose_name="Попыток синхронизации")
+    sync_idempotency_key = models.UUIDField(null=True, blank=True, verbose_name="Ключ идемпотентности синхронизации")
 
 
     class Meta:

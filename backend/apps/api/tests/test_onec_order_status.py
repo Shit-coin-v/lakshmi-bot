@@ -33,7 +33,8 @@ class OneCOrderStatusTests(TestCase):
 
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_update_status(self, mock_notify):
-        response = self._post({"order_id": self.order.id, "status": "delivery"})
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._post({"order_id": self.order.id, "status": "delivery"})
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "ok")
@@ -44,11 +45,12 @@ class OneCOrderStatusTests(TestCase):
 
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_set_onec_guid(self, mock_notify):
-        response = self._post({
-            "order_id": self.order.id,
-            "status": "assembly",
-            "onec_guid": "GUID-123",
-        })
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._post({
+                "order_id": self.order.id,
+                "status": "assembly",
+                "onec_guid": "GUID-123",
+            })
         self.assertEqual(response.status_code, 200)
         self.order.refresh_from_db()
         self.assertEqual(self.order.onec_guid, "GUID-123")

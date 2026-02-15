@@ -9,6 +9,11 @@ from apps.loyalty.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
+# Best-effort dedup TTL (сек) для push-задач, привязанных к событиям.
+# Защищает от re-delivery Celery (секунды-минуты), но не блокирует
+# легитимные повторные переходы статуса. Не exactly-once (нужен DB/outbox).
+_DEDUP_SENT_TTL = 7200  # 2 часа
+
 
 @shared_task(
     bind=True,
@@ -17,13 +22,24 @@ logger = logging.getLogger(__name__)
     retry_backoff=True,
     retry_backoff_max=60,
 )
-def send_order_push_task(self, order_id: int, previous_status: str):
+def send_order_push_task(self, order_id: int, previous_status: str, new_status: str):
     """Send FCM push for order status change (non-blocking via Celery)."""
+    from django.core.cache import cache
     from apps.orders.models import Order
     from apps.notifications.push import notify_order_status_change
 
-    order = Order.objects.select_related("customer").get(id=order_id)
-    notify_order_status_change(order, previous_status=previous_status)
+    cache_key = f"push:order:{order_id}:{previous_status}->{new_status}"
+    if not cache.add(cache_key, "processing", timeout=300):
+        logger.info("Push already processed/in-progress for order %s (%s->%s)", order_id, previous_status, new_status)
+        return
+
+    try:
+        order = Order.objects.select_related("customer").get(id=order_id)
+        notify_order_status_change(order, previous_status=previous_status, new_status=new_status)
+        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
+    except Exception:
+        cache.delete(cache_key)
+        raise
 
 
 @shared_task(
@@ -35,21 +51,33 @@ def send_order_push_task(self, order_id: int, previous_status: str):
 )
 def send_push_notification_task(self, notification_id: int):
     """Send FCM push for a newly created notification (non-blocking via Celery)."""
+    from django.core.cache import cache
     from django.core.exceptions import ImproperlyConfigured
     from apps.notifications.models import Notification
     from apps.notifications.push import notify_notification_created
 
-    notification = Notification.objects.select_related("user").get(id=notification_id)
-    try:
-        result = notify_notification_created(notification)
-    except ImproperlyConfigured:
-        logger.warning("Firebase not configured; skipping push for notification id=%s", notification_id)
+    cache_key = f"push:notif:{notification_id}"
+    if not cache.add(cache_key, "processing", timeout=300):
+        logger.info("Push already processed/in-progress for notification %s", notification_id)
         return
-    logger.info(
-        "Push sent for notification id=%s result=%s",
-        notification_id,
-        {k: result.get(k) for k in ("sent", "success", "failure")},
-    )
+
+    try:
+        notification = Notification.objects.select_related("user").get(id=notification_id)
+        try:
+            result = notify_notification_created(notification)
+        except ImproperlyConfigured:
+            logger.warning("Firebase not configured; skipping push for notification id=%s", notification_id)
+            cache.set(cache_key, "no_firebase", timeout=86400)
+            return
+        cache.set(cache_key, "sent", timeout=86400)
+        logger.info(
+            "Push sent for notification id=%s result=%s",
+            notification_id,
+            {k: result.get(k) for k in ("sent", "success", "failure")},
+        )
+    except Exception:
+        cache.delete(cache_key)
+        raise
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
@@ -94,47 +122,60 @@ def send_birthday_congratulations(self):
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def notify_couriers_new_order(self, order_id: int):
     """Send new order notification to all couriers."""
+    from django.core.cache import cache
     from django.conf import settings as django_settings
     from apps.orders.models import Order
 
-    bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
-    courier_ids = getattr(django_settings, "COURIER_ALLOWED_TG_IDS", [])
-    if not bot_token or not courier_ids:
-        logger.warning("COURIER_BOT_TOKEN or COURIER_ALLOWED_TG_IDS not configured; skipping courier notification")
+    cache_key = f"push:couriers:{order_id}"
+    if not cache.add(cache_key, "processing", timeout=300):
+        logger.info("Courier notification already processed/in-progress for order %s", order_id)
         return
 
-    order = Order.objects.filter(id=order_id).only("id", "total_price", "address").first()
-    if not order:
-        return
+    try:
+        bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
+        courier_ids = getattr(django_settings, "COURIER_ALLOWED_TG_IDS", [])
+        if not bot_token or not courier_ids:
+            logger.warning("COURIER_BOT_TOKEN or COURIER_ALLOWED_TG_IDS not configured; skipping courier notification")
+            cache.set(cache_key, "no_config", timeout=86400)
+            return
 
-    total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
-    text = f"\U0001f514 <b>\u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #{order_id}!</b>\n\U0001f4b0 {total}\u20bd"
-    if order.address:
-        text += f"\n\U0001f3e0 {order.address}"
-    text += "\n\nНажмите /orders для подробностей."
+        order = Order.objects.filter(id=order_id).only("id", "total_price", "address").first()
+        if not order:
+            cache.set(cache_key, "no_order", timeout=86400)
+            return
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
+        text = f"\U0001f514 <b>\u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #{order_id}!</b>\n\U0001f4b0 {total}\u20bd"
+        if order.address:
+            text += f"\n\U0001f3e0 {order.address}"
+        text += "\n\nНажмите /orders для подробностей."
 
-    from apps.notifications.models import CourierNotificationMessage
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
-    sent, errors = 0, 0
-    for courier_id in courier_ids:
-        try:
-            resp = requests.post(url, json={
-                "chat_id": courier_id,
-                "text": text,
-                "parse_mode": "HTML",
-            }, timeout=5)
-            resp.raise_for_status()
-            msg_data = resp.json()
-            if msg_data.get("ok"):
-                CourierNotificationMessage.objects.create(
-                    courier_tg_id=courier_id,
-                    telegram_message_id=msg_data["result"]["message_id"],
-                )
-            sent += 1
-        except requests.RequestException as e:
-            logger.error("Courier notification failed for %s: %s", courier_id, e)
-            errors += 1
+        from apps.notifications.models import CourierNotificationMessage
 
-    logger.info("Courier notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
+        sent, errors = 0, 0
+        for courier_id in courier_ids:
+            try:
+                resp = requests.post(url, json={
+                    "chat_id": courier_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                }, timeout=5)
+                resp.raise_for_status()
+                msg_data = resp.json()
+                if msg_data.get("ok"):
+                    CourierNotificationMessage.objects.create(
+                        courier_tg_id=courier_id,
+                        telegram_message_id=msg_data["result"]["message_id"],
+                    )
+                sent += 1
+            except requests.RequestException as e:
+                logger.error("Courier notification failed for %s: %s", courier_id, e)
+                errors += 1
+
+        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
+        logger.info("Courier notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
+    except Exception:
+        cache.delete(cache_key)
+        raise

@@ -94,7 +94,8 @@ def onec_order_status(request):
                 o.save(update_fields=updates)
 
             if status_changed:
-                send_order_push_task.delay(o.id, previous_status)
+                oid, prev, new = o.id, previous_status, o.status
+                db_tx.on_commit(lambda: send_order_push_task.delay(oid, prev, new))
 
     except Order.DoesNotExist:
         return onec_error(

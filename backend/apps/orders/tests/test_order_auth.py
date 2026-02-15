@@ -178,10 +178,11 @@ class OrderCancelAuthTests(TestCase):
 
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_order_cancel_own_order_returns_200(self, mock_notify):
-        response = self.client.post(
-            f"/api/orders/{self.order.pk}/cancel/",
-            HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                f"/api/orders/{self.order.pk}/cancel/",
+                HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
+            )
         self.assertEqual(response.status_code, 200)
 
     def test_order_cancel_wrong_user_returns_403(self):

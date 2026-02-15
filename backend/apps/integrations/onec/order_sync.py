@@ -37,7 +37,9 @@ def send_order_to_onec_impl(self, order_id: int):
         order.sync_status = "queued"
         order.sync_attempts = (order.sync_attempts or 0) + 1
         order.last_sync_error = None
-        order.save(update_fields=["sync_status", "sync_attempts", "last_sync_error"])
+        if not order.sync_idempotency_key:
+            order.sync_idempotency_key = uuid.uuid4()
+        order.save(update_fields=["sync_status", "sync_attempts", "last_sync_error", "sync_idempotency_key"])
 
     # 2) Проверяем, настроен ли 1С URL
     url = _get_onec_order_url()
@@ -105,7 +107,7 @@ def send_order_to_onec_impl(self, order_id: int):
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),
-        "X-Idempotency-Key": str(uuid.uuid4()),
+        "X-Idempotency-Key": str(order.sync_idempotency_key),
     }
 
     try:
@@ -128,7 +130,8 @@ def send_order_to_onec_impl(self, order_id: int):
             order.sent_to_onec_at = dj_tz.now()
             order.onec_guid = onec_guid or order.onec_guid
             order.last_sync_error = None
-            order.save(update_fields=["sync_status", "sent_to_onec_at", "onec_guid", "last_sync_error"])
+            order.sync_idempotency_key = None
+            order.save(update_fields=["sync_status", "sent_to_onec_at", "onec_guid", "last_sync_error", "sync_idempotency_key"])
 
         return {"status": "sent", "order_id": order_id, "onec_guid": onec_guid}
 

@@ -115,13 +115,15 @@ def _send_to_tokens(
     return {"sent": len(tokens), "success": success, "failure": failure, "invalid_tokens": invalid_tokens}
 
 
-def notify_order_status_change(order, *, previous_status: str | None = None) -> None:
-    """Send a push notification if the status actually changed to a tracked value. ✅"""
+def notify_order_status_change(order, *, previous_status: str | None = None, new_status: str | None = None) -> None:
+    """Send a push notification if the status actually changed to a tracked value."""
 
-    if order.status == previous_status:
+    event_status = new_status or order.status
+
+    if event_status == previous_status:
         return
 
-    message_text = _STATUS_MESSAGES.get(order.status)
+    message_text = _STATUS_MESSAGES.get(event_status)
     if not message_text:
         return
 
@@ -148,7 +150,7 @@ def notify_order_status_change(order, *, previous_status: str | None = None) -> 
         logger.exception("Firebase app is not configured; skipping push notification")
         return
 
-    data_payload = {"order_id": str(order.id), "status": order.status}
+    data_payload = {"order_id": str(order.id), "status": event_status}
 
     try:
         result = _send_to_tokens(
