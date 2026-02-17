@@ -148,7 +148,6 @@ class OrderStatusScreen extends ConsumerWidget {
                     builder: (context) {
                       final status = order.status;
                       final isCanceled = status == 'canceled';
-                      final isPickup = order.fulfillmentType == 'pickup';
 
                       final statusOrder = isPickup
                           ? ['new', 'accepted', 'assembly', 'ready', 'completed']

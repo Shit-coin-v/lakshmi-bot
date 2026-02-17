@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -306,14 +307,8 @@ class PickerActiveOrdersView(generics.ListAPIView):
         except (ValueError, TypeError):
             return Order.objects.none()
         return Order.objects.filter(
-            assembled_by=tg_id,
-            status__in=("accepted", "assembly"),
-        ).union(
-            Order.objects.filter(
-                assembled_by=tg_id,
-                status="ready",
-                fulfillment_type="pickup",
-            )
+            Q(assembled_by=tg_id, status__in=("accepted", "assembly"))
+            | Q(assembled_by=tg_id, status="ready", fulfillment_type="pickup")
         ).order_by("created_at")
 
 

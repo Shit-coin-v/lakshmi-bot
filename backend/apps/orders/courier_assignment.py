@@ -21,13 +21,12 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count
 
 from apps.orders.models import CourierProfile, Order, RoundRobinCursor
 
 logger = logging.getLogger(__name__)
 
-# Statuses that count as "final"
-_FINAL_STATUSES = {"completed", "canceled"}
 # Statuses meaning courier is "on the road" — blocks new assignments entirely
 _ON_ROUTE_STATUSES = {"delivery", "arrived"}
 # Max orders a courier can hold in 'ready' status before picking up
@@ -80,7 +79,6 @@ def _get_available_couriers() -> list[int]:
         return []
 
     # Exclude couriers who already have MAX_READY_ORDERS in 'ready'
-    from django.db.models import Count
     overloaded = set(
         Order.objects.filter(
             delivered_by__in=candidates,

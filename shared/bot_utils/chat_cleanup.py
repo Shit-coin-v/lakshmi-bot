@@ -1,11 +1,20 @@
 import logging
+from collections import OrderedDict
 
 from aiogram.types import Message
 
 logger = logging.getLogger(__name__)
 
-# chat_id -> last bot message_id
-_last_bot_msg: dict[int, int] = {}
+# chat_id -> last bot message_id (bounded LRU)
+_MAX_TRACKED = 5000
+_last_bot_msg: OrderedDict[int, int] = OrderedDict()
+
+
+def _track(chat_id: int, msg_id: int):
+    _last_bot_msg[chat_id] = msg_id
+    _last_bot_msg.move_to_end(chat_id)
+    if len(_last_bot_msg) > _MAX_TRACKED:
+        _last_bot_msg.popitem(last=False)
 
 
 async def send_clean(message: Message, text: str, **kwargs) -> Message:
@@ -30,11 +39,11 @@ async def send_clean(message: Message, text: str, **kwargs) -> Message:
             logger.debug("Could not delete old bot message %d", old_id)
 
     # 4) Track it
-    _last_bot_msg[chat_id] = sent.message_id
+    _track(chat_id, sent.message_id)
 
     return sent
 
 
 def track_message(chat_id: int, message_id: int):
     """Track a bot message sent outside send_clean (e.g. from callbacks)."""
-    _last_bot_msg[chat_id] = message_id
+    _track(chat_id, message_id)

@@ -91,11 +91,11 @@ def onec_order_status(request):
                 if status_in == "completed":
                     o.completed_at = dj_tz.now()
                     updates.append("completed_at")
-                    if courier_id:
+                    if courier_id is not None:
                         o.delivered_by = int(courier_id)
                         updates.append("delivered_by")
 
-                if status_in == "accepted" and assembler_id:
+                if status_in == "accepted" and assembler_id is not None:
                     if o.assembled_by is not None and o.assembled_by != int(assembler_id):
                         return onec_error(
                             "already_accepted",
@@ -128,7 +128,7 @@ def onec_order_status(request):
 
             if updates:
                 if status_changed:
-                    # если у тебя где-то есть signal/observer — можно им управлять этим флагом
+                    # Skip signal-based notifications; push is dispatched explicitly below.
                     o._skip_signal_notification = True
                 o.save(update_fields=updates)
 

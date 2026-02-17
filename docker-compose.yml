@@ -305,6 +305,11 @@ services:
       PYTHONPATH: /app
     container_name: customer_bot
     restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./bots/customer_bot/qr_codes:/app/bots/customer_bot/qr_codes
     networks:
@@ -325,6 +330,11 @@ services:
       PYTHONPATH: /app
     container_name: courier_bot
     restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bot
       - backend
@@ -343,6 +353,11 @@ services:
       PYTHONPATH: /app
     container_name: picker_bot
     restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bot
       - backend
