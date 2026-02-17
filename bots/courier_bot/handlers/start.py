@@ -6,7 +6,7 @@ from aiogram.types import Message, ReplyKeyboardRemove
 
 from shared.clients.backend_client import BackendClient
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
-from chat_cleanup import send_clean
+from shared.bot_utils.chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 

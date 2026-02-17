@@ -7,9 +7,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from shared.clients.backend_client import BackendClient
-from shared.clients.onec_client import post_to_onec
 from config import PICKER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
-from chat_cleanup import send_clean
+from shared.bot_utils.chat_cleanup import send_clean
+from shared.bot_utils.retry import is_in_flight, schedule_retry
 from keyboards import (
     get_new_orders_keyboard,
     get_active_orders_keyboard,
@@ -17,7 +17,6 @@ from keyboards import (
     payment_label,
     fulfillment_label,
 )
-from retry import is_in_flight, schedule_retry
 
 logger = logging.getLogger(__name__)
 
@@ -128,15 +127,9 @@ def _format_order_detail(order) -> str:
 
 
 async def _update_order_status(order_id: int, new_status: str, assembler_id: int | None = None) -> bool:
-    url = f"{BACKEND_URL}/onec/order/status"
-    payload = {"order_id": order_id, "status": new_status}
-    if assembler_id:
-        payload["assembler_id"] = assembler_id
-    result = await post_to_onec(url, INTEGRATION_API_KEY, payload)
-    if result and result.get("status") == "ok":
-        return True
-    logger.error("Failed to update order %s to %s: %s", order_id, new_status, result)
-    return False
+    return await backend.update_order_status(
+        order_id, new_status, assembler_id=assembler_id,
+    )
 
 
 # --- Cleanup notifications ---

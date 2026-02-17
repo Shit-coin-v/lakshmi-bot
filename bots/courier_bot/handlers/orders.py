@@ -7,11 +7,10 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from shared.clients.backend_client import BackendClient
-from shared.clients.onec_client import post_to_onec
 from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
-from chat_cleanup import send_clean
+from shared.bot_utils.chat_cleanup import send_clean
+from shared.bot_utils.retry import is_in_flight, schedule_retry
 from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
-from retry import is_in_flight, schedule_retry
 
 logger = logging.getLogger(__name__)
 
@@ -124,16 +123,10 @@ def _format_order_detail(order) -> str:
 
 
 async def _update_order_status(order_id: int, new_status: str, courier_id: int | None = None) -> bool:
-    """POST status change to backend via onec endpoint. Returns True on success."""
-    url = f"{BACKEND_URL}/onec/order/status"
-    payload = {"order_id": order_id, "status": new_status}
-    if courier_id:
-        payload["courier_id"] = courier_id
-    result = await post_to_onec(url, INTEGRATION_API_KEY, payload)
-    if result and result.get("status") == "ok":
-        return True
-    logger.error("Failed to update order %s to %s: %s", order_id, new_status, result)
-    return False
+    """POST status change to backend. Returns True on success."""
+    return await backend.update_order_status(
+        order_id, new_status, courier_id=courier_id,
+    )
 
 
 # --- Cleanup: delete Celery-sent notification messages ---

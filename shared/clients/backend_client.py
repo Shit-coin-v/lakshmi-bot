@@ -206,6 +206,23 @@ class BackendClient:
         )
         return result if isinstance(result, dict) else None
 
+    async def update_order_status(
+        self,
+        order_id: int,
+        new_status: str,
+        *,
+        courier_id: int | None = None,
+        assembler_id: int | None = None,
+    ) -> bool:
+        """Update order status via /onec/order/status endpoint."""
+        payload: dict = {"order_id": order_id, "status": new_status}
+        if courier_id is not None:
+            payload["courier_id"] = courier_id
+        if assembler_id is not None:
+            payload["assembler_id"] = assembler_id
+        result = await self.post("/onec/order/status", payload)
+        return bool(result and isinstance(result, dict) and result.get("status") == "ok")
+
     async def toggle_accepting(self, courier_tg_id: int, accepting: bool) -> dict | None:
         result = await self.post("/api/bot/courier/toggle-accepting/", {
             "courier_tg_id": courier_tg_id,

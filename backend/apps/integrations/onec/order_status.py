@@ -14,6 +14,17 @@ from apps.integrations.onec.utils import onec_error
 
 logger = logging.getLogger(__name__)
 
+_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "new": {"accepted", "canceled"},
+    "accepted": {"assembly", "canceled", "new"},
+    "assembly": {"ready", "canceled"},
+    "ready": {"delivery", "completed", "canceled"},  # completed for pickup
+    "delivery": {"arrived", "canceled"},
+    "arrived": {"completed", "canceled"},
+    "completed": set(),
+    "canceled": {"new"},  # reopen
+}
+
 
 @csrf_exempt
 @require_POST
@@ -61,6 +72,18 @@ def onec_order_status(request):
             previous_status = o.status
 
             if status_in and o.status != status_in:
+                allowed_next = _ALLOWED_TRANSITIONS.get(o.status, set())
+                if status_in not in allowed_next:
+                    logger.warning(
+                        "Invalid transition %s → %s for order %s",
+                        o.status, status_in, order_id,
+                    )
+                    return onec_error(
+                        "invalid_transition",
+                        f"Transition {o.status} → {status_in} is not allowed.",
+                        status_code=409,
+                    )
+
                 o.status = status_in
                 updates.append("status")
                 status_changed = True
@@ -73,6 +96,12 @@ def onec_order_status(request):
                         updates.append("delivered_by")
 
                 if status_in == "accepted" and assembler_id:
+                    if o.assembled_by is not None and o.assembled_by != int(assembler_id):
+                        return onec_error(
+                            "already_accepted",
+                            f"Order already accepted by assembler {o.assembled_by}.",
+                            status_code=409,
+                        )
                     o.assembled_by = int(assembler_id)
                     updates.append("assembled_by")
 

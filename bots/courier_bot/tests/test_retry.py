@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-import retry
-from retry import is_in_flight, retry_status_update, schedule_retry
+from shared.bot_utils import retry
+from shared.bot_utils.retry import is_in_flight, retry_status_update, schedule_retry
 
 
 def setup_function():
@@ -60,7 +60,7 @@ def test_retry_all_fail():
     on_success = AsyncMock()
     on_failure = AsyncMock()
 
-    with patch("retry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("shared.bot_utils.retry.asyncio.sleep", new_callable=AsyncMock):
         asyncio.run(retry_status_update(
             bot=bot, chat_id=1, message_id=1, order_id=10,
             new_status="delivery", update_fn=update_fn,
@@ -79,7 +79,7 @@ def test_retry_success_on_third_attempt():
     on_success = AsyncMock()
     on_failure = AsyncMock()
 
-    with patch("retry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("shared.bot_utils.retry.asyncio.sleep", new_callable=AsyncMock):
         asyncio.run(retry_status_update(
             bot=bot, chat_id=1, message_id=1, order_id=10,
             new_status="delivery", update_fn=update_fn,

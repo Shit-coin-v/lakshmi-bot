@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from config import COURIER_ALLOWED_TG_IDS
-from chat_cleanup import send_clean
+from shared.bot_utils.chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 

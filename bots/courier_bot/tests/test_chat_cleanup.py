@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-import chat_cleanup
-from chat_cleanup import send_clean
+from shared.bot_utils import chat_cleanup
+from shared.bot_utils.chat_cleanup import send_clean
 
 
 def _make_message(chat_id=100, message_id=1, bot=None):

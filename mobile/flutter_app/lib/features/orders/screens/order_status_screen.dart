@@ -277,7 +277,7 @@ class OrderStatusScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    if (order.status == 'new' || order.status == 'accepted' || order.status == 'assembly') ...[
+                    if (order.status == 'new' || order.status == 'accepted' || order.status == 'assembly' || order.status == 'ready') ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,

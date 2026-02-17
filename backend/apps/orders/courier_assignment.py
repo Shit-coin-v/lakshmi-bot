@@ -36,9 +36,9 @@ MAX_READY_ORDERS = 3
 
 def _get_store_id(order: Order) -> int:
     """Extract store_id from order's first item. Falls back to 0."""
-    first_item = order.items.select_related("product").first()
-    if first_item and first_item.product:
-        return getattr(first_item.product, "store_id", 0) or 0
+    items = list(order.items.all())  # uses prefetch cache if available
+    if items and items[0].product:
+        return getattr(items[0].product, "store_id", 0) or 0
     return 0
 
 
@@ -146,16 +146,17 @@ def assign_courier_to_order(order_id: int) -> int | None:
             logger.info("assign_courier: order %s already assigned to %s", order_id, order.delivered_by)
             return None
 
-        available = _get_available_couriers()
-        if not available:
-            logger.info("assign_courier: no available couriers for order %s", order_id)
-            return None
-
         store_id = _get_store_id(order)
+        # Lock cursor BEFORE reading available couriers — acts as a mutex per store
         cursor, _ = RoundRobinCursor.objects.select_for_update().get_or_create(
             store_id=store_id,
             defaults={"last_courier_tg_id": None},
         )
+
+        available = _get_available_couriers()
+        if not available:
+            logger.info("assign_courier: no available couriers for order %s", order_id)
+            return None
 
         chosen = _pick_next(available, cursor.last_courier_tg_id)
 

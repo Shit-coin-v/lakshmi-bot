@@ -5,7 +5,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from config import PICKER_ALLOWED_TG_IDS
-from chat_cleanup import send_clean
+from shared.bot_utils.chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 

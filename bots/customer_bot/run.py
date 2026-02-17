@@ -17,7 +17,7 @@ from aiogram.fsm.context import FSMContext
 
 import config
 from onec_client import send_customer_to_onec
-from chat_cleanup import send_clean, track_message
+from shared.bot_utils.chat_cleanup import send_clean, track_message
 from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
 from qr_code import (

@@ -221,7 +221,10 @@ class ActiveOrdersView(generics.ListAPIView):
         ).order_by("created_at")
         courier_tg_id = self.request.query_params.get("courier_tg_id")
         if courier_tg_id:
-            qs = qs.filter(delivered_by=int(courier_tg_id))
+            try:
+                qs = qs.filter(delivered_by=int(courier_tg_id))
+            except (ValueError, TypeError):
+                return Order.objects.none()
         return qs
 
 
@@ -298,12 +301,16 @@ class PickerActiveOrdersView(generics.ListAPIView):
         assembler_tg_id = self.request.query_params.get("assembler_tg_id")
         if not assembler_tg_id:
             return Order.objects.none()
+        try:
+            tg_id = int(assembler_tg_id)
+        except (ValueError, TypeError):
+            return Order.objects.none()
         return Order.objects.filter(
-            assembled_by=int(assembler_tg_id),
+            assembled_by=tg_id,
             status__in=("accepted", "assembly"),
         ).union(
             Order.objects.filter(
-                assembled_by=int(assembler_tg_id),
+                assembled_by=tg_id,
                 status="ready",
                 fulfillment_type="pickup",
             )
@@ -451,12 +458,13 @@ class CourierToggleAcceptingView(APIView):
             telegram_id=courier_tg_id,
             defaults={"accepting_orders": accepting},
         )
+        was_off = not profile.accepting_orders
         if profile.accepting_orders != accepting:
             profile.accepting_orders = accepting
             profile.save(update_fields=["accepting_orders"])
 
-        # If courier turned ON → trigger redispatch for waiting orders
-        if accepting:
+        # Only redispatch when courier actually turned ON (was off → now on)
+        if accepting and was_off:
             from apps.notifications.tasks import redispatch_unassigned_orders
             redispatch_unassigned_orders.delay()
 

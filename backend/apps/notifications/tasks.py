@@ -213,15 +213,16 @@ def assign_courier_task(self, order_id: int):
             cache.delete(cache_key)
             return
 
-        _send_courier_notification(order_id, courier_tg_id)
+        send_courier_notification_task.delay(order_id, courier_tg_id)
         cache.set(cache_key, "assigned", timeout=_DEDUP_SENT_TTL)
     except Exception:
         cache.delete(cache_key)
         raise
 
 
-def _send_courier_notification(order_id: int, courier_tg_id: int):
-    """Send Telegram notification to a single assigned courier."""
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def send_courier_notification_task(self, order_id: int, courier_tg_id: int):
+    """Send Telegram notification to assigned courier with retry."""
     from django.conf import settings as django_settings
     from apps.orders.models import Order
     from apps.notifications.models import CourierNotificationMessage
@@ -261,6 +262,7 @@ def _send_courier_notification(order_id: int, courier_tg_id: int):
         logger.info("Courier notification sent for order #%s to courier %s", order_id, courier_tg_id)
     except requests.RequestException as e:
         logger.error("Courier notification failed for %s: %s", courier_tg_id, e)
+        raise self.retry(exc=e)
 
 
 @shared_task(bind=True, max_retries=0)
