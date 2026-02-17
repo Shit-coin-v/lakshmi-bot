@@ -7,8 +7,9 @@ from apps.main.models import Product  # noqa: F401
 class Order(models.Model):
     STATUS_CHOICES = [
         ('new', 'Новый'),
+        ('accepted', 'Заказ принят'),
         ('assembly', 'Заказ собирается'),
-        ('ready', 'Заказ собран, ждёт курьера'),
+        ('ready', 'Заказ собран'),
         ('delivery', 'Курьер забрал заказ и в пути'),
         ('arrived', 'Курьер пришёл и ждёт вас'),
         ('completed', 'Заказ доставлен'),
@@ -54,6 +55,9 @@ class Order(models.Model):
         default="delivery",
         verbose_name="Способ получения",
     )
+
+    # --- Сборка ---
+    assembled_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID сборщика")
 
     # --- Доставка ---
     delivered_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID курьера")

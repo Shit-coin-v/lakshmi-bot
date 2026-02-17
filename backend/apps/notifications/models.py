@@ -121,3 +121,14 @@ class CourierNotificationMessage(models.Model):
 
     class Meta:
         db_table = "courier_notification_messages"
+
+
+class PickerNotificationMessage(models.Model):
+    """Tracks Telegram message_ids sent to pickers by Celery, so the bot can delete them."""
+
+    picker_tg_id = models.BigIntegerField(db_index=True)
+    telegram_message_id = models.BigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "picker_notification_messages"

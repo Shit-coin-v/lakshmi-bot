@@ -77,7 +77,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             'total_price',
             'status',
             'status_display',
-            'items_count'
+            'fulfillment_type',
+            'items_count',
         ]
 
 

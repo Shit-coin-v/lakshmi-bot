@@ -284,7 +284,7 @@ class OrderDetailsScreen extends ConsumerWidget {
         error: (err, _) => const SizedBox.shrink(),
 
         data: (o) {
-          final canCancel = o.status == 'new' || o.status == 'assembly';
+          final canCancel = o.status == 'new' || o.status == 'accepted' || o.status == 'assembly';
           return SafeArea(
             minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(

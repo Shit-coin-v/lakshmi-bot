@@ -162,3 +162,34 @@ class BackendClient:
     async def bulk_delete_courier_messages(self, ids: list[int]) -> dict | None:
         result = await self.post("/api/bot/courier-messages/bulk-delete/", {"ids": ids})
         return result if isinstance(result, dict) else None
+
+    # --- Picker Bot ---
+
+    async def get_new_orders(self) -> list[dict]:
+        result = await self.get("/api/bot/orders/new/")
+        return result if isinstance(result, list) else []
+
+    async def get_picker_active_orders(self, assembler_tg_id: int) -> list[dict]:
+        result = await self.get(
+            "/api/bot/orders/my-active/",
+            params={"assembler_tg_id": str(assembler_tg_id)},
+        )
+        return result if isinstance(result, list) else []
+
+    async def get_assembled_today(self, assembler_tg_id: int) -> dict | None:
+        result = await self.get(
+            "/api/bot/orders/assembled-today/",
+            params={"assembler_tg_id": str(assembler_tg_id)},
+        )
+        return result if isinstance(result, dict) else None
+
+    async def get_picker_messages(self, picker_tg_id: int) -> list[dict]:
+        result = await self.get(
+            "/api/bot/picker-messages/",
+            params={"picker_tg_id": str(picker_tg_id)},
+        )
+        return result if isinstance(result, list) else []
+
+    async def bulk_delete_picker_messages(self, ids: list[int]) -> dict | None:
+        result = await self.post("/api/bot/picker-messages/bulk-delete/", {"ids": ids})
+        return result if isinstance(result, dict) else None

@@ -31,6 +31,7 @@ void main() {
         'address': 'ул. Ленина, 10',
         'phone': '+79001234567',
         'comment': 'Позвонить заранее',
+        'fulfillment_type': 'delivery',
         'products_price': '500.00',
         'delivery_price': '150.00',
         'total_price': '650.00',
@@ -56,6 +57,7 @@ void main() {
       expect(order.status, 'delivered');
       expect(order.statusDisplay, 'Доставлен');
       expect(order.paymentMethod, 'card');
+      expect(order.fulfillmentType, 'delivery');
       expect(order.address, 'ул. Ленина, 10');
       expect(order.phone, '+79001234567');
       expect(order.comment, 'Позвонить заранее');

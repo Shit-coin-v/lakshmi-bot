@@ -174,6 +174,12 @@ COURIER_ALLOWED_TG_IDS = [
     if x.strip().isdigit()
 ]
 
+PICKER_BOT_TOKEN = os.getenv("PICKER_BOT_TOKEN", "")
+PICKER_ALLOWED_TG_IDS = [
+    int(x) for x in os.getenv("PICKER_ALLOWED_TG_IDS", "").split(",")
+    if x.strip().isdigit()
+]
+
 GUEST_TELEGRAM_ID = _env_int("GUEST_TELEGRAM_ID", 0)
 
 # Cache (used for email verification codes)

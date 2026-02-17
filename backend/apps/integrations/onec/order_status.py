@@ -35,6 +35,7 @@ def onec_order_status(request):
     status_in = (payload.get("status") or "").strip()
     onec_guid = (payload.get("onec_guid") or "").strip() or None
     courier_id = payload.get("courier_id")
+    assembler_id = payload.get("assembler_id")
 
     if not order_id:
         return onec_error(
@@ -43,7 +44,7 @@ def onec_order_status(request):
             details={"order_id": ["required"]},
         )
 
-    allowed = {"new", "assembly", "ready", "delivery", "arrived", "completed", "canceled"}
+    allowed = {"new", "accepted", "assembly", "ready", "delivery", "arrived", "completed", "canceled"}
     if status_in and status_in not in allowed:
         return onec_error(
             "invalid_status",
@@ -70,6 +71,15 @@ def onec_order_status(request):
                     if courier_id:
                         o.delivered_by = int(courier_id)
                         updates.append("delivered_by")
+
+                if status_in == "accepted" and assembler_id:
+                    o.assembled_by = int(assembler_id)
+                    updates.append("assembled_by")
+
+                # Return to pool: clear assembler on reset to new
+                if status_in == "new":
+                    o.assembled_by = None
+                    updates.append("assembled_by")
 
             if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
                 o.onec_guid = onec_guid

@@ -2,14 +2,19 @@ from django.urls import path
 
 from .views import (
     ActiveOrdersView,
+    AssembledTodayView,
     BotActivityCreateView,
     BotOrderDetailView,
     CompletedTodayView,
     CourierMessageBulkDeleteView,
     CourierMessageDeleteView,
     CourierMessageListView,
+    NewOrdersView,
     NewsletterOpenView,
     OneCMapUpsertView,
+    PickerActiveOrdersView,
+    PickerMessageBulkDeleteView,
+    PickerMessageListView,
     UserByTelegramIdView,
     UserPatchView,
     UserRegisterView,
@@ -30,4 +35,10 @@ urlpatterns = [
     path("courier-messages/", CourierMessageListView.as_view(), name="bot-courier-messages"),
     path("courier-messages/<int:pk>/", CourierMessageDeleteView.as_view(), name="bot-courier-message-delete"),
     path("courier-messages/bulk-delete/", CourierMessageBulkDeleteView.as_view(), name="bot-courier-messages-bulk-delete"),
+    # Picker bot
+    path("orders/new/", NewOrdersView.as_view(), name="bot-orders-new"),
+    path("orders/my-active/", PickerActiveOrdersView.as_view(), name="bot-orders-my-active"),
+    path("orders/assembled-today/", AssembledTodayView.as_view(), name="bot-orders-assembled-today"),
+    path("picker-messages/", PickerMessageListView.as_view(), name="bot-picker-messages"),
+    path("picker-messages/bulk-delete/", PickerMessageBulkDeleteView.as_view(), name="bot-picker-messages-bulk-delete"),
 ]

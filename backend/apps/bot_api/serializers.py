@@ -4,7 +4,7 @@ from apps.main.models import (
     BotActivity,
     CustomUser,
 )
-from apps.notifications.models import CourierNotificationMessage
+from apps.notifications.models import CourierNotificationMessage, PickerNotificationMessage
 from apps.orders.models import Order, OrderItem
 
 
@@ -170,7 +170,7 @@ class OrderItemDetailSerializer(serializers.ModelSerializer):
 
 
 class BotOrderDetailSerializer(serializers.ModelSerializer):
-    """Full order detail with items for courier bot."""
+    """Full order detail with items for courier/picker bot."""
 
     items = OrderItemDetailSerializer(many=True, read_only=True)
 
@@ -189,6 +189,7 @@ class BotOrderDetailSerializer(serializers.ModelSerializer):
             "total_price",
             "payment_method",
             "fulfillment_type",
+            "assembled_by",
             "delivered_by",
             "completed_at",
             "items",
@@ -204,4 +205,18 @@ class CourierMessageSerializer(serializers.ModelSerializer):
 
 
 class CourierMessageBulkDeleteSerializer(serializers.Serializer):
+    ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
+
+
+# --- Picker Bot serializers ---
+
+
+class PickerMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PickerNotificationMessage
+        fields = ["id", "picker_tg_id", "telegram_message_id", "created_at"]
+        read_only_fields = fields
+
+
+class PickerMessageBulkDeleteSerializer(serializers.Serializer):
     ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)

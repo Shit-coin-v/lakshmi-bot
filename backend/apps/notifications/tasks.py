@@ -120,6 +120,75 @@ def send_birthday_congratulations(self):
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
+def notify_pickers_new_order(self, order_id: int):
+    """Send new order notification to all pickers."""
+    from django.core.cache import cache
+    from django.conf import settings as django_settings
+    from apps.orders.models import Order
+
+    cache_key = f"push:pickers:{order_id}"
+    if not cache.add(cache_key, "processing", timeout=300):
+        logger.info("Picker notification already processed/in-progress for order %s", order_id)
+        return
+
+    try:
+        bot_token = getattr(django_settings, "PICKER_BOT_TOKEN", "")
+        picker_ids = getattr(django_settings, "PICKER_ALLOWED_TG_IDS", [])
+        if not bot_token or not picker_ids:
+            logger.warning("PICKER_BOT_TOKEN or PICKER_ALLOWED_TG_IDS not configured; skipping picker notification")
+            cache.set(cache_key, "no_config", timeout=86400)
+            return
+
+        order = Order.objects.filter(id=order_id).only("id", "total_price", "address", "fulfillment_type").first()
+        if not order:
+            cache.set(cache_key, "no_order", timeout=86400)
+            return
+
+        total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
+        fulfillment = "🚚 Доставка" if order.fulfillment_type == "delivery" else "🏪 Самовывоз"
+        text = f"🔔 <b>Новый заказ #{order_id}!</b>\n💰 {total}₽\n{fulfillment}"
+        if order.address:
+            text += f"\n🏠 {order.address}"
+        text += "\n\nНажмите /orders для подробностей."
+
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+        from apps.notifications.models import PickerNotificationMessage
+
+        sent, errors = 0, 0
+        for picker_id in picker_ids:
+            try:
+                resp = requests.post(url, json={
+                    "chat_id": picker_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                }, timeout=5)
+                resp.raise_for_status()
+                msg_data = resp.json()
+                if msg_data.get("ok"):
+                    PickerNotificationMessage.objects.create(
+                        picker_tg_id=picker_id,
+                        telegram_message_id=msg_data["result"]["message_id"],
+                    )
+                sent += 1
+            except requests.RequestException as e:
+                logger.error("Picker notification failed for %s: %s", picker_id, e)
+                errors += 1
+
+        logger.info("Picker notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
+        if errors > 0 and self.request.retries < self.max_retries:
+            cache.delete(cache_key)
+            raise self.retry(
+                exc=RuntimeError(f"Partial delivery: sent={sent}, errors={errors}"),
+                countdown=10 + self.request.retries * 5,
+            )
+        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
+    except Exception:
+        cache.delete(cache_key)
+        raise
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def notify_couriers_new_order(self, order_id: int):
     """Send new order notification to all couriers."""
     from django.core.cache import cache

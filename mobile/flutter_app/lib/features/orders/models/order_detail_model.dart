@@ -33,6 +33,7 @@ class OrderDetailModel {
   final String phone;
   final String comment;
 
+  final String fulfillmentType;
   final double productsPrice;
   final double deliveryPrice;
   final double totalPrice;
@@ -48,6 +49,7 @@ class OrderDetailModel {
     required this.address,
     required this.phone,
     required this.comment,
+    required this.fulfillmentType,
     required this.productsPrice,
     required this.deliveryPrice,
     required this.totalPrice,
@@ -68,6 +70,7 @@ class OrderDetailModel {
       address: (json['address'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
       comment: (json['comment'] ?? '').toString(),
+      fulfillmentType: (json['fulfillment_type'] ?? 'delivery').toString(),
       productsPrice: double.tryParse(json['products_price'].toString()) ?? 0.0,
       deliveryPrice: double.tryParse(json['delivery_price'].toString()) ?? 0.0,
       totalPrice: double.tryParse(json['total_price'].toString()) ?? 0.0,

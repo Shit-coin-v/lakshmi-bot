@@ -108,6 +108,7 @@ class OrderStatusScreen extends ConsumerWidget {
             const Duration(minutes: 45),
           );
           final timeFormat = DateFormat('HH:mm');
+          final isPickup = order.fulfillmentType == 'pickup';
 
           return Column(
             children: [
@@ -122,13 +123,22 @@ class OrderStatusScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              Text(
-                "Ожидаемое время доставки: ${timeFormat.format(deliveryTimeStart)} - ${timeFormat.format(deliveryTimeEnd)}",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              if (isPickup)
+                const Text(
+                  "Самовывоз",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else
+                Text(
+                  "Ожидаемое время доставки: ${timeFormat.format(deliveryTimeStart)} - ${timeFormat.format(deliveryTimeEnd)}",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
               const SizedBox(height: 40),
 
               Expanded(
@@ -138,59 +148,109 @@ class OrderStatusScreen extends ConsumerWidget {
                     builder: (context) {
                       final status = order.status;
                       final isCanceled = status == 'canceled';
-                      const statusOrder = ['new', 'assembly', 'ready', 'delivery', 'arrived', 'completed'];
+                      final isPickup = order.fulfillmentType == 'pickup';
+
+                      final statusOrder = isPickup
+                          ? ['new', 'accepted', 'assembly', 'ready', 'completed']
+                          : ['new', 'accepted', 'assembly', 'ready', 'delivery', 'arrived', 'completed'];
                       final activeIndex = isCanceled ? -1 : statusOrder.indexOf(status);
 
                       bool isStepActive(int stepIndex) => !isCanceled && stepIndex <= activeIndex;
                       bool isStepCompleted(int stepIndex) => !isCanceled && stepIndex < activeIndex;
 
-                      return ListView(
-                        children: [
-                          _StatusStep(
-                            isActive: isStepActive(0),
-                            isLast: false,
-                            icon: Icons.check_circle,
-                            title: "Заказ принят",
-                            time: timeFormat.format(order.createdAt),
-                            isCompleted: isStepCompleted(0),
-                          ),
-                          _StatusStep(
-                            isActive: isStepActive(1),
-                            isLast: false,
-                            icon: Icons.shopping_basket,
-                            title: "Заказ собирается",
-                            isCompleted: isStepCompleted(1),
-                          ),
-                          _StatusStep(
-                            isActive: isStepActive(2),
-                            isLast: false,
-                            icon: Icons.inventory_2,
-                            title: "Заказ собран, ждёт курьера",
-                            isCompleted: isStepCompleted(2),
-                          ),
-                          _StatusStep(
-                            isActive: isStepActive(3),
-                            isLast: false,
-                            icon: Icons.local_shipping,
-                            title: "Курьер забрал заказ",
-                            isCompleted: isStepCompleted(3),
-                          ),
-                          _StatusStep(
-                            isActive: isStepActive(4),
-                            isLast: false,
-                            icon: Icons.place,
-                            title: "Курьер пришёл и ждёт вас",
-                            isCompleted: isStepCompleted(4),
-                          ),
-                          _StatusStep(
-                            isActive: isStepActive(5),
-                            isLast: true,
-                            icon: Icons.done_all,
-                            title: "Заказ доставлен",
-                            isCompleted: false,
-                          ),
-                        ],
-                      );
+                      final steps = isPickup
+                          ? [
+                              _StatusStep(
+                                isActive: isStepActive(0),
+                                isLast: false,
+                                icon: Icons.fiber_new,
+                                title: "Новый заказ",
+                                time: timeFormat.format(order.createdAt),
+                                isCompleted: isStepCompleted(0),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(1),
+                                isLast: false,
+                                icon: Icons.check_circle,
+                                title: "Заказ принят",
+                                isCompleted: isStepCompleted(1),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(2),
+                                isLast: false,
+                                icon: Icons.shopping_basket,
+                                title: "Заказ собирается",
+                                isCompleted: isStepCompleted(2),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(3),
+                                isLast: false,
+                                icon: Icons.inventory_2,
+                                title: "Ваш заказ готов, можете забрать",
+                                isCompleted: isStepCompleted(3),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(4),
+                                isLast: true,
+                                icon: Icons.done_all,
+                                title: "Заказ выдан",
+                                isCompleted: false,
+                              ),
+                            ]
+                          : [
+                              _StatusStep(
+                                isActive: isStepActive(0),
+                                isLast: false,
+                                icon: Icons.fiber_new,
+                                title: "Новый заказ",
+                                time: timeFormat.format(order.createdAt),
+                                isCompleted: isStepCompleted(0),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(1),
+                                isLast: false,
+                                icon: Icons.check_circle,
+                                title: "Заказ принят",
+                                isCompleted: isStepCompleted(1),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(2),
+                                isLast: false,
+                                icon: Icons.shopping_basket,
+                                title: "Заказ собирается",
+                                isCompleted: isStepCompleted(2),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(3),
+                                isLast: false,
+                                icon: Icons.inventory_2,
+                                title: "Заказ собран, ждёт курьера",
+                                isCompleted: isStepCompleted(3),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(4),
+                                isLast: false,
+                                icon: Icons.local_shipping,
+                                title: "Курьер забрал заказ",
+                                isCompleted: isStepCompleted(4),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(5),
+                                isLast: false,
+                                icon: Icons.place,
+                                title: "Курьер пришёл и ждёт вас",
+                                isCompleted: isStepCompleted(5),
+                              ),
+                              _StatusStep(
+                                isActive: isStepActive(6),
+                                isLast: true,
+                                icon: Icons.done_all,
+                                title: "Заказ доставлен",
+                                isCompleted: false,
+                              ),
+                            ];
+
+                      return ListView(children: steps);
                     },
                   ),
                 ),
@@ -200,23 +260,24 @@ class OrderStatusScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.phone),
-                        label: const Text("Связаться с курьером"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                    if (!isPickup)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.phone),
+                          label: const Text("Связаться с курьером"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4CAF50),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    if (order.status == 'new' || order.status == 'assembly') ...[
+                    if (order.status == 'new' || order.status == 'accepted' || order.status == 'assembly') ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,

@@ -334,6 +334,24 @@ services:
         max-size: "20m"
         max-file: "3"
 
+  picker_bot:
+    build:
+      context: .
+      dockerfile: infra/docker/bots/Dockerfile.picker
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+    container_name: picker_bot
+    restart: always
+    networks:
+      - bot
+      - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
 networks:
   backend:
     driver: bridge

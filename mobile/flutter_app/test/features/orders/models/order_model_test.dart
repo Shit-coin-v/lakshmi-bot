@@ -48,7 +48,24 @@ void main() {
 
       expect(order.status, '');
       expect(order.statusDisplay, '');
+      expect(order.fulfillmentType, 'delivery');
       expect(order.itemsCount, 0);
+    });
+
+    test('fulfillment_type parsed correctly', () {
+      final json = {
+        'id': 5,
+        'total_price': '500',
+        'status': 'new',
+        'status_display': 'Новый',
+        'fulfillment_type': 'pickup',
+        'items_count': 2,
+        'created_at': '2025-01-01T00:00:00Z',
+      };
+
+      final order = OrderModel.fromJson(json);
+
+      expect(order.fulfillmentType, 'pickup');
     });
 
     test('invalid created_at defaults to approximately DateTime.now()', () {

@@ -14,7 +14,7 @@ from apps.main.models import (
     NewsletterDelivery,
     NewsletterOpenEvent,
 )
-from apps.notifications.models import CourierNotificationMessage
+from apps.notifications.models import CourierNotificationMessage, PickerNotificationMessage
 from apps.orders.models import Order
 
 from .serializers import (
@@ -27,6 +27,8 @@ from .serializers import (
     NewsletterOpenResponseSerializer,
     NewsletterOpenSerializer,
     OneCMapUpsertSerializer,
+    PickerMessageBulkDeleteSerializer,
+    PickerMessageSerializer,
     UserPatchSerializer,
     UserRegisterSerializer,
 )
@@ -258,6 +260,100 @@ class CompletedTodayView(APIView):
         ).count()
 
         return Response({"count": count, "total": count * 150})
+
+
+# --- Picker Bot views ---
+
+
+class NewOrdersView(generics.ListAPIView):
+    """GET /api/bot/orders/new/"""
+
+    permission_classes = [ApiKeyPermission]
+    serializer_class = ActiveOrderSerializer
+
+    def get_queryset(self):
+        return Order.objects.filter(status="new").order_by("created_at")
+
+
+class PickerActiveOrdersView(generics.ListAPIView):
+    """GET /api/bot/orders/my-active/?assembler_tg_id=<int>
+
+    Orders assigned to picker: accepted, assembly, or ready+pickup.
+    """
+
+    permission_classes = [ApiKeyPermission]
+    serializer_class = ActiveOrderSerializer
+
+    def get_queryset(self):
+        assembler_tg_id = self.request.query_params.get("assembler_tg_id")
+        if not assembler_tg_id:
+            return Order.objects.none()
+        return Order.objects.filter(
+            assembled_by=int(assembler_tg_id),
+            status__in=("accepted", "assembly"),
+        ).union(
+            Order.objects.filter(
+                assembled_by=int(assembler_tg_id),
+                status="ready",
+                fulfillment_type="pickup",
+            )
+        ).order_by("created_at")
+
+
+class AssembledTodayView(APIView):
+    """GET /api/bot/orders/assembled-today/?assembler_tg_id=<int>"""
+
+    permission_classes = [ApiKeyPermission]
+
+    def get(self, request):
+        assembler_tg_id = request.query_params.get("assembler_tg_id")
+        if not assembler_tg_id:
+            return Response(
+                {"detail": "assembler_tg_id query param is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            assembler_tg_id = int(assembler_tg_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "assembler_tg_id must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        today = date.today()
+        count = Order.objects.filter(
+            assembled_by=assembler_tg_id,
+            status__in=("ready", "completed"),
+            created_at__date=today,
+        ).count()
+
+        return Response({"count": count})
+
+
+class PickerMessageListView(generics.ListAPIView):
+    """GET /api/bot/picker-messages/?picker_tg_id=<int>"""
+
+    permission_classes = [ApiKeyPermission]
+    serializer_class = PickerMessageSerializer
+
+    def get_queryset(self):
+        picker_tg_id = self.request.query_params.get("picker_tg_id")
+        if not picker_tg_id:
+            return PickerNotificationMessage.objects.none()
+        return PickerNotificationMessage.objects.filter(picker_tg_id=picker_tg_id).order_by("id")
+
+
+class PickerMessageBulkDeleteView(APIView):
+    """POST /api/bot/picker-messages/bulk-delete/"""
+
+    permission_classes = [ApiKeyPermission]
+
+    def post(self, request):
+        serializer = PickerMessageBulkDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ids = serializer.validated_data["ids"]
+        deleted, _ = PickerNotificationMessage.objects.filter(pk__in=ids).delete()
+        return Response({"deleted": deleted})
 
 
 class CourierMessageListView(generics.ListAPIView):

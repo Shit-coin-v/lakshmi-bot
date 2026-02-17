@@ -90,3 +90,13 @@ infra/docker/docker-compose.override.yml
 # Python cache
 **/__pycache__/
 *.pyc
+
+# OpenClaw workspace files
+.openclaw/
+AGENTS.md
+SOUL.md
+IDENTITY.md
+TOOLS.md
+USER.md
+HEARTBEAT.md
+BOOTSTRAP.md
