@@ -155,8 +155,13 @@ def notify_pickers_new_order(self, order_id: int):
 
         from apps.notifications.models import PickerNotificationMessage
 
-        sent, errors = 0, 0
+        sent, skipped, errors = 0, 0, 0
         for picker_id in picker_ids:
+            # Skip pickers already notified (on retry after partial failure)
+            per_picker_key = f"push:picker:{order_id}:{picker_id}"
+            if cache.get(per_picker_key):
+                skipped += 1
+                continue
             try:
                 resp = requests.post(url, json={
                     "chat_id": picker_id,
@@ -170,12 +175,13 @@ def notify_pickers_new_order(self, order_id: int):
                         picker_tg_id=picker_id,
                         telegram_message_id=msg_data["result"]["message_id"],
                     )
+                cache.set(per_picker_key, 1, timeout=_DEDUP_SENT_TTL)
                 sent += 1
             except requests.RequestException as e:
                 logger.error("Picker notification failed for %s: %s", picker_id, e)
                 errors += 1
 
-        logger.info("Picker notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
+        logger.info("Picker notification for order #%s: sent=%d, skipped=%d, errors=%d", order_id, sent, skipped, errors)
         if errors > 0 and self.request.retries < self.max_retries:
             cache.delete(cache_key)
             raise self.retry(
