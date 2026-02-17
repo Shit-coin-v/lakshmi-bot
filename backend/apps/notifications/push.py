@@ -19,6 +19,7 @@ except ImportError:  # pragma: no cover - handled at runtime
 logger = logging.getLogger(__name__)
 
 _STATUS_MESSAGES = {
+    "accepted": "Заказ принят",
     "assembly": "Заказ собирается",
     "ready": "Заказ собран, ждёт курьера",
     "delivery": "Курьер забрал ваш заказ и в пути",
@@ -126,6 +127,10 @@ def notify_order_status_change(order, *, previous_status: str | None = None, new
     message_text = _STATUS_MESSAGES.get(event_status)
     if not message_text:
         return
+
+    # Самовывоз: другой текст для ready
+    if event_status == "ready" and getattr(order, "fulfillment_type", "delivery") == "pickup":
+        message_text = "Ваш заказ готов, можете забрать"
 
     customer = getattr(order, "customer", None)
     if customer and not getattr(customer, "order_status_enabled", True):
