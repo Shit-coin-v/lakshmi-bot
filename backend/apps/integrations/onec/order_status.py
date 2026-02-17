@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @require_onec_auth
 def onec_order_status(request):
     from apps.orders.models import Order
-    from apps.notifications.tasks import send_order_push_task
+    from apps.notifications.tasks import send_order_push_task, notify_couriers_new_order
 
     raw = request.body or b"{}"
     if isinstance(raw, (bytes, bytearray)):
@@ -106,6 +106,8 @@ def onec_order_status(request):
             if status_changed:
                 oid, prev, new = o.id, previous_status, o.status
                 db_tx.on_commit(lambda: send_order_push_task.delay(oid, prev, new))
+                if new == "ready":
+                    db_tx.on_commit(lambda: notify_couriers_new_order.delay(oid))
 
     except Order.DoesNotExist:
         return onec_error(

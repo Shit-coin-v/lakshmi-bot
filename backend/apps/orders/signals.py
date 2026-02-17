@@ -21,8 +21,14 @@ def _order_post_save(sender, instance: Order, **kwargs):
     if getattr(instance, "_skip_signal_notification", False):
         return
 
+    # New order created — notify pickers
+    if kwargs.get("created", False) and instance.status == "new":
+        oid = instance.id
+        transaction.on_commit(lambda: notify_pickers_new_order.delay(oid))
+
     previous = getattr(instance, "_previous_status", None)
     if previous is None:
+        instance._previous_status = instance.status
         return
 
     if previous != instance.status:
@@ -30,10 +36,5 @@ def _order_post_save(sender, instance: Order, **kwargs):
         transaction.on_commit(lambda: send_order_push_task.delay(order_id, prev_status, new_status))
         if new_status == "ready":
             transaction.on_commit(lambda: notify_couriers_new_order.delay(order_id))
-
-    # New order created — notify pickers
-    if kwargs.get("created", False) and instance.status == "new":
-        oid = instance.id
-        transaction.on_commit(lambda: notify_pickers_new_order.delay(oid))
 
     instance._previous_status = instance.status
