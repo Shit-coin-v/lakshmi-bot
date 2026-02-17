@@ -1,15 +1,10 @@
 import json
 
-from django.test import Client, TestCase
-
 from apps.common import security
+from .base import OneCTestBase
 
 
-class OneCOrderCreateTests(TestCase):
-    def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
-
+class OneCOrderCreateTests(OneCTestBase):
     def _post(self, payload, **extra):
         return self.client.post(
             "/onec/order",

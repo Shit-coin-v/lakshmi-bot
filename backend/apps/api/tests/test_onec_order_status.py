@@ -1,16 +1,14 @@
 import json
 from unittest.mock import patch
 
-from django.test import Client, TestCase
-
 from apps.common import security
 from apps.main.models import CustomUser, Order
+from .base import OneCTestBase
 
 
-class OneCOrderStatusTests(TestCase):
+class OneCOrderStatusTests(OneCTestBase):
     def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
+        super().setUp()
         self.customer = CustomUser.objects.create(telegram_id=6001)
         self.order = Order.objects.create(
             customer=self.customer,

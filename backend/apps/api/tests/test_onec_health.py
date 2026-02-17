@@ -1,15 +1,10 @@
 import json
 
-from django.test import Client, TestCase
-
 from apps.common import security
+from .base import OneCTestBase
 
 
-class OneCHealthTests(TestCase):
-    def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
-
+class OneCHealthTests(OneCTestBase):
     def test_health_returns_200(self):
         response = self.client.post(
             "/onec/health",

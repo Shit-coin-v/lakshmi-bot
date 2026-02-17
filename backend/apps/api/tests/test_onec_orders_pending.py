@@ -1,13 +1,11 @@
-from django.test import Client, TestCase
-
 from apps.common import security
 from apps.main.models import CustomUser, Order, OrderItem, Product
+from .base import OneCTestBase
 
 
-class OneCOrdersPendingTests(TestCase):
+class OneCOrdersPendingTests(OneCTestBase):
     def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
+        super().setUp()
         self.customer = CustomUser.objects.create(telegram_id=5001)
 
     def _get(self, params="", **extra):

@@ -2,16 +2,15 @@ import json
 from decimal import Decimal
 
 from django.conf import settings
-from django.test import Client, TestCase
 
 from apps.common import security
 from apps.loyalty.models import CustomUser, Transaction
+from .base import OneCTestBase
 
 
-class OneCReceiptTests(TestCase):
+class OneCReceiptTests(OneCTestBase):
     def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
+        super().setUp()
         CustomUser.objects.update_or_create(
             telegram_id=settings.GUEST_TELEGRAM_ID,
             defaults={"full_name": "Гость"},

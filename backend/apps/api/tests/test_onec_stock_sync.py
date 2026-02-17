@@ -1,13 +1,12 @@
 import json
-from django.test import TestCase, Client
-from apps.common import security
+
 from apps.orders.models import Product
+from .base import OneCTestBase
 
 
-class OneCStockSyncTests(TestCase):
+class OneCStockSyncTests(OneCTestBase):
     def setUp(self):
-        security.API_KEY = 'test-key'
-        self.client = Client()
+        super().setUp()
         self.p1 = Product.objects.create(product_code='P001', name='Milk', price=100, store_id=0)
         self.p2 = Product.objects.create(product_code='P002', name='Bread', price=50, store_id=0)
 

@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import json
 
-from django.test import Client, TestCase
+from django.test import TestCase
 
 from apps.common import security
 from apps.api.models import OneCClientMap
 from apps.loyalty.models import CustomUser
+from .base import OneCTestBase
 
 
-class OneCCustomerSyncTests(TestCase):
-    def setUp(self):
-        security.API_KEY = "test-key"
-        self.client = Client()
-
+class OneCCustomerSyncTests(OneCTestBase):
     def _post(self, payload: dict[str, object], **extra_headers):
         body = json.dumps(payload)
         headers = {"HTTP_X_API_KEY": security.API_KEY, **extra_headers}

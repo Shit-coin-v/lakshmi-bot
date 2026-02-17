@@ -1,14 +1,11 @@
 import json
-from django.test import TestCase, Client
+
 from apps.common import security
 from apps.orders.models import Product
+from .base import OneCTestBase
 
 
-class OneCProductSyncTests(TestCase):
-    def setUp(self):
-        security.API_KEY = 'test-key'
-        self.client = Client()
-
+class OneCProductSyncTests(OneCTestBase):
     def _headers(self, body: bytes):
         return {
             'HTTP_X_API_KEY': security.API_KEY,
