@@ -106,7 +106,7 @@ def onec_order_status(request):
             if status_changed:
                 oid, prev, new = o.id, previous_status, o.status
                 db_tx.on_commit(lambda: send_order_push_task.delay(oid, prev, new))
-                if new == "ready":
+                if new == "ready" and o.fulfillment_type != "pickup":
                     db_tx.on_commit(lambda: notify_couriers_new_order.delay(oid))
 
     except Order.DoesNotExist:

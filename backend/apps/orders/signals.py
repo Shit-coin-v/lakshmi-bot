@@ -34,7 +34,7 @@ def _order_post_save(sender, instance: Order, **kwargs):
     if previous != instance.status:
         order_id, prev_status, new_status = instance.id, previous, instance.status
         transaction.on_commit(lambda: send_order_push_task.delay(order_id, prev_status, new_status))
-        if new_status == "ready":
+        if new_status == "ready" and instance.fulfillment_type != "pickup":
             transaction.on_commit(lambda: notify_couriers_new_order.delay(order_id))
 
     instance._previous_status = instance.status
