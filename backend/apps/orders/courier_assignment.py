@@ -6,8 +6,11 @@ available courier and writes `delivered_by`.
 A courier is *available* when:
   1. CourierProfile.accepting_orders is True
   2. telegram_id is in settings.COURIER_ALLOWED_TG_IDS
-  3. Has ZERO orders in non-final statuses (i.e. all their orders are
-     'completed' or 'canceled')
+  3. Has ZERO orders in 'delivery' or 'arrived' status (not on a route)
+  4. Has fewer than MAX_READY_ORDERS orders in 'ready' status
+
+Once a courier taps "Забрал заказ" (ready→delivery), they are blocked
+from receiving new orders until ALL their orders are completed/canceled.
 
 Round-robin cursor is stored per store_id (from the order's first item).
 """
@@ -23,8 +26,12 @@ from apps.orders.models import CourierProfile, Order, RoundRobinCursor
 
 logger = logging.getLogger(__name__)
 
-# Statuses that count as "final" — courier is free if all their orders are in these
+# Statuses that count as "final"
 _FINAL_STATUSES = {"completed", "canceled"}
+# Statuses meaning courier is "on the road" — blocks new assignments entirely
+_ON_ROUTE_STATUSES = {"delivery", "arrived"}
+# Max orders a courier can hold in 'ready' status before picking up
+MAX_READY_ORDERS = 3
 
 
 def _get_store_id(order: Order) -> int:
@@ -36,7 +43,13 @@ def _get_store_id(order: Order) -> int:
 
 
 def _get_available_couriers() -> list[int]:
-    """Return sorted list of available courier telegram_ids."""
+    """Return sorted list of available courier telegram_ids.
+
+    A courier is available when:
+    - accepting_orders=True
+    - Has 0 orders in delivery/arrived (not on a route)
+    - Has < MAX_READY_ORDERS in 'ready' status
+    """
     allowed_ids = set(getattr(settings, "COURIER_ALLOWED_TG_IDS", []))
     if not allowed_ids:
         return []
@@ -52,17 +65,34 @@ def _get_available_couriers() -> list[int]:
     if not accepting:
         return []
 
-    # Find busy couriers: those with at least one order in non-final status
-    busy = set(
+    # Exclude couriers who are on the road (have delivery/arrived orders)
+    on_route = set(
         Order.objects.filter(
             delivered_by__in=accepting,
+            status__in=_ON_ROUTE_STATUSES,
         )
-        .exclude(status__in=_FINAL_STATUSES)
         .values_list("delivered_by", flat=True)
         .distinct()
     )
 
-    available = sorted(accepting - busy)
+    candidates = accepting - on_route
+    if not candidates:
+        return []
+
+    # Exclude couriers who already have MAX_READY_ORDERS in 'ready'
+    from django.db.models import Count
+    overloaded = set(
+        Order.objects.filter(
+            delivered_by__in=candidates,
+            status="ready",
+        )
+        .values("delivered_by")
+        .annotate(cnt=Count("id"))
+        .filter(cnt__gte=MAX_READY_ORDERS)
+        .values_list("delivered_by", flat=True)
+    )
+
+    available = sorted(candidates - overloaded)
     return available
 
 
