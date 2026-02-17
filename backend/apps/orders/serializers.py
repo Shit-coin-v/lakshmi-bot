@@ -4,6 +4,8 @@ from rest_framework import serializers
 
 from apps.orders.models import Order, OrderItem, Product
 
+_DELIVERY_FEE = Decimal("150.00")
+
 
 class ProductListSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -134,8 +136,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             ft = (data.get("fulfillment_type") or "").strip()
             addr = (data.get("address") or "").strip()
 
-            # ✅ Если фронт не прислал fulfillment_type, но адрес = "Самовывоз",
-            # считаем это самовывозом (чтобы не добавлялась доставка 150).
+            # If frontend omits fulfillment_type but address is "Самовывоз",
+            # treat as pickup (skip delivery fee).
             if not ft and addr.casefold() == "самовывоз":
                 data = {**data, "fulfillment_type": "pickup"}
                 ft = "pickup"
@@ -150,7 +152,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("total_price", None)
 
         fulfillment_type = validated_data.get("fulfillment_type") or "delivery"
-        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else Decimal("150.00")
+        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else _DELIVERY_FEE
 
         order = Order.objects.create(
             products_price=Decimal("0.00"),

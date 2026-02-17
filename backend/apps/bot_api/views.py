@@ -38,6 +38,8 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+_COURIER_RATE = 150  # roubles per delivery
+
 
 # --- Customer Bot views ---
 
@@ -273,7 +275,7 @@ class CompletedTodayView(APIView):
             completed_at__date=today,
         ).count()
 
-        return Response({"count": count, "total": count * 150})
+        return Response({"count": count, "total": count * _COURIER_RATE})
 
 
 # --- Picker Bot views ---

@@ -55,7 +55,7 @@ async def post_to_onec(
                     if resp.status == 200:
                         try:
                             return json.loads(text)
-                        except Exception:
+                        except (json.JSONDecodeError, ValueError):
                             logger.error("1C: invalid JSON response: %s", text)
                             return None
                     else:

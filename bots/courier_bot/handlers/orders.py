@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from shared.clients.backend_client import BackendClient
-from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
+from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY, STORE_LOCATION
 from shared.bot_utils.chat_cleanup import send_clean
 from shared.bot_utils.retry import is_in_flight, schedule_retry
 from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
@@ -96,7 +96,7 @@ def _format_order_detail(order) -> str:
     """Format order details for the courier message."""
     lines = [
         f"<b>Заказ #{order.id}</b>",
-        "\U0001f4cd село Намцы",
+        f"\U0001f4cd {STORE_LOCATION}",
         f"\U0001f3e0 Адрес: {order.address}",
         f"\U0001f4de Телефон: {order.phone}",
     ]
@@ -140,7 +140,7 @@ async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
         try:
             await bot.delete_message(chat_id, n["telegram_message_id"])
         except Exception:
-            pass  # Already deleted or too old
+            logger.debug("Could not delete notification msg %s", n["telegram_message_id"])
     ids = [n["id"] for n in notifications]
     await backend.bulk_delete_courier_messages(ids)
 

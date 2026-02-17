@@ -121,6 +121,11 @@ class CourierNotificationMessage(models.Model):
 
     class Meta:
         db_table = "courier_notification_messages"
+        verbose_name = "Уведомление курьеру"
+        verbose_name_plural = "Уведомления курьерам"
+
+    def __str__(self):
+        return f"courier={self.courier_tg_id} msg={self.telegram_message_id}"
 
 
 class PickerNotificationMessage(models.Model):
@@ -132,3 +137,8 @@ class PickerNotificationMessage(models.Model):
 
     class Meta:
         db_table = "picker_notification_messages"
+        verbose_name = "Уведомление сборщику"
+        verbose_name_plural = "Уведомления сборщикам"
+
+    def __str__(self):
+        return f"picker={self.picker_tg_id} msg={self.telegram_message_id}"
