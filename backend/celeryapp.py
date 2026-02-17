@@ -21,4 +21,8 @@ app.conf.beat_schedule = {
         'task': 'apps.notifications.tasks.send_birthday_congratulations',
         'schedule': crontab(hour=9, minute=0),
     },
+    'redispatch-unassigned-orders': {
+        'task': 'apps.notifications.tasks.redispatch_unassigned_orders',
+        'schedule': 120.0,  # every 2 minutes
+    },
 }

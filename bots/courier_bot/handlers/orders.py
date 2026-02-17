@@ -41,9 +41,9 @@ def _check_courier(user_id: int) -> bool:
     return user_id in COURIER_ALLOWED_TG_IDS
 
 
-async def _fetch_active_orders():
-    """Fetch orders with active statuses via HTTP API."""
-    orders = await backend.get_active_orders()
+async def _fetch_active_orders(courier_tg_id: int):
+    """Fetch orders assigned to this courier."""
+    orders = await backend.get_active_orders(courier_tg_id)
     result = []
     for o in orders:
         if "total_price" in o and o["total_price"] is not None:
@@ -160,9 +160,9 @@ async def cmd_orders(message: Message):
         await send_clean(message, "Доступ запрещён.")
         return
     await _cleanup_notifications(message.bot, message.chat.id, message.from_user.id)
-    orders = await _fetch_active_orders()
+    orders = await _fetch_active_orders(message.from_user.id)
     keyboard = get_orders_list_keyboard(orders)
-    await send_clean(message, "\U0001f4e6 Активные заказы:", reply_markup=keyboard)
+    await send_clean(message, "📦 Мои заказы:", reply_markup=keyboard)
 
 
 # --- Command: /completed ---
@@ -196,9 +196,9 @@ async def orders_back(callback: CallbackQuery):
         await callback.answer("Доступ запрещён.", show_alert=True)
         return
 
-    orders = await _fetch_active_orders()
+    orders = await _fetch_active_orders(callback.from_user.id)
     keyboard = get_orders_list_keyboard(orders)
-    await callback.message.edit_text("\U0001f4e6 Активные заказы:", reply_markup=keyboard)
+    await callback.message.edit_text("📦 Мои заказы:", reply_markup=keyboard)
     await callback.answer()
 
 
@@ -272,7 +272,10 @@ async def _on_retry_success(
 ) -> None:
     try:
         if new_status == "completed":
-            orders = await _fetch_active_orders()
+            # Get courier tg_id from the completed order to fetch remaining orders
+            completed_order = await _fetch_order_with_items(order_id)
+            courier_tg_id = getattr(completed_order, "delivered_by", None) if completed_order else None
+            orders = await _fetch_active_orders(courier_tg_id) if courier_tg_id else []
             if orders:
                 keyboard = get_orders_list_keyboard(orders)
                 await bot.edit_message_text(

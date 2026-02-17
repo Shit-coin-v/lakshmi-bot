@@ -9,6 +9,8 @@ from .views import (
     CourierMessageBulkDeleteView,
     CourierMessageDeleteView,
     CourierMessageListView,
+    CourierProfileView,
+    CourierToggleAcceptingView,
     NewOrdersView,
     NewsletterOpenView,
     OneCMapUpsertView,
@@ -35,6 +37,8 @@ urlpatterns = [
     path("courier-messages/", CourierMessageListView.as_view(), name="bot-courier-messages"),
     path("courier-messages/<int:pk>/", CourierMessageDeleteView.as_view(), name="bot-courier-message-delete"),
     path("courier-messages/bulk-delete/", CourierMessageBulkDeleteView.as_view(), name="bot-courier-messages-bulk-delete"),
+    path("courier/profile/", CourierProfileView.as_view(), name="bot-courier-profile"),
+    path("courier/toggle-accepting/", CourierToggleAcceptingView.as_view(), name="bot-courier-toggle-accepting"),
     # Picker bot
     path("orders/new/", NewOrdersView.as_view(), name="bot-orders-new"),
     path("orders/my-active/", PickerActiveOrdersView.as_view(), name="bot-orders-my-active"),

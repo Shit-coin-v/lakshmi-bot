@@ -7,13 +7,14 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, MenuButtonCommands
 
 from config import COURIER_BOT_TOKEN
-from handlers import start, orders, help
+from handlers import start, orders, help, toggle
 
 logger = logging.getLogger(__name__)
 
 dp = Dispatcher()
 dp.include_router(start.router)
 dp.include_router(orders.router)
+dp.include_router(toggle.router)
 dp.include_router(help.router)
 
 
@@ -21,7 +22,8 @@ dp.include_router(help.router)
 async def on_startup(bot: Bot):
     await bot.set_my_commands(
         commands=[
-            BotCommand(command="orders", description="📦 Заказы"),
+            BotCommand(command="orders", description="📦 Мои заказы"),
+            BotCommand(command="toggle", description="🔄 Принимать/Остановить заказы"),
             BotCommand(command="completed", description="📋 Отчёт заказов"),
             BotCommand(command="help", description="❓ Помощь"),
         ],

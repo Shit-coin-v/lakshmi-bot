@@ -15,7 +15,7 @@ from apps.main.models import (
     NewsletterOpenEvent,
 )
 from apps.notifications.models import CourierNotificationMessage, PickerNotificationMessage
-from apps.orders.models import Order
+from apps.orders.models import CourierProfile, Order
 
 from .serializers import (
     ActiveOrderSerializer,
@@ -24,6 +24,8 @@ from .serializers import (
     BotUserSerializer,
     CourierMessageBulkDeleteSerializer,
     CourierMessageSerializer,
+    CourierProfileSerializer,
+    CourierToggleAcceptingSerializer,
     NewsletterOpenResponseSerializer,
     NewsletterOpenSerializer,
     OneCMapUpsertSerializer,
@@ -204,15 +206,23 @@ class OneCMapUpsertView(APIView):
 
 
 class ActiveOrdersView(generics.ListAPIView):
-    """GET /api/bot/orders/active/"""
+    """GET /api/bot/orders/active/?courier_tg_id=<int>
+
+    If courier_tg_id is provided, returns only orders assigned to that courier.
+    Otherwise returns all active orders (backward compat).
+    """
 
     permission_classes = [ApiKeyPermission]
     serializer_class = ActiveOrderSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(
+        qs = Order.objects.filter(
             status__in=("ready", "delivery", "arrived")
         ).order_by("created_at")
+        courier_tg_id = self.request.query_params.get("courier_tg_id")
+        if courier_tg_id:
+            qs = qs.filter(delivered_by=int(courier_tg_id))
+        return qs
 
 
 class BotOrderDetailView(APIView):
@@ -392,3 +402,62 @@ class CourierMessageBulkDeleteView(APIView):
         ids = serializer.validated_data["ids"]
         deleted, _ = CourierNotificationMessage.objects.filter(pk__in=ids).delete()
         return Response({"deleted": deleted})
+
+
+class CourierProfileView(APIView):
+    """GET /api/bot/courier/profile/?courier_tg_id=<int>"""
+
+    permission_classes = [ApiKeyPermission]
+
+    def get(self, request):
+        courier_tg_id = request.query_params.get("courier_tg_id")
+        if not courier_tg_id:
+            return Response(
+                {"detail": "courier_tg_id query param is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            courier_tg_id = int(courier_tg_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "courier_tg_id must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile, _ = CourierProfile.objects.get_or_create(
+            telegram_id=courier_tg_id,
+            defaults={"accepting_orders": True},
+        )
+        return Response(CourierProfileSerializer(profile).data)
+
+
+class CourierToggleAcceptingView(APIView):
+    """POST /api/bot/courier/toggle-accepting/
+
+    Toggle courier accepting_orders flag.
+    If toggled ON and there are unassigned ready orders, triggers redispatch.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def post(self, request):
+        serializer = CourierToggleAcceptingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        courier_tg_id = serializer.validated_data["courier_tg_id"]
+        accepting = serializer.validated_data["accepting"]
+
+        profile, _ = CourierProfile.objects.get_or_create(
+            telegram_id=courier_tg_id,
+            defaults={"accepting_orders": accepting},
+        )
+        if profile.accepting_orders != accepting:
+            profile.accepting_orders = accepting
+            profile.save(update_fields=["accepting_orders"])
+
+        # If courier turned ON → trigger redispatch for waiting orders
+        if accepting:
+            from apps.notifications.tasks import redispatch_unassigned_orders
+            redispatch_unassigned_orders.delay()
+
+        return Response({"accepting_orders": profile.accepting_orders})

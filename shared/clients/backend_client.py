@@ -134,8 +134,11 @@ class BackendClient:
         })
         return result if isinstance(result, dict) else None
 
-    async def get_active_orders(self) -> list[dict]:
-        result = await self.get("/api/bot/orders/active/")
+    async def get_active_orders(self, courier_tg_id: int | None = None) -> list[dict]:
+        params = {}
+        if courier_tg_id is not None:
+            params["courier_tg_id"] = str(courier_tg_id)
+        result = await self.get("/api/bot/orders/active/", params=params or None)
         return result if isinstance(result, list) else []
 
     async def get_order_detail(self, order_id: int) -> dict | None:
@@ -192,4 +195,20 @@ class BackendClient:
 
     async def bulk_delete_picker_messages(self, ids: list[int]) -> dict | None:
         result = await self.post("/api/bot/picker-messages/bulk-delete/", {"ids": ids})
+        return result if isinstance(result, dict) else None
+
+    # --- Courier Profile ---
+
+    async def get_courier_profile(self, courier_tg_id: int) -> dict | None:
+        result = await self.get(
+            "/api/bot/courier/profile/",
+            params={"courier_tg_id": str(courier_tg_id)},
+        )
+        return result if isinstance(result, dict) else None
+
+    async def toggle_accepting(self, courier_tg_id: int, accepting: bool) -> dict | None:
+        result = await self.post("/api/bot/courier/toggle-accepting/", {
+            "courier_tg_id": courier_tg_id,
+            "accepting": accepting,
+        })
         return result if isinstance(result, dict) else None

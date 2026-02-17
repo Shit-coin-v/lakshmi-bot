@@ -5,7 +5,7 @@ from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 
 from .models import Order
-from apps.notifications.tasks import send_order_push_task, notify_couriers_new_order, notify_pickers_new_order
+from apps.notifications.tasks import send_order_push_task, assign_courier_task, notify_pickers_new_order
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,6 @@ def _order_post_save(sender, instance: Order, **kwargs):
         order_id, prev_status, new_status = instance.id, previous, instance.status
         transaction.on_commit(lambda: send_order_push_task.delay(order_id, prev_status, new_status))
         if new_status == "ready" and instance.fulfillment_type != "pickup":
-            transaction.on_commit(lambda: notify_couriers_new_order.delay(order_id))
+            transaction.on_commit(lambda: assign_courier_task.delay(order_id))
 
     instance._previous_status = instance.status

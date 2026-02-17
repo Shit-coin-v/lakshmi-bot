@@ -98,3 +98,32 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
+
+
+class CourierProfile(models.Model):
+    """Courier availability profile for round-robin assignment."""
+    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID курьера")
+    accepting_orders = models.BooleanField(default=True, verbose_name="Принимает заказы")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
+
+    class Meta:
+        db_table = "courier_profiles"
+        verbose_name = "Профиль курьера"
+        verbose_name_plural = "Профили курьеров"
+
+    def __str__(self):
+        return f"Courier {self.telegram_id} (accepting={self.accepting_orders})"
+
+
+class RoundRobinCursor(models.Model):
+    """Stores last assigned courier per store for fair round-robin distribution."""
+    store_id = models.IntegerField(unique=True, verbose_name="ID магазина")
+    last_courier_tg_id = models.BigIntegerField(null=True, blank=True, verbose_name="Последний назначенный курьер")
+
+    class Meta:
+        db_table = "round_robin_cursors"
+        verbose_name = "Round-Robin курсор"
+        verbose_name_plural = "Round-Robin курсоры"
+
+    def __str__(self):
+        return f"Store {self.store_id} → last courier {self.last_courier_tg_id}"

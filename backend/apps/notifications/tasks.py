@@ -190,67 +190,88 @@ def notify_pickers_new_order(self, order_id: int):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def notify_couriers_new_order(self, order_id: int):
-    """Send new order notification to all couriers."""
-    from django.core.cache import cache
-    from django.conf import settings as django_settings
-    from apps.orders.models import Order
+    """DEPRECATED — kept for backward compat. Use assign_courier_task instead."""
+    logger.warning("notify_couriers_new_order called for order %s — this is deprecated, use assign_courier_task", order_id)
+    assign_courier_task.delay(order_id)
 
-    cache_key = f"push:couriers:{order_id}"
-    if not cache.add(cache_key, "processing", timeout=300):
-        logger.info("Courier notification already processed/in-progress for order %s", order_id)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=5)
+def assign_courier_task(self, order_id: int):
+    """Assign a courier to an order via round-robin and notify them."""
+    from django.core.cache import cache
+    from apps.orders.courier_assignment import assign_courier_to_order
+
+    cache_key = f"assign:courier:{order_id}"
+    if not cache.add(cache_key, "processing", timeout=60):
+        logger.info("Courier assignment already in progress for order %s", order_id)
         return
 
     try:
-        bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
-        courier_ids = getattr(django_settings, "COURIER_ALLOWED_TG_IDS", [])
-        if not bot_token or not courier_ids:
-            logger.warning("COURIER_BOT_TOKEN or COURIER_ALLOWED_TG_IDS not configured; skipping courier notification")
-            cache.set(cache_key, "no_config", timeout=86400)
+        courier_tg_id = assign_courier_to_order(order_id)
+        if courier_tg_id is None:
+            logger.info("No available courier for order %s, will retry via redispatch", order_id)
+            cache.delete(cache_key)
             return
 
-        order = Order.objects.filter(id=order_id).only("id", "total_price", "address").first()
-        if not order:
-            cache.set(cache_key, "no_order", timeout=86400)
-            return
-
-        total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
-        text = f"\U0001f514 <b>\u041d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 #{order_id}!</b>\n\U0001f4b0 {total}\u20bd"
-        if order.address:
-            text += f"\n\U0001f3e0 {order.address}"
-        text += "\n\nНажмите /orders для подробностей."
-
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-
-        from apps.notifications.models import CourierNotificationMessage
-
-        sent, errors = 0, 0
-        for courier_id in courier_ids:
-            try:
-                resp = requests.post(url, json={
-                    "chat_id": courier_id,
-                    "text": text,
-                    "parse_mode": "HTML",
-                }, timeout=5)
-                resp.raise_for_status()
-                msg_data = resp.json()
-                if msg_data.get("ok"):
-                    CourierNotificationMessage.objects.create(
-                        courier_tg_id=courier_id,
-                        telegram_message_id=msg_data["result"]["message_id"],
-                    )
-                sent += 1
-            except requests.RequestException as e:
-                logger.error("Courier notification failed for %s: %s", courier_id, e)
-                errors += 1
-
-        logger.info("Courier notification for order #%s: sent=%d, errors=%d", order_id, sent, errors)
-        if errors > 0 and self.request.retries < self.max_retries:
-            cache.delete(cache_key)  # разрешить retry
-            raise self.retry(
-                exc=RuntimeError(f"Partial delivery: sent={sent}, errors={errors}"),
-                countdown=10 + self.request.retries * 5,
-            )
-        cache.set(cache_key, "sent", timeout=_DEDUP_SENT_TTL)
+        _send_courier_notification(order_id, courier_tg_id)
+        cache.set(cache_key, "assigned", timeout=_DEDUP_SENT_TTL)
     except Exception:
         cache.delete(cache_key)
         raise
+
+
+def _send_courier_notification(order_id: int, courier_tg_id: int):
+    """Send Telegram notification to a single assigned courier."""
+    from django.conf import settings as django_settings
+    from apps.orders.models import Order
+    from apps.notifications.models import CourierNotificationMessage
+
+    bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
+    if not bot_token:
+        logger.warning("COURIER_BOT_TOKEN not configured; skipping courier notification")
+        return
+
+    order = Order.objects.filter(id=order_id).only("id", "total_price", "address").first()
+    if not order:
+        return
+
+    total = int(order.total_price) if order.total_price == int(order.total_price) else float(order.total_price)
+    text = (
+        f"🔔 <b>Вам назначен заказ #{order_id}!</b>\n"
+        f"💰 {total}₽"
+    )
+    if order.address:
+        text += f"\n🏠 {order.address}"
+    text += "\n\nНажмите /orders для подробностей."
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    try:
+        resp = requests.post(url, json={
+            "chat_id": courier_tg_id,
+            "text": text,
+            "parse_mode": "HTML",
+        }, timeout=5)
+        resp.raise_for_status()
+        msg_data = resp.json()
+        if msg_data.get("ok"):
+            CourierNotificationMessage.objects.create(
+                courier_tg_id=courier_tg_id,
+                telegram_message_id=msg_data["result"]["message_id"],
+            )
+        logger.info("Courier notification sent for order #%s to courier %s", order_id, courier_tg_id)
+    except requests.RequestException as e:
+        logger.error("Courier notification failed for %s: %s", courier_tg_id, e)
+
+
+@shared_task(bind=True, max_retries=0)
+def redispatch_unassigned_orders(self):
+    """Periodic task: try to assign couriers to unassigned ready orders."""
+    from apps.orders.courier_assignment import get_unassigned_ready_orders
+
+    order_ids = get_unassigned_ready_orders()
+    if not order_ids:
+        return
+
+    logger.info("Redispatch: %d unassigned ready orders", len(order_ids))
+    for oid in order_ids:
+        assign_courier_task.delay(oid)

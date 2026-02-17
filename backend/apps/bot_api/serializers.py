@@ -220,3 +220,16 @@ class PickerMessageSerializer(serializers.ModelSerializer):
 
 class PickerMessageBulkDeleteSerializer(serializers.Serializer):
     ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
+
+
+# --- Courier Profile serializers ---
+
+
+class CourierProfileSerializer(serializers.Serializer):
+    telegram_id = serializers.IntegerField(read_only=True)
+    accepting_orders = serializers.BooleanField(read_only=True)
+
+
+class CourierToggleAcceptingSerializer(serializers.Serializer):
+    courier_tg_id = serializers.IntegerField()
+    accepting = serializers.BooleanField()
