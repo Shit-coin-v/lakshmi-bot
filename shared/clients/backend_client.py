@@ -223,6 +223,11 @@ class BackendClient:
         result = await self.post("/onec/order/status", payload)
         return bool(result and isinstance(result, dict) and result.get("status") == "ok")
 
+    async def reassign_order(self, order_id: int) -> bool:
+        """POST /api/bot/orders/<id>/reassign/ — transfer order to another courier."""
+        result = await self.post(f"/api/bot/orders/{order_id}/reassign/", {})
+        return bool(result and isinstance(result, dict) and result.get("status") == "ok")
+
     async def toggle_accepting(self, courier_tg_id: int, accepting: bool) -> dict | None:
         result = await self.post("/api/bot/courier/toggle-accepting/", {
             "courier_tg_id": courier_tg_id,

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Statuses meaning courier is "on the road" — blocks new assignments entirely
 _ON_ROUTE_STATUSES = {"delivery", "arrived"}
 # Max orders a courier can hold in 'ready' status before picking up
-MAX_READY_ORDERS = 3
+MAX_READY_ORDERS = 5
 
 
 def _get_store_id(order: Order) -> int:

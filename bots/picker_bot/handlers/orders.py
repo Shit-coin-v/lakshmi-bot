@@ -39,7 +39,6 @@ _TRANSITIONS = {
     "assemble": ("accepted", "assembly"),
     "ready": ("assembly", "ready"),
     "pickup_complete": ("ready", "completed"),
-    "return": (None, "new"),  # special: accepted|assembly -> new
 }
 
 # Statuses visible to picker
@@ -256,18 +255,6 @@ async def _on_retry_success(
             )
             return
 
-        if new_status == "new":
-            # Returned to pool
-            orders = await _fetch_new_orders()
-            keyboard = get_new_orders_keyboard(orders)
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"↩️ Заказ #{order_id} возвращён в общий пул.\n\n📦 Новые заказы:",
-                reply_markup=keyboard,
-            )
-            return
-
         order = await _fetch_order_with_items(order_id)
         if not order:
             await bot.edit_message_text(
@@ -321,7 +308,6 @@ async def _on_retry_failure(
     | F.data.endswith(":assemble")
     | F.data.endswith(":ready")
     | F.data.endswith(":pickup_complete")
-    | F.data.endswith(":return")
 ))
 async def order_status_change(callback: CallbackQuery):
     if not check_allowed(callback.from_user.id, PICKER_ALLOWED_TG_IDS):
@@ -353,12 +339,7 @@ async def order_status_change(callback: CallbackQuery):
         await callback.answer("Заказ не найден.", show_alert=True)
         return
 
-    # Return: allowed from accepted or assembly
-    if action == "return":
-        if order.status not in ("accepted", "assembly"):
-            await callback.answer("Заказ нельзя вернуть из текущего статуса.", show_alert=True)
-            return
-    elif order.status != expected_status:
+    if order.status != expected_status:
         await callback.answer(
             f'Заказ уже в статусе "{_STATUS_DISPLAY.get(order.status, order.status)}".',
             show_alert=True,

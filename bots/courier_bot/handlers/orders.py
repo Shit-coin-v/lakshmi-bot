@@ -328,6 +328,48 @@ async def _on_retry_failure(
         logger.exception("Failed to update message after retry failure for order %d", order_id)
 
 
+# --- Callback: reassign order to another courier ---
+
+@router.callback_query(F.data.startswith("order:") & F.data.endswith(":reassign"))
+async def order_reassign(callback: CallbackQuery):
+    if not check_allowed(callback.from_user.id, COURIER_ALLOWED_TG_IDS):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+
+    parts = callback.data.split(":")
+    try:
+        order_id = int(parts[1])
+    except (IndexError, ValueError):
+        await callback.answer("Неверные данные.", show_alert=True)
+        return
+
+    order = await _fetch_order_with_items(order_id)
+    if not order:
+        await callback.answer("Заказ не найден.", show_alert=True)
+        return
+
+    if order.status != "ready":
+        await callback.answer("Передать можно только заказ в статусе «Собран».", show_alert=True)
+        return
+
+    success = await backend.reassign_order(order_id)
+    if success:
+        orders = await _fetch_active_orders(callback.from_user.id)
+        if orders:
+            keyboard = get_orders_list_keyboard(orders)
+            await callback.message.edit_text(
+                f"🔁 Заказ #{order_id} передан другому курьеру.\n\n📦 Активные заказы:",
+                reply_markup=keyboard,
+            )
+        else:
+            await callback.message.edit_text(
+                f"🔁 Заказ #{order_id} передан другому курьеру.\n\nВсе заказы выполнены 🎉",
+            )
+        await callback.answer()
+    else:
+        await callback.answer("Не удалось передать заказ. Попробуйте позже.", show_alert=True)
+
+
 # --- Callback: status transitions (pickup, arrived, complete) ---
 
 @router.callback_query(F.data.startswith("order:") & (

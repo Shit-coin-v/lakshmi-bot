@@ -75,23 +75,11 @@ def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
                 callback_data=f"order:{order.id}:assemble",
             )]
         )
-        buttons.append(
-            [InlineKeyboardButton(
-                text="↩️ Вернуть заказ",
-                callback_data=f"order:{order.id}:return",
-            )]
-        )
     elif order.status == "assembly":
         buttons.append(
             [InlineKeyboardButton(
                 text="✅ Заказ собрал",
                 callback_data=f"order:{order.id}:ready",
-            )]
-        )
-        buttons.append(
-            [InlineKeyboardButton(
-                text="↩️ Вернуть заказ",
-                callback_data=f"order:{order.id}:return",
             )]
         )
     elif order.status == "ready" and order.fulfillment_type == "pickup":

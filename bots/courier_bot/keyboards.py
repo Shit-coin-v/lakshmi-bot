@@ -46,6 +46,12 @@ def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
                 callback_data=f"order:{order.id}:pickup",
             )]
         )
+        buttons.append(
+            [InlineKeyboardButton(
+                text="\U0001f501 \u041f\u0435\u0440\u0435\u0434\u0430\u0442\u044c \u0437\u0430\u043a\u0430\u0437",
+                callback_data=f"order:{order.id}:reassign",
+            )]
+        )
     elif order.status == "delivery":
         buttons.append(
             [InlineKeyboardButton(

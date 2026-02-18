@@ -435,6 +435,47 @@ class CourierProfileView(APIView):
         return Response(CourierProfileSerializer(profile).data)
 
 
+class OrderReassignView(APIView):
+    """POST /api/bot/orders/<pk>/reassign/
+
+    Courier transfers an order (status=ready) to another courier via round-robin.
+    Clears delivered_by and triggers assign_courier_task.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def post(self, request, pk):
+        try:
+            order = Order.objects.select_for_update().get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status != "ready":
+            return Response(
+                {"detail": "Order must be in 'ready' status to reassign."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if order.delivered_by is None:
+            return Response(
+                {"detail": "Order has no assigned courier."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            order.delivered_by = None
+            order._skip_signal_notification = True
+            order.save(update_fields=["delivered_by"])
+
+        # Clear dedup cache so assign_courier_task can proceed
+        from django.core.cache import cache
+        cache.delete(f"assign:courier:{pk}")
+
+        from apps.notifications.tasks import assign_courier_task
+        assign_courier_task.delay(pk)
+
+        return Response({"status": "ok", "order_id": pk})
+
+
 class CourierToggleAcceptingView(APIView):
     """POST /api/bot/courier/toggle-accepting/
 
