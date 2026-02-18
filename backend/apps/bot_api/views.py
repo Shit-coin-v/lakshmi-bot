@@ -445,23 +445,23 @@ class OrderReassignView(APIView):
     permission_classes = [ApiKeyPermission]
 
     def post(self, request, pk):
-        try:
-            order = Order.objects.select_for_update().get(pk=pk)
-        except Order.DoesNotExist:
-            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if order.status != "ready":
-            return Response(
-                {"detail": "Order must be in 'ready' status to reassign."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if order.delivered_by is None:
-            return Response(
-                {"detail": "Order has no assigned courier."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(pk=pk)
+            except Order.DoesNotExist:
+                return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            if order.status != "ready":
+                return Response(
+                    {"detail": "Order must be in 'ready' status to reassign."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if order.delivered_by is None:
+                return Response(
+                    {"detail": "Order has no assigned courier."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             order.delivered_by = None
             order._skip_signal_notification = True
             order.save(update_fields=["delivered_by"])
