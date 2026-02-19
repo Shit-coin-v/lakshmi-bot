@@ -88,6 +88,8 @@ class OrderService {
         return response.data['id'];
       }
       return null;
+    } on DioException {
+      rethrow;
     } catch (e) {
       throw Exception('Ошибка создания заказа: $e');
     }
