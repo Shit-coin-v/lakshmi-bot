@@ -15,9 +15,6 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         }),
     )
 
-    def has_add_permission(self, request):
-        return False
-
     def has_delete_permission(self, request, obj=None):
         return False
 
@@ -27,3 +24,8 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return redirect(
             f"{request.path}{obj.pk}/change/"
         )
+
+    def add_view(self, request, form_url="", extra_context=None):
+        # Singleton: "+" ведёт на редактирование единственной записи
+        obj = SiteSettings.load()
+        return redirect(f"../{obj.pk}/change/")
