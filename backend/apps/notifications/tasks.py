@@ -301,6 +301,19 @@ def send_staff_approved_notification(self, telegram_id: int, role: str):
             "text": text,
         }, timeout=5)
         resp.raise_for_status()
+        msg_data = resp.json()
+        if msg_data.get("ok"):
+            from apps.notifications.models import CourierNotificationMessage, PickerNotificationMessage
+            if role == "courier":
+                CourierNotificationMessage.objects.create(
+                    courier_tg_id=telegram_id,
+                    telegram_message_id=msg_data["result"]["message_id"],
+                )
+            else:
+                PickerNotificationMessage.objects.create(
+                    picker_tg_id=telegram_id,
+                    telegram_message_id=msg_data["result"]["message_id"],
+                )
         logger.info("Approval notification sent to %s %s", role, telegram_id)
     except requests.RequestException as e:
         logger.error("Approval notification failed for %s %s: %s", role, telegram_id, e)

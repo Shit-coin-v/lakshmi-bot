@@ -41,10 +41,26 @@ async def _set_menu(bot, chat_id: int, approved: bool):
         await bot.set_chat_menu_button(chat_id=chat_id, menu_button=MenuButtonDefault())
 
 
+async def _cleanup_notifications(bot, chat_id: int, telegram_id: int):
+    """Delete tracked notification messages (approval, new order, etc.)."""
+    notifications = await backend.get_picker_messages(telegram_id)
+    for n in notifications:
+        try:
+            await bot.delete_message(chat_id, n["telegram_message_id"])
+        except Exception:
+            pass
+    if notifications:
+        ids = [n["id"] for n in notifications]
+        await backend.bulk_delete_picker_messages(ids)
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
     chat_id = message.chat.id
+
+    # Cleanup any pending notification messages (approval, new order, etc.)
+    await _cleanup_notifications(message.bot, chat_id, telegram_id)
 
     # Check access via DB
     result = await backend.check_staff_access(telegram_id, "picker")
