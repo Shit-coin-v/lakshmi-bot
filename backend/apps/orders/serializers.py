@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.common.models import SiteSettings
 from apps.orders.models import Order, OrderItem, Product
 
 _DELIVERY_FEE = Decimal("150.00")
@@ -146,6 +147,20 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 data = {**data, "address": "Самовывоз"}
 
         return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        ft = attrs.get("fulfillment_type") or "delivery"
+        settings = SiteSettings.load()
+
+        if ft == "delivery" and not settings.delivery_enabled:
+            msg = settings.delivery_disabled_message or "Доставка временно недоступна"
+            raise serializers.ValidationError({"fulfillment_type": msg})
+
+        if ft == "pickup" and not settings.pickup_enabled:
+            msg = settings.pickup_disabled_message or "Самовывоз временно недоступен"
+            raise serializers.ValidationError({"fulfillment_type": msg})
+
+        return attrs
 
     def create(self, validated_data):
         items_data = validated_data.pop("items")
