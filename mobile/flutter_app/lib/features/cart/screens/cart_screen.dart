@@ -24,7 +24,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isPickup = false;
   bool _phoneInitialized = false;
 
-  // По умолчанию
   String _paymentMethod = 'card_courier';
   double? _changeFrom;
 
@@ -43,27 +42,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     _phoneController.dispose();
     _commentController.dispose();
     super.dispose();
-  }
-
-  // --- ВЫБОР АДРЕСА ---
-  void _selectAddress() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => _AddressPickerSheet(
-        onSelect: (address) {
-          _applySelectedAddress(address);
-          Navigator.pop(sheetContext);
-        },
-        onNavigateToAddresses: () {
-          Navigator.pop(sheetContext);
-          _navigateToAddresses();
-        },
-      ),
-    );
   }
 
   void _applySelectedAddress(AddressModel address) {
@@ -86,78 +64,130 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  // --- ВЫБОР ОПЛАТЫ (НОВЫЙ МЕТОД) ---
-  void _showPaymentMethodPicker(double finalTotal) {
-    String selectedMethod = _paymentMethod;
-    int? selectedChange = _changeFrom != null ? _changeFrom!.toInt() : null;
-    String? changeError;
-
+  void _selectAddress() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (sheetContext) => _AddressPickerSheet(
+        onSelect: (address) {
+          _applySelectedAddress(address);
+          Navigator.pop(sheetContext);
+        },
+        onNavigateToAddresses: () {
+          Navigator.pop(sheetContext);
+          _navigateToAddresses();
+        },
+      ),
+    );
+  }
+
+  // --- BOTTOM SHEET: только способ оплаты ---
+  void _showPaymentSheet(double finalTotal, List<CartItem> cartItems) {
+    // Валидация перед открытием
+    if (!_isPickup && _selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пожалуйста, выберите адрес доставки')),
+      );
+      return;
+    }
+    if (_phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Укажите телефон для связи')),
+      );
+      return;
+    }
+
+    String paymentMethod = _paymentMethod;
+    int? changeSelection;
+    if (_changeFrom != null) {
+      changeSelection = _changeFrom!.toInt();
+    }
+    String? changeError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-              ),
+            return Material(
+              type: MaterialType.transparency,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Drag handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
                     const Text(
-                      "Выберите способ оплаты",
+                      "Способ оплаты",
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 20),
+
                     _PaymentOption(
                       title: "Картой курьеру (карта или QR)",
                       icon: Icons.credit_card,
                       value: "card_courier",
-                      groupValue: selectedMethod,
+                      groupValue: paymentMethod,
                       onChanged: (val) {
                         setSheetState(() {
-                          selectedMethod = val!;
+                          paymentMethod = val!;
                           changeError = null;
                         });
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     _PaymentOption(
                       title: "Наличными",
                       icon: Icons.payments_outlined,
                       value: "cash",
-                      groupValue: selectedMethod,
+                      groupValue: paymentMethod,
                       onChanged: (val) {
                         setSheetState(() {
-                          selectedMethod = val!;
+                          paymentMethod = val!;
                           changeError = null;
                         });
                       },
                     ),
-                    // Кнопки выбора суммы сдачи (только для наличных)
+
+                    // Сдача (для наличных)
                     AnimatedSize(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
-                      child: selectedMethod == 'cash'
+                      child: paymentMethod == 'cash'
                           ? Padding(
-                              padding: const EdgeInsets.only(top: 16),
+                              padding: const EdgeInsets.only(top: 12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     "Сдача с какой суммы?",
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
@@ -165,38 +195,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       for (final amount in [500, 1000, 5000])
                                         ChoiceChip(
                                           label: Text("$amount \u20bd"),
-                                          selected: selectedChange == amount,
+                                          selected: changeSelection == amount,
                                           onSelected: amount < finalTotal
                                               ? null
                                               : (sel) {
                                                   setSheetState(() {
-                                                    selectedChange = sel ? amount : null;
+                                                    changeSelection =
+                                                        sel ? amount : null;
                                                     changeError = null;
                                                   });
                                                 },
-                                          selectedColor: Colors.green.withValues(alpha: 0.2),
+                                          selectedColor:
+                                              Colors.green.withValues(alpha: 0.2),
                                           disabledColor: Colors.grey[200],
                                         ),
                                       ChoiceChip(
                                         label: const Text("Без сдачи"),
-                                        selected: selectedChange == 0,
+                                        selected: changeSelection == 0,
                                         onSelected: (sel) {
                                           setSheetState(() {
-                                            selectedChange = sel ? 0 : null;
+                                            changeSelection = sel ? 0 : null;
                                             changeError = null;
                                           });
                                         },
-                                        selectedColor: Colors.green.withValues(alpha: 0.2),
+                                        selectedColor:
+                                            Colors.green.withValues(alpha: 0.2),
                                       ),
                                     ],
                                   ),
-                                  if (selectedChange != null && selectedChange! > 0)
+                                  if (changeSelection != null &&
+                                      changeSelection! > 0)
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 12),
+                                      padding: const EdgeInsets.only(top: 8),
                                       child: Text(
-                                        "Сдача вам: ${selectedChange! - finalTotal.toInt()} \u20bd",
+                                        "Сдача вам: ${changeSelection! - finalTotal.toInt()} \u20bd",
                                         style: const TextStyle(
-                                          fontSize: 15,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF4CAF50),
                                         ),
@@ -207,7 +241,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       padding: const EdgeInsets.only(top: 8),
                                       child: Text(
                                         changeError!,
-                                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -215,45 +252,46 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             )
                           : const SizedBox.shrink(),
                     ),
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 24),
+
+                    // Кнопка подтверждения
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: () {
-                          if (selectedMethod == 'cash') {
-                            if (selectedChange == null) {
-                              setSheetState(() {
-                                changeError = "Выберите сумму";
-                              });
-                              return;
-                            }
-                            setState(() {
-                              _paymentMethod = selectedMethod;
-                              _changeFrom = selectedChange == 0
-                                  ? null
-                                  : selectedChange!.toDouble();
+                          if (paymentMethod == 'cash' &&
+                              changeSelection == null) {
+                            setSheetState(() {
+                              changeError = "Выберите сумму";
                             });
-                          } else {
-                            setState(() {
-                              _paymentMethod = selectedMethod;
-                              _changeFrom = null;
-                            });
+                            return;
                           }
+
+                          setState(() {
+                            _paymentMethod = paymentMethod;
+                            _changeFrom = (paymentMethod == 'cash' &&
+                                    changeSelection != null &&
+                                    changeSelection != 0)
+                                ? changeSelection!.toDouble()
+                                : null;
+                          });
                           Navigator.pop(sheetContext);
+                          _submitOrder(finalTotal, cartItems);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4CAF50),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          "Готово",
-                          style: TextStyle(
-                            fontSize: 16,
+                        child: Text(
+                          "Подтвердить \u00b7 ${finalTotal.toStringAsFixed(0)} \u20bd",
+                          style: const TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -267,32 +305,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       },
     );
-  }
-
-  // Вспомогательные методы для отображения выбранного
-  String _getPaymentTitle(String value) {
-    switch (value) {
-      case 'card_courier':
-        return 'Картой курьеру';
-      case 'cash':
-        if (_changeFrom != null) {
-          return 'Наличными \u00b7 Сдача с ${_changeFrom!.toInt()} рб';
-        }
-        return 'Наличными';
-      default:
-        return 'Картой курьеру';
-    }
-  }
-
-  IconData _getPaymentIcon(String value) {
-    switch (value) {
-      case 'card_courier':
-        return Icons.credit_card;
-      case 'cash':
-        return Icons.payments_outlined;
-      default:
-        return Icons.credit_card;
-    }
   }
 
   Future<void> _submitOrder(double totalPrice, List<CartItem> items) async {
@@ -496,45 +508,52 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 ),
                                 const SizedBox(height: 12),
 
-                                SwitchListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: const Text(
-                                    "Самовывоз",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  subtitle: const Text(
-                                    "Заберу заказ сам из магазина",
-                                    style: TextStyle(color: Colors.grey),
+                                  child: SwitchListTile(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(horizontal: 12),
+                                    title: const Text(
+                                      "Самовывоз",
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    subtitle: const Text(
+                                      "Заберу заказ сам из магазина",
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    value: _isPickup,
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _isPickup = v;
+                                        if (_isPickup) _selectedAddress = null;
+                                      });
+                                    },
                                   ),
-                                  value: _isPickup,
-                                  onChanged: (v) {
-                                    setState(() {
-                                      _isPickup = v;
-                                      if (_isPickup) {
-                                        _selectedAddress = null;
-                                      }
-                                    });
-                                  },
                                 ),
 
                                 const SizedBox(height: 12),
 
-                                InkWell(
-                                  onTap: _isPickup ? null : _selectAddress,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Opacity(
-                                    opacity: _isPickup ? 0.5 : 1,
+                                if (!_isPickup) ...[
+                                  InkWell(
+                                    onTap: _selectAddress,
+                                    borderRadius: BorderRadius.circular(12),
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey[300]!),
+                                        color: Colors.grey[100],
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Row(
                                         children: [
                                           const Icon(
                                             Icons.location_on_outlined,
-                                            color: Colors.green,
+                                            color: Color(0xFF4CAF50),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
@@ -543,11 +562,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  _isPickup
-                                                      ? "Самовывоз"
-                                                      : (_selectedAddress == null
-                                                            ? "Выберите адрес"
-                                                            : "Адрес доставки"),
+                                                  _selectedAddress == null
+                                                      ? "Выберите адрес"
+                                                      : "Адрес доставки",
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
                                                     fontSize: 12,
@@ -555,14 +572,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  _isPickup
-                                                      ? "Пункт выдачи: магазин"
-                                                      : (_selectedAddress
-                                                                ?.fullAddress ??
-                                                            "Нажмите, чтобы выбрать"),
+                                                  _selectedAddress?.fullAddress ??
+                                                      "Нажмите, чтобы выбрать",
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
+                                                    fontSize: 15,
                                                   ),
                                                   maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
@@ -578,19 +592,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       ),
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 12),
+                                ],
 
-                                const SizedBox(height: 12),
                                 TextField(
                                   controller: _phoneController,
                                   keyboardType: TextInputType.phone,
                                   decoration: InputDecoration(
                                     labelText: "Телефон для связи",
-                                    prefixIcon: const Icon(Icons.phone_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.phone_outlined,
+                                      color: Colors.grey,
+                                    ),
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F5F5),
+                                    fillColor: Colors.grey[100],
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
                                     ),
                                     contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -605,11 +623,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Комментарий к заказу",
                                     hintText: "Подъезд, этаж, код домофона...",
-                                    prefixIcon: const Icon(Icons.comment_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.comment_outlined,
+                                      color: Colors.grey,
+                                    ),
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F5F5),
+                                    fillColor: Colors.grey[100],
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
                                     ),
                                     contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -632,13 +654,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
+                    color: Colors.white,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 10,
                         offset: const Offset(0, -5),
                       ),
@@ -650,14 +672,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       children: [
                         _SummaryRow(
                           title: "Сумма",
-                          value: "${productsTotal.toStringAsFixed(0)} ₽",
+                          value: "${productsTotal.toStringAsFixed(0)} \u20bd",
                         ),
                         const SizedBox(height: 8),
                         _SummaryRow(
                           title: "Доставка",
                           value: _isPickup
                               ? "Самовывоз"
-                              : "${deliveryCost.toStringAsFixed(0)} ₽",
+                              : "${deliveryCost.toStringAsFixed(0)} \u20bd",
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -671,74 +693,26 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                             ),
                             Text(
-                              "${finalTotal.toStringAsFixed(0)} ₽",
+                              "${finalTotal.toStringAsFixed(0)} \u20bd",
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                                color: Color(0xFF4CAF50),
                               ),
                             ),
                           ],
                         ),
-                        const Divider(height: 24),
-
-                        InkWell(
-                          onTap: () => _showPaymentMethodPicker(finalTotal),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  _getPaymentIcon(_paymentMethod),
-                                  color: Colors.green,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Способ оплаты",
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    Text(
-                                      _getPaymentTitle(_paymentMethod),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Text(
-                                "Изменить",
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
                         const SizedBox(height: 16),
-
                         SizedBox(
                           width: double.infinity,
                           height: 54,
                           child: ElevatedButton(
                             onPressed: _isLoading
                                 ? null
-                                : () => _submitOrder(finalTotal, cartItems),
+                                : () => _showPaymentSheet(
+                                      finalTotal,
+                                      cartItems,
+                                    ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF4CAF50),
                               foregroundColor: Colors.white,
@@ -775,7 +749,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 }
 
-// Виджет одной опции оплаты (используется внутри BottomSheet)
+// --- Виджет опции оплаты ---
 class _PaymentOption extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -829,7 +803,7 @@ class _PaymentOption extends StatelessWidget {
   }
 }
 
-// ... Остальные виджеты (_AddressPickerSheet, _CartItemRow, _CountBtn, _SummaryRow)
+// --- Виджет выбора адреса (bottom sheet) ---
 class _AddressPickerSheet extends ConsumerWidget {
   final Function(AddressModel) onSelect;
   final VoidCallback onNavigateToAddresses;
@@ -1001,7 +975,7 @@ class _CartItemRow extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "${item.product.price.toStringAsFixed(2)} ₽",
+                  "${item.product.price.toStringAsFixed(2)} \u20bd",
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
