@@ -49,6 +49,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     items = OrderItemDetailSerializer(many=True, read_only=True)
     courier_phone = serializers.SerializerMethodField()
+    picker_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -67,6 +68,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "total_price",
             "items",
             "courier_phone",
+            "picker_phone",
         ]
 
     def get_courier_phone(self, obj):
@@ -77,6 +79,16 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             courier = CourierProfile.objects.get(telegram_id=obj.delivered_by)
             return courier.phone or None
         except CourierProfile.DoesNotExist:
+            return None
+
+    def get_picker_phone(self, obj):
+        if not obj.assembled_by:
+            return None
+        from apps.orders.models import PickerProfile
+        try:
+            picker = PickerProfile.objects.get(telegram_id=obj.assembled_by)
+            return picker.phone or None
+        except PickerProfile.DoesNotExist:
             return None
 
 

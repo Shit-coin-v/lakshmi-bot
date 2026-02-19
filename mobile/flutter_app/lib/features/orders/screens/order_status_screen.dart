@@ -272,32 +272,37 @@ class OrderStatusScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!isPickup)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton.icon(
-                            onPressed: order.courierPhone != null
-                                ? () => launchUrl(Uri.parse('tel:${order.courierPhone}'))
-                                : null,
-                            icon: const Icon(Icons.phone),
-                            label: Text(
-                              order.courierPhone != null
-                                  ? "Связаться с курьером"
-                                  : "Курьер ещё не назначен",
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4CAF50),
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor: Colors.grey[300],
-                              disabledForegroundColor: Colors.grey[600],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                      if (!isPickup) ...[
+                        // До "delivery" — связь с сборщиком, после — с курьером
+                        Builder(builder: (context) {
+                          final bool showCourier = ['delivery', 'arrived'].contains(order.status);
+                          final String? phone = showCourier ? order.courierPhone : order.pickerPhone;
+                          final String label = showCourier
+                              ? (phone != null ? "Связаться с курьером" : "Курьер ещё не назначен")
+                              : (phone != null ? "Связаться с сборщиком" : "Сборщик ещё не назначен");
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton.icon(
+                              onPressed: phone != null
+                                  ? () => launchUrl(Uri.parse('tel:$phone'))
+                                  : null,
+                              icon: const Icon(Icons.phone),
+                              label: Text(label),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4CAF50),
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: Colors.grey[300],
+                                disabledForegroundColor: Colors.grey[600],
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
                               ),
-                              elevation: 0,
                             ),
-                          ),
-                        ),
+                          );
+                        }),
+                      ],
                       if (order.status == 'new' || order.status == 'accepted' || order.status == 'assembly') ...[
                         const SizedBox(height: 12),
                         SizedBox(
