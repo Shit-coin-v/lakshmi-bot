@@ -643,6 +643,48 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                           ),
 
+                          const SizedBox(height: 16),
+
+                          // --- Карточка 3: Итого ---
+                          _Card(
+                            child: Column(
+                              children: [
+                                _SummaryRow(
+                                  title: "Сумма",
+                                  value: "${productsTotal.toStringAsFixed(0)} \u20bd",
+                                ),
+                                const SizedBox(height: 8),
+                                _SummaryRow(
+                                  title: "Доставка",
+                                  value: _isPickup
+                                      ? "Самовывоз"
+                                      : "${deliveryCost.toStringAsFixed(0)} \u20bd",
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      "Итого",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      "${finalTotal.toStringAsFixed(0)} \u20bd",
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF4CAF50),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -650,14 +692,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 ),
 
-                // --- НИЖНЯЯ ПАНЕЛЬ ---
+                // --- НИЖНЯЯ ПАНЕЛЬ: только кнопка ---
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.08),
@@ -667,79 +706,41 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ],
                   ),
                   child: SafeArea(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _SummaryRow(
-                          title: "Сумма",
-                          value: "${productsTotal.toStringAsFixed(0)} \u20bd",
-                        ),
-                        const SizedBox(height: 8),
-                        _SummaryRow(
-                          title: "Доставка",
-                          value: _isPickup
-                              ? "Самовывоз"
-                              : "${deliveryCost.toStringAsFixed(0)} \u20bd",
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Итого",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "${finalTotal.toStringAsFixed(0)} \u20bd",
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF4CAF50),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () => _showPaymentSheet(
-                                      finalTotal,
-                                      cartItems,
-                                    ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4CAF50),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Оформить заказ",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => _showPaymentSheet(
+                                  finalTotal,
+                                  cartItems,
+                                ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          elevation: 0,
                         ),
-                      ],
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                "Оформить заказ \u00b7 ${finalTotal.toStringAsFixed(0)} \u20bd",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
                     ),
                   ),
                 ),
