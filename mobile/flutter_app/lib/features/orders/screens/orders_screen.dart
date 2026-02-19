@@ -24,45 +24,84 @@ class OrdersScreen extends ConsumerWidget {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Ошибка: $err')),
-        data: (orders) {
-          if (orders.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    "У вас пока нет заказов",
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                ],
-              ),
-            );
-          }
+      body: Column(
+        children: [
+          Expanded(
+            child: ordersAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Ошибка: $err')),
+              data: (orders) {
+                if (orders.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.history, size: 80, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          "У вас пока нет заказов",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: orders.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final order = orders[index];
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: orders.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
 
-              return GestureDetector(
-                // ✅ ВАЖНО: тап по карточке -> СТАТУС (как на твоём скрине)
-                onTap: () => context.push('/profile/order-status/${order.id}'),
-                child: _OrderCard(
-                  order: order,
-                  // ✅ Отдельно "Детали"
-                  onDetails: () => context.push('/profile/order-details/${order.id}'),
+                    return GestureDetector(
+                      onTap: () => context.push('/profile/order-status/${order.id}'),
+                      child: _OrderCard(
+                        order: order,
+                        onDetails: () => context.push('/profile/order-details/${order.id}'),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
                 ),
-              );
-            },
-          );
-        },
+              ],
+            ),
+            child: SafeArea(
+              child: SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(myOrdersProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text(
+                    "Обновить",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
