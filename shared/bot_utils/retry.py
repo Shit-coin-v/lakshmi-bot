@@ -9,7 +9,7 @@ from aiogram import Bot
 
 logger = logging.getLogger(__name__)
 
-_RETRY_DELAYS = [5, 10, 20, 40, 80, 160]
+_RETRY_DELAYS = [10, 20, 30, 45, 60, 90, 120, 180]
 _JITTER_FACTOR = 0.25
 _in_flight: dict[int, asyncio.Task] = {}
 
