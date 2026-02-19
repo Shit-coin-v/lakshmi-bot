@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.shortcuts import redirect
 
 from apps.common.models import SiteSettings
 
@@ -15,8 +16,14 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        # Singleton: если запись уже есть — не даём создавать ещё
-        return not SiteSettings.objects.exists()
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Singleton: автосоздание + редирект на единственную запись
+        obj = SiteSettings.load()
+        return redirect(
+            f"{request.path}{obj.pk}/change/"
+        )

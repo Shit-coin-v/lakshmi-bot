@@ -26,11 +26,11 @@ class SiteSettings(models.Model):
     )
 
     class Meta:
-        verbose_name = "Настройки сайта"
-        verbose_name_plural = "Настройки сайта"
+        verbose_name = "Настройки доставки"
+        verbose_name_plural = "Настройки доставки"
 
     def __str__(self):
-        return "Настройки сайта"
+        return "Настройки доставки"
 
     def save(self, *args, **kwargs):
         # Singleton: всегда pk=1
