@@ -1,4 +1,5 @@
 import logging
+import re
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
@@ -15,6 +16,9 @@ router = Router()
 
 backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
+_NAME_RE = re.compile(r"^[а-яА-ЯёЁa-zA-Z\s\-\.]+$")
+_PHONE_RE = re.compile(r"^\+?\d{10,15}$")
+
 
 class RegistrationStates(StatesGroup):
     waiting_full_name = State()
@@ -23,21 +27,37 @@ class RegistrationStates(StatesGroup):
 
 @router.message(RegistrationStates.waiting_full_name)
 async def process_full_name(message: Message, state: FSMContext):
-    full_name = message.text.strip()
-    if len(full_name) < 2:
-        await send_clean(message, "Имя слишком короткое. Введите ФИО:")
+    text = (message.text or "").strip()
+
+    if text.startswith("/"):
+        await send_clean(message, "Сейчас идёт регистрация. Введите ваше ФИО:")
         return
 
-    await state.update_data(full_name=full_name)
+    if len(text) < 2 or not _NAME_RE.match(text):
+        await send_clean(message, "ФИО должно содержать только буквы. Введите ФИО:")
+        return
+
+    await state.update_data(full_name=text)
     await state.set_state(RegistrationStates.waiting_phone)
-    await send_clean(message, "Введите ваш номер телефона:")
+    await send_clean(message, "Введите ваш номер телефона (например, +79001234567):")
 
 
 @router.message(RegistrationStates.waiting_phone)
 async def process_phone(message: Message, state: FSMContext):
-    phone = message.text.strip()
-    if len(phone) < 6:
-        await send_clean(message, "Некорректный номер. Введите номер телефона:")
+    text = (message.text or "").strip()
+
+    if text.startswith("/"):
+        await send_clean(message, "Сейчас идёт регистрация. Введите номер телефона:")
+        return
+
+    # Clean: remove spaces, dashes, parentheses
+    phone = re.sub(r"[\s\-\(\)]", "", text)
+
+    if not _PHONE_RE.match(phone):
+        await send_clean(
+            message,
+            "Некорректный номер. Введите телефон цифрами (например, +79001234567):",
+        )
         return
 
     data = await state.get_data()

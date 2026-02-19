@@ -275,6 +275,38 @@ def send_courier_notification_task(self, order_id: int, courier_tg_id: int):
         raise self.retry(exc=e)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=10)
+def send_staff_approved_notification(self, telegram_id: int, role: str):
+    """Notify a courier/picker that their registration was approved."""
+    from django.conf import settings as django_settings
+
+    if role == "courier":
+        bot_token = getattr(django_settings, "COURIER_BOT_TOKEN", "")
+    else:
+        bot_token = getattr(django_settings, "PICKER_BOT_TOKEN", "")
+
+    if not bot_token:
+        logger.warning("Bot token for %s not configured; skipping approval notification", role)
+        return
+
+    text = (
+        "Ваша заявка подтверждена!\n"
+        "Нажмите /start для начала работы."
+    )
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    try:
+        resp = requests.post(url, json={
+            "chat_id": telegram_id,
+            "text": text,
+        }, timeout=5)
+        resp.raise_for_status()
+        logger.info("Approval notification sent to %s %s", role, telegram_id)
+    except requests.RequestException as e:
+        logger.error("Approval notification failed for %s %s: %s", role, telegram_id, e)
+        raise self.retry(exc=e)
+
+
 @shared_task(bind=True, max_retries=0)
 def redispatch_unassigned_orders(self):
     """Periodic task: try to assign couriers to unassigned ready orders."""

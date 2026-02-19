@@ -1,11 +1,16 @@
 import logging
 
 from django.db import transaction
-from django.db.models.signals import post_init, post_save
+from django.db.models.signals import post_init, pre_save, post_save
 from django.dispatch import receiver
 
-from .models import Order
-from apps.notifications.tasks import send_order_push_task, assign_courier_task, notify_pickers_new_order
+from .models import Order, CourierProfile, PickerProfile
+from apps.notifications.tasks import (
+    send_order_push_task,
+    assign_courier_task,
+    notify_pickers_new_order,
+    send_staff_approved_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,3 +43,52 @@ def _order_post_save(sender, instance: Order, **kwargs):
             transaction.on_commit(lambda: assign_courier_task.delay(order_id))
 
     instance._previous_status = instance.status
+
+
+# --- Staff approval notifications ---
+
+
+@receiver(pre_save, sender=CourierProfile)
+def _track_courier_approved(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._was_approved = CourierProfile.objects.filter(
+                pk=instance.pk,
+            ).values_list("is_approved", flat=True).first()
+        except Exception:
+            instance._was_approved = False
+    else:
+        instance._was_approved = False
+
+
+@receiver(post_save, sender=CourierProfile)
+def _notify_courier_approved(sender, instance, **kwargs):
+    was = getattr(instance, "_was_approved", None)
+    if was is False and instance.is_approved and not instance.is_blacklisted:
+        tg_id = instance.telegram_id
+        transaction.on_commit(
+            lambda: send_staff_approved_notification.delay(tg_id, "courier")
+        )
+
+
+@receiver(pre_save, sender=PickerProfile)
+def _track_picker_approved(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._was_approved = PickerProfile.objects.filter(
+                pk=instance.pk,
+            ).values_list("is_approved", flat=True).first()
+        except Exception:
+            instance._was_approved = False
+    else:
+        instance._was_approved = False
+
+
+@receiver(post_save, sender=PickerProfile)
+def _notify_picker_approved(sender, instance, **kwargs):
+    was = getattr(instance, "_was_approved", None)
+    if was is False and instance.is_approved and not instance.is_blacklisted:
+        tg_id = instance.telegram_id
+        transaction.on_commit(
+            lambda: send_staff_approved_notification.delay(tg_id, "picker")
+        )
