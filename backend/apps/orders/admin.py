@@ -28,15 +28,22 @@ class CourierProfileAdmin(admin.ModelAdmin):
 
     @admin.action(description="Подтвердить выбранных")
     def approve(self, request, queryset):
-        queryset.update(is_approved=True)
+        for obj in queryset:
+            obj.is_approved = True
+            obj.save(update_fields=["is_approved"])
 
     @admin.action(description="Добавить в чёрный список")
     def blacklist(self, request, queryset):
-        queryset.update(is_blacklisted=True, is_approved=False)
+        for obj in queryset:
+            obj.is_blacklisted = True
+            obj.is_approved = False
+            obj.save(update_fields=["is_blacklisted", "is_approved"])
 
     @admin.action(description="Убрать из чёрного списка")
     def unblacklist(self, request, queryset):
-        queryset.update(is_blacklisted=False)
+        for obj in queryset:
+            obj.is_blacklisted = False
+            obj.save(update_fields=["is_blacklisted"])
 
 
 @admin.register(PickerProfile)
@@ -49,12 +56,19 @@ class PickerProfileAdmin(admin.ModelAdmin):
 
     @admin.action(description="Подтвердить выбранных")
     def approve(self, request, queryset):
-        queryset.update(is_approved=True)
+        for obj in queryset:
+            obj.is_approved = True
+            obj.save(update_fields=["is_approved"])
 
     @admin.action(description="Добавить в чёрный список")
     def blacklist(self, request, queryset):
-        queryset.update(is_blacklisted=True, is_approved=False)
+        for obj in queryset:
+            obj.is_blacklisted = True
+            obj.is_approved = False
+            obj.save(update_fields=["is_blacklisted", "is_approved"])
 
     @admin.action(description="Убрать из чёрного списка")
     def unblacklist(self, request, queryset):
-        queryset.update(is_blacklisted=False)
+        for obj in queryset:
+            obj.is_blacklisted = False
+            obj.save(update_fields=["is_blacklisted"])
