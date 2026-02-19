@@ -16,7 +16,7 @@ from apps.main.models import (
     NewsletterOpenEvent,
 )
 from apps.notifications.models import CourierNotificationMessage, PickerNotificationMessage
-from apps.orders.models import CourierProfile, Order
+from apps.orders.models import CourierProfile, Order, PickerProfile
 
 from .serializers import (
     ActiveOrderSerializer,
@@ -32,6 +32,7 @@ from .serializers import (
     OneCMapUpsertSerializer,
     PickerMessageBulkDeleteSerializer,
     PickerMessageSerializer,
+    StaffRegisterSerializer,
     UserPatchSerializer,
     UserRegisterSerializer,
 )
@@ -507,3 +508,131 @@ class CourierToggleAcceptingView(APIView):
             redispatch_unassigned_orders.delay()
 
         return Response({"accepting_orders": profile.accepting_orders})
+
+
+# --- Staff management views ---
+
+
+class StaffCheckView(APIView):
+    """GET /api/bot/staff/check/?telegram_id=X&role=courier|picker
+
+    Returns status: approved, pending, blacklisted, or 404.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def get(self, request):
+        telegram_id = request.query_params.get("telegram_id")
+        role = request.query_params.get("role")
+
+        if not telegram_id or not role:
+            return Response(
+                {"detail": "telegram_id and role query params are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            telegram_id = int(telegram_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "telegram_id must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        Model = CourierProfile if role == "courier" else PickerProfile
+        try:
+            profile = Model.objects.get(telegram_id=telegram_id)
+        except Model.DoesNotExist:
+            return Response(
+                {"detail": "Not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if profile.is_blacklisted:
+            return Response({"status": "blacklisted"})
+        if profile.is_approved:
+            return Response({"status": "approved"})
+        return Response({"status": "pending"})
+
+
+class StaffRegisterView(APIView):
+    """POST /api/bot/staff/register/
+
+    Creates a CourierProfile or PickerProfile with is_approved=False.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def post(self, request):
+        serializer = StaffRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        role = data["role"]
+        Model = CourierProfile if role == "courier" else PickerProfile
+
+        profile, created = Model.objects.get_or_create(
+            telegram_id=data["telegram_id"],
+            defaults={
+                "full_name": data["full_name"],
+                "phone": data["phone"],
+                "is_approved": False,
+            },
+        )
+
+        if not created:
+            # Update existing profile data
+            profile.full_name = data["full_name"]
+            profile.phone = data["phone"]
+            profile.save(update_fields=["full_name", "phone"])
+
+        return Response(
+            {
+                "telegram_id": profile.telegram_id,
+                "full_name": profile.full_name,
+                "phone": profile.phone,
+                "is_approved": profile.is_approved,
+                "is_blacklisted": profile.is_blacklisted,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class CourierPhoneView(APIView):
+    """GET /api/bot/orders/<pk>/courier-phone/
+
+    Returns courier phone number for the assigned courier.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def get(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response(
+                {"detail": "Order not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not order.delivered_by:
+            return Response(
+                {"detail": "No courier assigned."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            courier = CourierProfile.objects.get(telegram_id=order.delivered_by)
+        except CourierProfile.DoesNotExist:
+            return Response(
+                {"detail": "Courier profile not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not courier.phone:
+            return Response(
+                {"detail": "Courier has no phone number."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({"phone": courier.phone})

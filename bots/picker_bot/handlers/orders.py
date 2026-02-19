@@ -7,10 +7,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from shared.clients.backend_client import BackendClient
-from shared.bot_utils.access import check_allowed
 from shared.bot_utils.chat_cleanup import send_clean
 from shared.bot_utils.retry import is_in_flight, schedule_retry
-from config import PICKER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
+from config import BACKEND_URL, INTEGRATION_API_KEY
 from keyboards import (
     get_new_orders_keyboard,
     get_active_orders_keyboard,
@@ -24,6 +23,13 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
+
+
+async def _check_access(telegram_id: int) -> bool:
+    """Check if picker is approved via backend API."""
+    result = await backend.check_staff_access(telegram_id, "picker")
+    return result is not None and result.get("status") == "approved"
+
 
 _STATUS_DISPLAY = {
     "new": "Новый заказ",
@@ -147,7 +153,7 @@ async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
 
 @router.message(Command("orders"))
 async def cmd_orders(message: Message):
-    if not check_allowed(message.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
     await _cleanup_notifications(message.bot, message.chat.id, message.from_user.id)
@@ -160,7 +166,7 @@ async def cmd_orders(message: Message):
 
 @router.message(Command("active"))
 async def cmd_active(message: Message):
-    if not check_allowed(message.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
     orders = await _fetch_active_orders(message.from_user.id)
@@ -172,7 +178,7 @@ async def cmd_active(message: Message):
 
 @router.message(Command("completed"))
 async def cmd_completed(message: Message):
-    if not check_allowed(message.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
 
@@ -190,7 +196,7 @@ async def cmd_completed(message: Message):
 
 @router.callback_query(F.data == "orders:back")
 async def orders_back(callback: CallbackQuery):
-    if not check_allowed(callback.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(callback.from_user.id):
         await callback.answer("Доступ запрещён.", show_alert=True)
         return
 
@@ -218,7 +224,7 @@ async def order_pending_noop(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("order:") & F.data.endswith(":detail"))
 async def order_detail(callback: CallbackQuery):
-    if not check_allowed(callback.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(callback.from_user.id):
         await callback.answer("Доступ запрещён.", show_alert=True)
         return
 
@@ -310,7 +316,7 @@ async def _on_retry_failure(
     | F.data.endswith(":pickup_complete")
 ))
 async def order_status_change(callback: CallbackQuery):
-    if not check_allowed(callback.from_user.id, PICKER_ALLOWED_TG_IDS):
+    if not await _check_access(callback.from_user.id):
         await callback.answer("Доступ запрещён.", show_alert=True)
         return
 

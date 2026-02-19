@@ -2,11 +2,13 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from shared.clients.backend_client import BackendClient
-from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
+from config import BACKEND_URL, INTEGRATION_API_KEY
 from shared.bot_utils.chat_cleanup import send_clean
+from .registration import RegistrationStates
 
 logger = logging.getLogger(__name__)
 
@@ -16,21 +18,43 @@ backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
 
-    if telegram_id not in COURIER_ALLOWED_TG_IDS:
-        logger.warning("Unauthorized access attempt: telegram_id=%s", telegram_id)
-        await send_clean(message, "Доступ запрещён. Вы не зарегистрированы как курьер.")
+    # Check access via DB
+    result = await backend.check_staff_access(telegram_id, "courier")
+
+    if result is None:
+        # Not found — start registration FSM
+        await state.set_state(RegistrationStates.waiting_full_name)
+        await send_clean(
+            message,
+            "Добро пожаловать! Для регистрации введите ваше ФИО:",
+            reply_markup=ReplyKeyboardRemove(),
+        )
         return
 
-    # Ensure courier profile exists (for round-robin assignment)
-    await backend.get_courier_profile(telegram_id)
+    status = result.get("status")
 
-    await send_clean(
-        message,
-        "Добро пожаловать в бот курьера!\n"
-        "Заказы назначаются автоматически.\n"
-        "Используйте кнопку меню ☰ для навигации.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
+    if status == "blacklisted":
+        await send_clean(message, "Доступ запрещён.")
+        return
+
+    if status == "pending":
+        await send_clean(
+            message,
+            "Ваша заявка на рассмотрении. Ожидайте подтверждения администратора.",
+        )
+        return
+
+    if status == "approved":
+        # Ensure courier profile exists (for round-robin assignment)
+        await backend.get_courier_profile(telegram_id)
+
+        await send_clean(
+            message,
+            "Добро пожаловать в бот курьера!\n"
+            "Заказы назначаются автоматически.\n"
+            "Используйте кнопку меню ☰ для навигации.",
+            reply_markup=ReplyKeyboardRemove(),
+        )

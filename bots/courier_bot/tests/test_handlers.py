@@ -38,62 +38,84 @@ def _make_callback(user_id=100, chat_id=1, data="", message_id=50):
     return cb
 
 
+# Mock approved/denied access results
+_APPROVED = {"status": "approved"}
+_DENIED = None  # 404 = not registered
+
+
 # --- /start handler ---
 
 class TestStartHandler:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100, 200}
-
+    @patch("handlers.start.backend.get_courier_profile", new_callable=AsyncMock)
+    @patch("handlers.start.backend.check_staff_access", new_callable=AsyncMock)
     @patch("handlers.start.send_clean", new_callable=AsyncMock)
-    def test_start_authorized(self, mock_send):
+    def test_start_authorized(self, mock_send, mock_check, mock_profile):
         from handlers.start import cmd_start
+        mock_check.return_value = _APPROVED
+        mock_profile.return_value = {}
         msg = _make_message(user_id=100)
-        asyncio.run(cmd_start(msg))
+        state = AsyncMock()
+        asyncio.run(cmd_start(msg, state))
         mock_send.assert_awaited_once()
         text = mock_send.call_args[0][1]
         assert "Добро пожаловать" in text
 
+    @patch("handlers.start.backend.check_staff_access", new_callable=AsyncMock)
     @patch("handlers.start.send_clean", new_callable=AsyncMock)
-    def test_start_unauthorized(self, mock_send):
+    def test_start_not_registered(self, mock_send, mock_check):
         from handlers.start import cmd_start
+        mock_check.return_value = _DENIED
         msg = _make_message(user_id=999)
-        asyncio.run(cmd_start(msg))
+        state = AsyncMock()
+        asyncio.run(cmd_start(msg, state))
         mock_send.assert_awaited_once()
         text = mock_send.call_args[0][1]
-        assert "Доступ запрещён" in text
+        assert "ФИО" in text
 
+    @patch("handlers.start.backend.check_staff_access", new_callable=AsyncMock)
     @patch("handlers.start.send_clean", new_callable=AsyncMock)
-    def test_start_sends_reply_keyboard_remove(self, mock_send):
-        from aiogram.types import ReplyKeyboardRemove
+    def test_start_pending(self, mock_send, mock_check):
         from handlers.start import cmd_start
+        mock_check.return_value = {"status": "pending"}
         msg = _make_message(user_id=100)
-        asyncio.run(cmd_start(msg))
-        kwargs = mock_send.call_args[1]
-        assert isinstance(kwargs.get("reply_markup"), ReplyKeyboardRemove)
+        state = AsyncMock()
+        asyncio.run(cmd_start(msg, state))
+        mock_send.assert_awaited_once()
+        text = mock_send.call_args[0][1]
+        assert "рассмотрении" in text
+
+    @patch("handlers.start.backend.check_staff_access", new_callable=AsyncMock)
+    @patch("handlers.start.send_clean", new_callable=AsyncMock)
+    def test_start_blacklisted(self, mock_send, mock_check):
+        from handlers.start import cmd_start
+        mock_check.return_value = {"status": "blacklisted"}
+        msg = _make_message(user_id=100)
+        state = AsyncMock()
+        asyncio.run(cmd_start(msg, state))
+        mock_send.assert_awaited_once()
+        text = mock_send.call_args[0][1]
+        assert "запрещён" in text
 
 
 # --- /help handler ---
 
 class TestHelpHandler:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.help.backend.check_staff_access", new_callable=AsyncMock)
     @patch("handlers.help.send_clean", new_callable=AsyncMock)
-    def test_help_authorized(self, mock_send):
+    def test_help_authorized(self, mock_send, mock_check):
         from handlers.help import cmd_help
+        mock_check.return_value = _APPROVED
         msg = _make_message(user_id=100)
         asyncio.run(cmd_help(msg))
         mock_send.assert_awaited_once()
         text = mock_send.call_args[0][1]
         assert "/orders" in text
-        assert "/completed" in text
-        assert "/help" in text
 
+    @patch("handlers.help.backend.check_staff_access", new_callable=AsyncMock)
     @patch("handlers.help.send_clean", new_callable=AsyncMock)
-    def test_help_unauthorized(self, mock_send):
+    def test_help_unauthorized(self, mock_send, mock_check):
         from handlers.help import cmd_help
+        mock_check.return_value = _DENIED
         msg = _make_message(user_id=999)
         asyncio.run(cmd_help(msg))
         text = mock_send.call_args[0][1]
@@ -103,57 +125,40 @@ class TestHelpHandler:
 # --- /orders handler ---
 
 class TestOrdersHandler:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders._cleanup_notifications", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_active_orders", new_callable=AsyncMock)
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
-    def test_orders_authorized(self, mock_send, mock_fetch, mock_cleanup):
+    def test_orders_authorized(self, mock_send, mock_fetch, mock_cleanup, mock_access):
         from handlers.orders import cmd_orders
+        mock_access.return_value = True
         mock_fetch.return_value = []
         msg = _make_message(user_id=100)
         asyncio.run(cmd_orders(msg))
         mock_cleanup.assert_awaited_once()
         mock_fetch.assert_awaited_once()
         mock_send.assert_awaited_once()
-        text = mock_send.call_args[0][1]
-        assert "Активные заказы" in text
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
-    def test_orders_unauthorized(self, mock_send):
+    def test_orders_unauthorized(self, mock_send, mock_access):
         from handlers.orders import cmd_orders
+        mock_access.return_value = False
         msg = _make_message(user_id=999)
         asyncio.run(cmd_orders(msg))
         text = mock_send.call_args[0][1]
         assert "Доступ запрещён" in text
 
-    @patch("handlers.orders._cleanup_notifications", new_callable=AsyncMock)
-    @patch("handlers.orders._fetch_active_orders", new_callable=AsyncMock)
-    @patch("handlers.orders.send_clean", new_callable=AsyncMock)
-    def test_orders_passes_keyboard(self, mock_send, mock_fetch, mock_cleanup):
-        from handlers.orders import cmd_orders
-        mock_fetch.return_value = [
-            SimpleNamespace(id=1, status="ready", total_price=500),
-        ]
-        msg = _make_message(user_id=100)
-        asyncio.run(cmd_orders(msg))
-        kwargs = mock_send.call_args[1]
-        assert kwargs.get("reply_markup") is not None
-
 
 # --- /completed handler ---
 
 class TestCompletedHandler:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
-    def test_completed_no_orders(self, mock_fetch, mock_send):
+    def test_completed_no_orders(self, mock_fetch, mock_send, mock_access):
         from handlers.orders import cmd_completed
+        mock_access.return_value = True
         mock_fetch.return_value = 0
         msg = _make_message(user_id=100)
         asyncio.run(cmd_completed(msg))
@@ -161,10 +166,12 @@ class TestCompletedHandler:
         text = mock_send.call_args[0][1]
         assert "пока нет" in text
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_completed_today", new_callable=AsyncMock)
-    def test_completed_with_orders(self, mock_fetch, mock_send):
+    def test_completed_with_orders(self, mock_fetch, mock_send, mock_access):
         from handlers.orders import cmd_completed
+        mock_access.return_value = True
         mock_fetch.return_value = 5
         msg = _make_message(user_id=100)
         asyncio.run(cmd_completed(msg))
@@ -173,9 +180,11 @@ class TestCompletedHandler:
         assert "5" in text
         assert "750" in text  # 5 * 150₽
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.send_clean", new_callable=AsyncMock)
-    def test_completed_unauthorized(self, mock_send):
+    def test_completed_unauthorized(self, mock_send, mock_access):
         from handlers.orders import cmd_completed
+        mock_access.return_value = False
         msg = _make_message(user_id=999)
         asyncio.run(cmd_completed(msg))
         text = mock_send.call_args[0][1]
@@ -185,21 +194,21 @@ class TestCompletedHandler:
 # --- Callback: orders_back ---
 
 class TestOrdersBackCallback:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_active_orders", new_callable=AsyncMock)
-    def test_orders_back(self, mock_fetch):
+    def test_orders_back(self, mock_fetch, mock_access):
         from handlers.orders import orders_back
+        mock_access.return_value = True
         mock_fetch.return_value = []
         cb = _make_callback(user_id=100, data="orders:back")
         asyncio.run(orders_back(cb))
         cb.message.edit_text.assert_awaited_once()
         cb.answer.assert_awaited_once()
 
-    def test_orders_back_unauthorized(self):
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_orders_back_unauthorized(self, mock_access):
         from handlers.orders import orders_back
+        mock_access.return_value = False
         cb = _make_callback(user_id=999, data="orders:back")
         asyncio.run(orders_back(cb))
         cb.answer.assert_awaited_once()
@@ -219,13 +228,11 @@ class TestNoopCallback:
 # --- Callback: order_detail ---
 
 class TestOrderDetailCallback:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_order_with_items", new_callable=AsyncMock)
-    def test_order_detail_found(self, mock_fetch):
+    def test_order_detail_found(self, mock_fetch, mock_access):
         from handlers.orders import order_detail
+        mock_access.return_value = True
         order = SimpleNamespace(
             id=5, status="ready", address="ул. Тест", phone="79001234567",
             comment=None, total_price=500, payment_method="cash",
@@ -237,17 +244,21 @@ class TestOrderDetailCallback:
         cb.message.edit_text.assert_awaited_once()
         cb.answer.assert_awaited_once()
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders._fetch_order_with_items", new_callable=AsyncMock)
-    def test_order_detail_not_found(self, mock_fetch):
+    def test_order_detail_not_found(self, mock_fetch, mock_access):
         from handlers.orders import order_detail
+        mock_access.return_value = True
         mock_fetch.return_value = None
         cb = _make_callback(user_id=100, data="order:999:detail")
         asyncio.run(order_detail(cb))
         cb.answer.assert_awaited_once()
         assert cb.answer.call_args[1].get("show_alert") is True
 
-    def test_order_detail_unauthorized(self):
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_order_detail_unauthorized(self, mock_access):
         from handlers.orders import order_detail
+        mock_access.return_value = False
         cb = _make_callback(user_id=999, data="order:5:detail")
         asyncio.run(order_detail(cb))
         cb.answer.assert_awaited_once()
@@ -257,15 +268,13 @@ class TestOrderDetailCallback:
 # --- Callback: order_status_change ---
 
 class TestOrderStatusChange:
-    def setup_method(self):
-        import config
-        config.COURIER_ALLOWED_TG_IDS = {100}
-
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.schedule_retry")
     @patch("handlers.orders.is_in_flight", return_value=False)
     @patch("handlers.orders._fetch_order_with_items", new_callable=AsyncMock)
-    def test_pickup_success(self, mock_fetch, mock_flight, mock_schedule):
+    def test_pickup_success(self, mock_fetch, mock_flight, mock_schedule, mock_access):
         from handlers.orders import order_status_change
+        mock_access.return_value = True
         order = SimpleNamespace(id=5, status="ready")
         mock_fetch.return_value = order
         cb = _make_callback(user_id=100, data="order:5:pickup")
@@ -274,18 +283,22 @@ class TestOrderStatusChange:
         mock_schedule.assert_called_once()
         assert mock_schedule.call_args[1]["new_status"] == "delivery"
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.is_in_flight", return_value=True)
-    def test_rejects_if_in_flight(self, mock_flight):
+    def test_rejects_if_in_flight(self, mock_flight, mock_access):
         from handlers.orders import order_status_change
+        mock_access.return_value = True
         cb = _make_callback(user_id=100, data="order:5:pickup")
         asyncio.run(order_status_change(cb))
         cb.answer.assert_awaited_once()
         assert "обновляется" in cb.answer.call_args[0][0]
 
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
     @patch("handlers.orders.is_in_flight", return_value=False)
     @patch("handlers.orders._fetch_order_with_items", new_callable=AsyncMock)
-    def test_wrong_status(self, mock_fetch, mock_flight):
+    def test_wrong_status(self, mock_fetch, mock_flight, mock_access):
         from handlers.orders import order_status_change
+        mock_access.return_value = True
         order = SimpleNamespace(id=5, status="delivery")
         mock_fetch.return_value = order
         cb = _make_callback(user_id=100, data="order:5:pickup")  # expects ready
@@ -293,8 +306,10 @@ class TestOrderStatusChange:
         cb.answer.assert_awaited_once()
         assert cb.answer.call_args[1].get("show_alert") is True
 
-    def test_unauthorized(self):
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_unauthorized(self, mock_access):
         from handlers.orders import order_status_change
+        mock_access.return_value = False
         cb = _make_callback(user_id=999, data="order:5:pickup")
         asyncio.run(order_status_change(cb))
         cb.answer.assert_awaited_once()

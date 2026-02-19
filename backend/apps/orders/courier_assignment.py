@@ -5,7 +5,7 @@ available courier and writes `delivered_by`.
 
 A courier is *available* when:
   1. CourierProfile.accepting_orders is True
-  2. telegram_id is in settings.COURIER_ALLOWED_TG_IDS
+  2. CourierProfile.is_approved is True and is_blacklisted is False
   3. Has ZERO orders in 'delivery' or 'arrived' status (not on a route)
   4. Has fewer than MAX_READY_ORDERS orders in 'ready' status
 
@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 
@@ -45,19 +44,16 @@ def _get_available_couriers() -> list[int]:
     """Return sorted list of available courier telegram_ids.
 
     A courier is available when:
-    - accepting_orders=True
+    - accepting_orders=True, is_approved=True, is_blacklisted=False
     - Has 0 orders in delivery/arrived (not on a route)
     - Has < MAX_READY_ORDERS in 'ready' status
     """
-    allowed_ids = set(getattr(settings, "COURIER_ALLOWED_TG_IDS", []))
-    if not allowed_ids:
-        return []
-
-    # Get couriers with accepting_orders=True AND in the allowed list
+    # Get couriers who are approved, not blacklisted, and accepting orders
     accepting = set(
         CourierProfile.objects.filter(
             accepting_orders=True,
-            telegram_id__in=allowed_ids,
+            is_approved=True,
+            is_blacklisted=False,
         ).values_list("telegram_id", flat=True)
     )
 

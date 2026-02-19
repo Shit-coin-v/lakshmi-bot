@@ -102,17 +102,41 @@ class OrderItem(models.Model):
 
 class CourierProfile(models.Model):
     """Courier availability profile for round-robin assignment."""
-    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID курьера")
+    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
+    full_name = models.CharField(max_length=200, blank=True, default="", verbose_name="ФИО")
+    phone = models.CharField(max_length=20, blank=True, default="", verbose_name="Телефон")
+    is_approved = models.BooleanField(default=False, verbose_name="Подтверждён")
+    is_blacklisted = models.BooleanField(default=False, verbose_name="Чёрный список")
     accepting_orders = models.BooleanField(default=True, verbose_name="Принимает заказы")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
 
     class Meta:
         db_table = "courier_profiles"
-        verbose_name = "Профиль курьера"
-        verbose_name_plural = "Профили курьеров"
+        verbose_name = "Курьер"
+        verbose_name_plural = "Курьеры"
 
     def __str__(self):
-        return f"Courier {self.telegram_id} (accepting={self.accepting_orders})"
+        name = self.full_name or str(self.telegram_id)
+        return f"{name} (tg:{self.telegram_id})"
+
+
+class PickerProfile(models.Model):
+    """Picker (assembler) profile for access control."""
+    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
+    full_name = models.CharField(max_length=200, blank=True, default="", verbose_name="ФИО")
+    phone = models.CharField(max_length=20, blank=True, default="", verbose_name="Телефон")
+    is_approved = models.BooleanField(default=False, verbose_name="Подтверждён")
+    is_blacklisted = models.BooleanField(default=False, verbose_name="Чёрный список")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
+
+    class Meta:
+        db_table = "picker_profiles"
+        verbose_name = "Сборщик"
+        verbose_name_plural = "Сборщики"
+
+    def __str__(self):
+        name = self.full_name or str(self.telegram_id)
+        return f"{name} (tg:{self.telegram_id})"
 
 
 class RoundRobinCursor(models.Model):

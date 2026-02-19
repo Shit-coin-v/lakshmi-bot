@@ -234,3 +234,27 @@ class BackendClient:
             "accepting": accepting,
         })
         return result if isinstance(result, dict) else None
+
+    # --- Staff management ---
+
+    async def check_staff_access(self, telegram_id: int, role: str) -> dict | None:
+        """GET /api/bot/staff/check/?telegram_id=X&role=Y
+        Returns {"status": "approved"|"pending"|"blacklisted"} or None (404).
+        """
+        result = await self.get(
+            "/api/bot/staff/check/",
+            params={"telegram_id": str(telegram_id), "role": role},
+        )
+        return result if isinstance(result, dict) else None
+
+    async def register_staff(
+        self, telegram_id: int, full_name: str, phone: str, role: str,
+    ) -> dict | None:
+        """POST /api/bot/staff/register/"""
+        result = await self.post("/api/bot/staff/register/", {
+            "telegram_id": telegram_id,
+            "full_name": full_name,
+            "phone": phone,
+            "role": role,
+        })
+        return result if isinstance(result, dict) else None

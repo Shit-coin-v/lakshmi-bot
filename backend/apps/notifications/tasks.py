@@ -132,10 +132,14 @@ def notify_pickers_new_order(self, order_id: int):
         return
 
     try:
+        from apps.orders.models import PickerProfile
         bot_token = getattr(django_settings, "PICKER_BOT_TOKEN", "")
-        picker_ids = getattr(django_settings, "PICKER_ALLOWED_TG_IDS", [])
+        picker_ids = list(
+            PickerProfile.objects.filter(is_approved=True, is_blacklisted=False)
+            .values_list("telegram_id", flat=True)
+        )
         if not bot_token or not picker_ids:
-            logger.warning("PICKER_BOT_TOKEN or PICKER_ALLOWED_TG_IDS not configured; skipping picker notification")
+            logger.warning("PICKER_BOT_TOKEN or no approved pickers; skipping picker notification")
             cache.set(cache_key, "no_config", timeout=86400)
             return
 

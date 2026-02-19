@@ -6,6 +6,7 @@ class OrderModel {
   final String fulfillmentType; // "delivery" или "pickup"
   final int itemsCount; // Количество товаров
   final DateTime createdAt;
+  final String? courierPhone; // Телефон курьера
 
   OrderModel({
     required this.id,
@@ -15,6 +16,7 @@ class OrderModel {
     required this.fulfillmentType,
     required this.itemsCount,
     required this.createdAt,
+    this.courierPhone,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,7 @@ class OrderModel {
       itemsCount: json['items_count'] ?? 0,
       // Парсим дату
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      courierPhone: json['courier_phone'] as String?,
     );
   }
 }

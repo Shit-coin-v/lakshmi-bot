@@ -48,6 +48,7 @@ class OrderItemDetailSerializer(serializers.ModelSerializer):
 class OrderDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     items = OrderItemDetailSerializer(many=True, read_only=True)
+    courier_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -65,7 +66,18 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "delivery_price",
             "total_price",
             "items",
+            "courier_phone",
         ]
+
+    def get_courier_phone(self, obj):
+        if not obj.delivered_by:
+            return None
+        from apps.orders.models import CourierProfile
+        try:
+            courier = CourierProfile.objects.get(telegram_id=obj.delivered_by)
+            return courier.phone or None
+        except CourierProfile.DoesNotExist:
+            return None
 
 
 class OrderListSerializer(serializers.ModelSerializer):

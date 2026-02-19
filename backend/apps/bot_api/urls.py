@@ -9,6 +9,7 @@ from .views import (
     CourierMessageBulkDeleteView,
     CourierMessageDeleteView,
     CourierMessageListView,
+    CourierPhoneView,
     CourierProfileView,
     CourierToggleAcceptingView,
     NewOrdersView,
@@ -18,6 +19,8 @@ from .views import (
     PickerActiveOrdersView,
     PickerMessageBulkDeleteView,
     PickerMessageListView,
+    StaffCheckView,
+    StaffRegisterView,
     UserByTelegramIdView,
     UserPatchView,
     UserRegisterView,
@@ -41,6 +44,10 @@ urlpatterns = [
     path("courier/profile/", CourierProfileView.as_view(), name="bot-courier-profile"),
     path("orders/<int:pk>/reassign/", OrderReassignView.as_view(), name="bot-order-reassign"),
     path("courier/toggle-accepting/", CourierToggleAcceptingView.as_view(), name="bot-courier-toggle-accepting"),
+    # Staff management
+    path("staff/check/", StaffCheckView.as_view(), name="bot-staff-check"),
+    path("staff/register/", StaffRegisterView.as_view(), name="bot-staff-register"),
+    path("orders/<int:pk>/courier-phone/", CourierPhoneView.as_view(), name="bot-courier-phone"),
     # Picker bot
     path("orders/new/", NewOrdersView.as_view(), name="bot-orders-new"),
     path("orders/my-active/", PickerActiveOrdersView.as_view(), name="bot-orders-my-active"),

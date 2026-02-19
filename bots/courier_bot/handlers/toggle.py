@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from shared.clients.backend_client import BackendClient
-from config import COURIER_ALLOWED_TG_IDS, BACKEND_URL, INTEGRATION_API_KEY
+from config import BACKEND_URL, INTEGRATION_API_KEY
 from shared.bot_utils.chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
@@ -15,9 +15,14 @@ router = Router()
 backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 
+async def _check_access(telegram_id: int) -> bool:
+    result = await backend.check_staff_access(telegram_id, "courier")
+    return result is not None and result.get("status") == "approved"
+
+
 @router.message(Command("toggle"))
 async def cmd_toggle(message: Message):
-    if message.from_user.id not in COURIER_ALLOWED_TG_IDS:
+    if not await _check_access(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
 

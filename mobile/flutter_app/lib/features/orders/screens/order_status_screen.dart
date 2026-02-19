@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/orders_provider.dart';
 
 class OrderStatusScreen extends ConsumerWidget {
@@ -276,12 +277,20 @@ class OrderStatusScreen extends ConsumerWidget {
                           width: double.infinity,
                           height: 54,
                           child: ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: order.courierPhone != null
+                                ? () => launchUrl(Uri.parse('tel:${order.courierPhone}'))
+                                : null,
                             icon: const Icon(Icons.phone),
-                            label: const Text("Связаться с курьером"),
+                            label: Text(
+                              order.courierPhone != null
+                                  ? "Связаться с курьером"
+                                  : "Курьер ещё не назначен",
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF4CAF50),
                               foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey[300],
+                              disabledForegroundColor: Colors.grey[600],
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),

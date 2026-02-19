@@ -233,3 +233,13 @@ class CourierProfileSerializer(serializers.Serializer):
 class CourierToggleAcceptingSerializer(serializers.Serializer):
     courier_tg_id = serializers.IntegerField()
     accepting = serializers.BooleanField()
+
+
+# --- Staff registration serializers ---
+
+
+class StaffRegisterSerializer(serializers.Serializer):
+    telegram_id = serializers.IntegerField()
+    full_name = serializers.CharField(max_length=200)
+    phone = serializers.CharField(max_length=20)
+    role = serializers.ChoiceField(choices=["courier", "picker"])

@@ -4,12 +4,15 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from config import PICKER_ALLOWED_TG_IDS
+from shared.clients.backend_client import BackendClient
+from config import BACKEND_URL, INTEGRATION_API_KEY
 from shared.bot_utils.chat_cleanup import send_clean
 
 logger = logging.getLogger(__name__)
 
 router = Router()
+
+backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 HELP_TEXT = (
     "Доступные команды:\n\n"
@@ -30,7 +33,8 @@ HELP_TEXT = (
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    if message.from_user.id not in PICKER_ALLOWED_TG_IDS:
+    result = await backend.check_staff_access(message.from_user.id, "picker")
+    if result is None or result.get("status") != "approved":
         await send_clean(message, "Доступ запрещён.")
         return
 

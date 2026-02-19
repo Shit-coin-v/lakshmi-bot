@@ -7,12 +7,13 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, MenuButtonCommands
 
 from config import PICKER_BOT_TOKEN
-from handlers import start, orders, help
+from handlers import start, registration, orders, help
 
 logger = logging.getLogger(__name__)
 
 dp = Dispatcher()
 dp.include_router(start.router)
+dp.include_router(registration.router)
 dp.include_router(orders.router)
 dp.include_router(help.router)
 
