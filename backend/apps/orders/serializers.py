@@ -59,6 +59,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "payment_method",
+            "payment_status",
             "fulfillment_type",
             "address",
             "phone",
@@ -192,11 +193,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         fulfillment_type = validated_data.get("fulfillment_type") or "delivery"
         delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else _DELIVERY_FEE
+        is_sbp = validated_data.get("payment_method") == "sbp"
 
         order = Order.objects.create(
             products_price=Decimal("0.00"),
             delivery_price=delivery_price,
             total_price=Decimal("0.00"),
+            payment_status="pending" if is_sbp else "none",
             **validated_data,
         )
 
@@ -218,10 +221,32 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order.total_price = (order.products_price + (order.delivery_price or Decimal("0.00"))).quantize(
             Decimal("0.01")
         )
-        order.save(update_fields=["products_price", "total_price"])
 
-        from apps.integrations.onec.tasks import send_order_to_onec
+        if is_sbp:
+            # Create ЮKassa payment (hold)
+            from apps.integrations.payments.yukassa_client import create_payment
 
-        send_order_to_onec.delay(order.id)
+            try:
+                result = create_payment(
+                    amount=order.total_price,
+                    order_id=order.id,
+                )
+                order.payment_id = result["payment_id"]
+                order.save(update_fields=["products_price", "total_price", "payment_id"])
+                # Store confirmation_url for the view to return
+                order._confirmation_url = result["confirmation_url"]
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("Failed to create YooKassa payment for order %s", order.id)
+                order.payment_status = "failed"
+                order.status = "canceled"
+                order._skip_signal_notification = True
+                order.save(update_fields=["products_price", "total_price", "payment_status", "status"])
+                raise serializers.ValidationError({"payment": "Не удалось создать платёж. Попробуйте позже."})
+        else:
+            order.save(update_fields=["products_price", "total_price"])
+            # Non-SBP: send to 1C and notify immediately
+            from apps.integrations.onec.tasks import send_order_to_onec
+            send_order_to_onec.delay(order.id)
 
         return order

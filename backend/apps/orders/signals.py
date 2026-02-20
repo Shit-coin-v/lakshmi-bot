@@ -26,10 +26,11 @@ def _order_post_save(sender, instance: Order, **kwargs):
     if getattr(instance, "_skip_signal_notification", False):
         return
 
-    # New order created — notify pickers
+    # New order created — notify pickers (but not SBP orders waiting for payment)
     if kwargs.get("created", False) and instance.status == "new":
-        oid = instance.id
-        transaction.on_commit(lambda: notify_pickers_new_order.delay(oid))
+        if getattr(instance, "payment_status", "none") != "pending":
+            oid = instance.id
+            transaction.on_commit(lambda: notify_pickers_new_order.delay(oid))
 
     previous = getattr(instance, "_previous_status", None)
     if previous is None:

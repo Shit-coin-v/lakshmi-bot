@@ -12,6 +12,7 @@ from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
 from apps.loyalty.views import PurchaseAPIView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
+from apps.integrations.payments.webhook import yukassa_webhook
 from apps.orders.views import OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
 
 urlpatterns = [
@@ -45,6 +46,8 @@ urlpatterns = [
     path("api/notifications/<int:pk>/read/", NotificationViewSet.as_view({"post": "mark_read"}), name="notifications-mark-read"),
     # Auth
     path("api/auth/", include("apps.accounts.urls")),
+    # Payments
+    path("payments/webhook/", yukassa_webhook, name="yukassa-webhook"),
     # Bot API (service endpoints for Telegram bots)
     path("api/bot/", include("apps.bot_api.urls")),
 ]

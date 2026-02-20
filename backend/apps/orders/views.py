@@ -35,6 +35,22 @@ class OrderCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         serializer.save(customer=self.request.telegram_user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        order = serializer.instance
+
+        response_data = {"id": order.id}
+
+        # For SBP payments, include confirmation_url
+        confirmation_url = getattr(order, "_confirmation_url", None)
+        if confirmation_url:
+            response_data["confirmation_url"] = confirmation_url
+            response_data["payment_id"] = order.payment_id
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
 
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
@@ -89,6 +105,11 @@ class OrderCancelView(APIView):
 
             order.status = "canceled"
             order.save(update_fields=["status"])
+
+            # Cancel/refund online payment if exists
+            if order.payment_id and order.payment_status in ("authorized", "captured"):
+                from apps.integrations.payments.tasks import cancel_payment_task
+                cancel_payment_task.delay(order.id)
 
         # Push notification handled by _order_post_save signal
         return Response({"detail": "Заказ отменён"})

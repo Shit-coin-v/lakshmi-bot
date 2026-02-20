@@ -25,4 +25,8 @@ app.conf.beat_schedule = {
         'task': 'apps.notifications.tasks.redispatch_unassigned_orders',
         'schedule': 120.0,  # every 2 minutes
     },
+    'expire-pending-payments': {
+        'task': 'apps.integrations.payments.tasks.expire_pending_payments',
+        'schedule': 300.0,  # every 5 minutes
+    },
 }

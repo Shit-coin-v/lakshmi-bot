@@ -63,6 +63,22 @@ class Order(models.Model):
     delivered_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID курьера")
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Время завершения")
 
+    # --- Оплата (ЮKassa) ---
+    PAYMENT_STATUS_CHOICES = [
+        ("none", "Нет онлайн-оплаты"),
+        ("pending", "Ожидает оплаты"),
+        ("authorized", "Авторизован (hold)"),
+        ("captured", "Списан"),
+        ("canceled", "Отменён"),
+        ("failed", "Ошибка"),
+    ]
+    payment_id = models.CharField(max_length=64, null=True, blank=True, db_index=True,
+                                  verbose_name="ID платежа ЮKassa")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES,
+                                      default="none", verbose_name="Статус платежа")
+    manual_check_required = models.BooleanField(default=False,
+                                                verbose_name="Требует ручной проверки")
+
     # --- 1C sync ---
     onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")
     sync_status = models.CharField(max_length=20, default="new", db_index=True, verbose_name="Синхр. статус")

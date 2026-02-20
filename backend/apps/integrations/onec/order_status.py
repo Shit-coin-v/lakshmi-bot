@@ -134,12 +134,22 @@ def onec_order_status(request):
 
             if status_changed:
                 oid, prev, new = o.id, previous_status, o.status
+                payment_status = o.payment_status
+                payment_id = o.payment_id
                 db_tx.on_commit(lambda: send_order_push_task.delay(oid, prev, new))
                 if new == "ready" and o.fulfillment_type != "pickup":
                     db_tx.on_commit(lambda: assign_courier_task.delay(oid))
                 # Courier finished delivery → try to assign waiting orders
                 if new == "completed" and prev in ("delivery", "arrived"):
                     db_tx.on_commit(lambda: redispatch_unassigned_orders.delay())
+                # Capture payment on delivery completion
+                if new == "completed" and payment_id and payment_status == "authorized":
+                    from apps.integrations.payments.tasks import capture_payment_task
+                    db_tx.on_commit(lambda: capture_payment_task.delay(oid))
+                # Cancel/refund payment on order cancellation
+                if new == "canceled" and payment_id and payment_status in ("authorized", "captured"):
+                    from apps.integrations.payments.tasks import cancel_payment_task
+                    db_tx.on_commit(lambda: cancel_payment_task.delay(oid))
 
     except Order.DoesNotExist:
         return onec_error(
