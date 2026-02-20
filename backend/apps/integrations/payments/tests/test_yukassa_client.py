@@ -1,8 +1,8 @@
 """Tests for ЮKassa HTTP client retry logic."""
 
 import requests
-from unittest.mock import MagicMock, patch, call
-from django.test import TestCase, override_settings
+from unittest.mock import MagicMock, patch
+from django.test import TestCase
 
 from apps.integrations.payments.yukassa_client import (
     _extract_status_code,
