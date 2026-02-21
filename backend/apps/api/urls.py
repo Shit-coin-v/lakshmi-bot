@@ -47,7 +47,7 @@ urlpatterns = [
     # Auth
     path("api/auth/", include("apps.accounts.urls")),
     # Payments
-    path("payments/webhook/", yukassa_webhook, name="yukassa-webhook"),
+    path("api/payments/webhook/", yukassa_webhook, name="yukassa-webhook"),
     # Bot API (service endpoints for Telegram bots)
     path("api/bot/", include("apps.bot_api.urls")),
 ]

@@ -12,6 +12,38 @@ from apps.orders.models import Order
 # Webhook imports tasks inside the handler function, so mock at source
 _TASKS = "apps.notifications.tasks"
 _ONEC = "apps.integrations.onec.tasks"
+_WEBHOOK = "apps.integrations.payments.webhook"
+
+_WEBHOOK_URL = "/api/payments/webhook/"
+
+
+class YukassaWebhookIPFilterTests(TestCase):
+    """Tests for IP filtering on webhook endpoint."""
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_rejected_ip_returns_403(self):
+        """Request from non-YooKassa IP should be rejected."""
+        payload = {"event": "payment.canceled", "object": {"id": "pay_x"}}
+        with patch(f"{_WEBHOOK}._is_yukassa_ip", return_value=False):
+            response = self.client.post(
+                _WEBHOOK_URL,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 403)
+
+    def test_allowed_ip_passes(self):
+        """Request from YooKassa IP should be accepted."""
+        payload = {"event": "payment.succeeded", "object": {"id": "pay_x"}}
+        with patch(f"{_WEBHOOK}._is_yukassa_ip", return_value=True):
+            response = self.client.post(
+                _WEBHOOK_URL,
+                data=json.dumps(payload),
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
 
 
 class YukassaWebhookTests(TestCase):
@@ -27,11 +59,17 @@ class YukassaWebhookTests(TestCase):
             payment_id="pay_wh_1",
             payment_status="pending",
         )
+        # Bypass IP check for all webhook logic tests
+        self._ip_patcher = patch(f"{_WEBHOOK}._is_yukassa_ip", return_value=True)
+        self._ip_patcher.start()
+
+    def tearDown(self):
+        self._ip_patcher.stop()
 
     def _post_webhook(self, event, payment_id):
         payload = {"event": event, "object": {"id": payment_id}}
         return self.client.post(
-            "/payments/webhook/",
+            _WEBHOOK_URL,
             data=json.dumps(payload),
             content_type="application/json",
         )
@@ -59,13 +97,27 @@ class YukassaWebhookTests(TestCase):
         self.assertEqual(self.order.payment_status, "canceled")
         self.assertEqual(self.order.status, "canceled")
 
+    def test_payment_canceled_does_not_cancel_delivery_order(self):
+        """Order in delivery should not be canceled, only payment_status updated."""
+        self.order.status = "delivery"
+        self.order.payment_status = "authorized"
+        self.order.save(update_fields=["status", "payment_status"])
+
+        response = self._post_webhook("payment.canceled", "pay_wh_1")
+
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.payment_status, "canceled")
+        self.assertEqual(self.order.status, "delivery")  # NOT canceled
+        self.assertTrue(self.order.manual_check_required)
+
     def test_unknown_payment_id_returns_200(self):
         response = self._post_webhook("payment.waiting_for_capture", "nonexistent")
         self.assertEqual(response.status_code, 200)
 
     def test_invalid_json_returns_400(self):
         response = self.client.post(
-            "/payments/webhook/",
+            _WEBHOOK_URL,
             data="not json",
             content_type="application/json",
         )
@@ -73,7 +125,7 @@ class YukassaWebhookTests(TestCase):
 
     def test_missing_payment_id_returns_400(self):
         response = self.client.post(
-            "/payments/webhook/",
+            _WEBHOOK_URL,
             data=json.dumps({"event": "payment.canceled", "object": {}}),
             content_type="application/json",
         )

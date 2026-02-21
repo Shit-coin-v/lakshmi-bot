@@ -151,7 +151,10 @@ def capture_payment_task(self, order_id: int, first_attempt_at: str | None = Non
             logger.warning("Payment was canceled externally for order %s", order_id)
             return
 
-        result = capture_payment(order.payment_id, order.total_price)
+        result = capture_payment(
+            order.payment_id, order.total_price,
+            idempotency_key=f"capture-{order_id}",
+        )
         if result["status"] == "succeeded":
             order.payment_status = "captured"
             order.save(update_fields=["payment_status"])
@@ -229,7 +232,10 @@ def cancel_payment_task(self, order_id: int):
 
         if order.payment_status == "authorized":
             # Hold → cancel
-            result = cancel_payment(order.payment_id)
+            result = cancel_payment(
+                order.payment_id,
+                idempotency_key=f"cancel-{order_id}",
+            )
             order.payment_status = "canceled"
             order.save(update_fields=["payment_status"])
             logger.info(
@@ -239,7 +245,10 @@ def cancel_payment_task(self, order_id: int):
 
         elif order.payment_status == "captured":
             # Already captured → refund
-            result = create_refund(order.payment_id, order.total_price)
+            result = create_refund(
+                order.payment_id, order.total_price,
+                idempotency_key=f"refund-{order_id}",
+            )
             order.payment_status = "canceled"
             order.save(update_fields=["payment_status"])
             logger.info(
@@ -276,20 +285,11 @@ def expire_pending_payments(self):
     timeout_minutes = getattr(django_settings, "YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
     cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
 
-    expired_orders = Order.objects.filter(
+    count = Order.objects.filter(
         payment_status="pending",
         payment_method="sbp",
         created_at__lt=cutoff,
-    )
-
-    count = 0
-    for order in expired_orders:
-        order.payment_status = "failed"
-        order.status = "canceled"
-        order._skip_signal_notification = True
-        order.save(update_fields=["payment_status", "status"])
-        logger.info("Expired pending payment: order %s", order.id)
-        count += 1
+    ).update(payment_status="failed", status="canceled")
 
     if count:
         logger.info("expire_pending_payments: canceled %d orders", count)

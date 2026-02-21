@@ -24,9 +24,9 @@ class ExtractStatusCodeTests(TestCase):
         exc.status_code = 503
         self.assertEqual(_extract_status_code(exc), 503)
 
-    def test_status_in_message(self):
+    def test_no_status_in_plain_exception(self):
         exc = Exception("HTTP 502 Bad Gateway")
-        self.assertEqual(_extract_status_code(exc), 502)
+        self.assertIsNone(_extract_status_code(exc))
 
     def test_no_status(self):
         exc = Exception("network timeout")

@@ -1,9 +1,12 @@
+import logging
 from decimal import Decimal
 
 from rest_framework import serializers
 
 from apps.common.models import SiteSettings
 from apps.orders.models import Order, OrderItem, Product
+
+logger = logging.getLogger(__name__)
 
 _DELIVERY_FEE = Decimal("150.00")
 
@@ -236,8 +239,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 # Store confirmation_url for the view to return
                 order._confirmation_url = result["confirmation_url"]
             except Exception:
-                import logging
-                logging.getLogger(__name__).exception("Failed to create YooKassa payment for order %s", order.id)
+                logger.exception("Failed to create YooKassa payment for order %s", order.id)
                 order.payment_status = "failed"
                 order.status = "canceled"
                 order._skip_signal_notification = True

@@ -47,11 +47,6 @@ def _extract_status_code(exc: Exception) -> int | None:
     # yookassa SDK may wrap errors with a status_code attribute
     if hasattr(exc, "status_code"):
         return int(exc.status_code)
-    # yookassa SDK may include status in args or message
-    msg = str(exc)
-    for code in (400, 401, 403, 404, 409, 429, 500, 502, 503, 504):
-        if str(code) in msg:
-            return code
     return None
 
 
@@ -166,7 +161,7 @@ def create_payment(
     }
 
 
-def capture_payment(payment_id: str, amount: Decimal | None = None) -> dict:
+def capture_payment(payment_id: str, amount: Decimal | None = None, *, idempotency_key: str = "") -> dict:
     """Capture (finalize) an authorized payment.
 
     Returns: {"payment_id": str, "status": str}
@@ -181,14 +176,14 @@ def capture_payment(payment_id: str, amount: Decimal | None = None) -> dict:
             "currency": "RUB",
         }
 
-    idempotency_key = str(uuid.uuid4())
-    payment = _with_http_retry(Payment.capture, payment_id, params, idempotency_key)
+    idem_key = idempotency_key or str(uuid.uuid4())
+    payment = _with_http_retry(Payment.capture, payment_id, params, idem_key)
 
     logger.info("YooKassa capture: id=%s status=%s", payment.id, payment.status)
     return {"payment_id": payment.id, "status": payment.status}
 
 
-def cancel_payment(payment_id: str) -> dict:
+def cancel_payment(payment_id: str, *, idempotency_key: str = "") -> dict:
     """Cancel an authorized (held) payment.
 
     Returns: {"payment_id": str, "status": str}
@@ -196,8 +191,8 @@ def cancel_payment(payment_id: str) -> dict:
     _configure()
     from yookassa import Payment
 
-    idempotency_key = str(uuid.uuid4())
-    payment = _with_http_retry(Payment.cancel, payment_id, idempotency_key)
+    idem_key = idempotency_key or str(uuid.uuid4())
+    payment = _with_http_retry(Payment.cancel, payment_id, idem_key)
 
     logger.info("YooKassa cancel: id=%s status=%s", payment.id, payment.status)
     return {"payment_id": payment.id, "status": payment.status}
@@ -219,7 +214,7 @@ def get_payment(payment_id: str) -> dict:
     }
 
 
-def create_refund(payment_id: str, amount: Decimal) -> dict:
+def create_refund(payment_id: str, amount: Decimal, *, idempotency_key: str = "") -> dict:
     """Create a refund for a captured payment.
 
     Returns: {"refund_id": str, "status": str}
@@ -227,7 +222,7 @@ def create_refund(payment_id: str, amount: Decimal) -> dict:
     _configure()
     from yookassa import Refund
 
-    idempotency_key = str(uuid.uuid4())
+    idem_key = idempotency_key or str(uuid.uuid4())
     refund = _with_http_retry(
         Refund.create,
         {
@@ -237,7 +232,7 @@ def create_refund(payment_id: str, amount: Decimal) -> dict:
                 "currency": "RUB",
             },
         },
-        idempotency_key,
+        idem_key,
     )
 
     logger.info("YooKassa refund: id=%s status=%s", refund.id, refund.status)

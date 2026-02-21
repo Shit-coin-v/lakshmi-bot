@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'apps.loyalty.apps.LoyaltyConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.integrations.onec.apps.OnecConfig',
+    'apps.integrations.payments.apps.PaymentsConfig',
     'apps.accounts.apps.AccountsConfig',
     'apps.bot_api.apps.BotApiConfig',
 ]

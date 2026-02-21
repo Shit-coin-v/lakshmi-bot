@@ -66,8 +66,8 @@ Flutter App          Backend                    ЮKassa
 ```python
 YUKASSA_SHOP_ID = os.getenv("YUKASSA_SHOP_ID", "")
 YUKASSA_SECRET_KEY = os.getenv("YUKASSA_SECRET_KEY", "")
-YUKASSA_WEBHOOK_SECRET = os.getenv("YUKASSA_WEBHOOK_SECRET", "")  # для верификации
 YUKASSA_RETURN_URL = os.getenv("YUKASSA_RETURN_URL", "")  # deeplink/URL возврата в приложение
+# YUKASSA_DISABLE_IP_CHECK=true  # отключить IP-фильтрацию webhook (только для dev)
 ```
 
 **Файл:** `.env.example` — добавить переменные
@@ -133,7 +133,7 @@ payment_status = models.CharField(max_length=20, default="none",
 
 **Файл:** `backend/apps/integrations/payments/webhook.py` (новый)
 
-**URL:** `POST /payments/webhook/`
+**URL:** `POST /api/payments/webhook/`
 
 Обработка событий ЮKassa:
 
@@ -151,7 +151,8 @@ payment_status = models.CharField(max_length=20, default="none",
 - Push клиенту: "Оплата не прошла, заказ отменён"
 
 ### Безопасность
-- Проверка IP ЮKassa (185.71.76.0/27, 185.71.77.0/27) или HTTP Basic Auth
+- IP-фильтрация по официальным диапазонам ЮKassa (CIDR, `ipaddress` модуль)
+- `YUKASSA_DISABLE_IP_CHECK=true` для dev-окружения
 
 ---
 
