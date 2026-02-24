@@ -20,6 +20,10 @@ def merge_accounts(keep, remove):
     from apps.loyalty.models import Transaction
     from apps.main.models import BotActivity, NewsletterDelivery, CustomUser
 
+    # Lock both rows to prevent concurrent merges
+    keep = CustomUser.objects.select_for_update().get(pk=keep.pk)
+    remove = CustomUser.objects.select_for_update().get(pk=remove.pk)
+
     logger.info(
         "Merging accounts: keep=%s (pk=%s) <- remove=%s (pk=%s)",
         keep, keep.pk, remove, remove.pk,
