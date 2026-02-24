@@ -75,25 +75,31 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "picker_phone",
         ]
 
+    def _get_staff_phones(self):
+        """Cache staff phone lookup per serializer instance to avoid N+1."""
+        if not hasattr(self, "_staff_phone_cache"):
+            from apps.orders.models import CourierProfile, PickerProfile
+            self._staff_phone_cache = {
+                "couriers": dict(
+                    CourierProfile.objects.filter(phone__gt="")
+                    .values_list("telegram_id", "phone")
+                ),
+                "pickers": dict(
+                    PickerProfile.objects.filter(phone__gt="")
+                    .values_list("telegram_id", "phone")
+                ),
+            }
+        return self._staff_phone_cache
+
     def get_courier_phone(self, obj):
         if not obj.delivered_by:
             return None
-        from apps.orders.models import CourierProfile
-        try:
-            courier = CourierProfile.objects.get(telegram_id=obj.delivered_by)
-            return courier.phone or None
-        except CourierProfile.DoesNotExist:
-            return None
+        return self._get_staff_phones()["couriers"].get(obj.delivered_by)
 
     def get_picker_phone(self, obj):
         if not obj.assembled_by:
             return None
-        from apps.orders.models import PickerProfile
-        try:
-            picker = PickerProfile.objects.get(telegram_id=obj.assembled_by)
-            return picker.phone or None
-        except PickerProfile.DoesNotExist:
-            return None
+        return self._get_staff_phones()["pickers"].get(obj.assembled_by)
 
 
 class OrderListSerializer(serializers.ModelSerializer):
