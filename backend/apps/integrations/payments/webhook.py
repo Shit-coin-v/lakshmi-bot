@@ -108,13 +108,13 @@ def _handle_authorized(payment_id, Order, notify_pickers_new_order, send_order_t
         order._skip_signal_notification = True
         order.save(update_fields=["payment_status"])
 
-    # Outside transaction: trigger notifications
+    # Schedule notifications after transaction commits
     oid = order.id
-    send_order_to_onec.delay(oid)
-    notify_pickers_new_order.delay(oid)
-    send_order_push_task.delay(oid, "new", "new")  # push: "Оплата прошла, заказ принят"
+    transaction.on_commit(lambda: send_order_to_onec.delay(oid))
+    transaction.on_commit(lambda: notify_pickers_new_order.delay(oid))
+    transaction.on_commit(lambda: send_order_push_task.delay(oid, "new", "new"))
 
-    logger.info("Webhook: order %s authorized, notifications sent", oid)
+    logger.info("Webhook: order %s authorized, notifications scheduled", oid)
 
 
 def _handle_payment_canceled(payment_id, Order, send_order_push_task):
@@ -152,6 +152,7 @@ def _handle_payment_canceled(payment_id, Order, send_order_push_task):
             order.save(update_fields=["payment_status", "status"])
 
     oid = order.id
+    final_status = order.status
     if prev_status not in _NON_CANCELLABLE:
-        send_order_push_task.delay(oid, prev_status, "canceled")
-    logger.info("Webhook: order %s payment canceled (order_status=%s)", oid, order.status)
+        transaction.on_commit(lambda: send_order_push_task.delay(oid, prev_status, "canceled"))
+    logger.info("Webhook: order %s payment canceled (order_status=%s)", oid, final_status)
