@@ -15,7 +15,7 @@ class Notification(models.Model):
     )
     title = models.CharField(max_length=200, verbose_name="Заголовок")
     body = models.TextField(verbose_name="Текст")
-    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
+    is_read = models.BooleanField(default=False, db_index=True, verbose_name="Прочитано")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Создано")
     type = models.CharField(
         max_length=20,

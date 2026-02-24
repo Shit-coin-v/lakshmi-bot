@@ -75,7 +75,7 @@ class Order(models.Model):
     payment_id = models.CharField(max_length=64, null=True, blank=True, db_index=True,
                                   verbose_name="ID платежа ЮKassa")
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES,
-                                      default="none", verbose_name="Статус платежа")
+                                      default="none", db_index=True, verbose_name="Статус платежа")
     manual_check_required = models.BooleanField(default=False,
                                                 verbose_name="Требует ручной проверки")
 
