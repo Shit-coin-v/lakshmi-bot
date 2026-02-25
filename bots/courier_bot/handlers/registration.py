@@ -6,15 +6,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
-from shared.clients.backend_client import BackendClient
-from config import BACKEND_URL, INTEGRATION_API_KEY
 from shared.bot_utils.chat_cleanup import send_clean
+from config import backend
 
 logger = logging.getLogger(__name__)
 
 router = Router()
-
-backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 _NAME_RE = re.compile(r"^[а-яА-ЯёЁa-zA-Z\s\-\.]+$")
 _PHONE_RE = re.compile(r"^\+?\d{10,15}$")

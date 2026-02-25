@@ -43,13 +43,13 @@
 
 ---
 
-## P2 — СРЕДНИЕ (6/7) ✅
+## P2 — СРЕДНИЕ (7/7) ✅
 
 > Коммит: 76ef85a
 
 | # | Файл | Баг | Статус |
 |---|------|-----|--------|
-| P2-1 | `orders_pending.py:94` | GET меняет статус без подтверждения от 1С | ⏳ требует обсуждения |
+| P2-1 | `orders_pending.py:94` | GET меняет статус без подтверждения от 1С | ✅ periodic rollback |
 | P2-2 | `order_sync.py:142` | Retry без jitter → thundering herd | ✅ |
 | P2-3 | `order_sync.py:54` | Items читаются вне транзакции → stale read | ✅ |
 | P2-4 | `bot_api/serializers.py:41` | `password_hash` в ответе API | ✅ |
@@ -59,17 +59,15 @@
 
 ### P2-1: `orders_pending.py:94` — смена статуса на GET без подтверждения от 1С
 
-**Статус:** ⏳ Отложено — требует архитектурного решения.
+**Статус:** ✅ Решено (вариант B — periodic rollback task).
 
 **Проблема:** GET-запрос меняет `status="new"` → `"assembly"`. Если 1С получит ответ, но упадёт до обработки — заказы застрянут в `assembly` навсегда.
 
-**Варианты:**
-- A) Убрать автосмену статуса, перенести в отдельный POST endpoint (1С подтверждает получение)
-- B) Добавить таймаут: periodic task откатывает `assembly` → `new` если заказ в `assembly` > 10 мин и нет `onec_guid`
+**Фикс:** Periodic task `rollback_stuck_assembly_orders` (каждые 5 мин) — откатывает заказы в `assembly` без `onec_guid` старше 10 мин обратно в `new`. Зарегистрирован в `celeryapp.py` beat_schedule.
 
 ---
 
-## P3 — НИЗКИЕ (7/8) ✅
+## P3 — НИЗКИЕ (8/8) ✅
 
 > Коммит: 0824c29
 
@@ -77,7 +75,7 @@
 |---|------|-----|--------|
 | P3-1 | `product_sync.py`, `stock_sync.py` | `JsonResponse({"detail":...})` вместо `onec_error()` | ✅ |
 | P3-2 | `customer_sync.py:81-95` | Тройная проверка telegram_id | ✅ |
-| P3-3 | courier_bot / picker_bot | Дублирование кода между ботами | ⏳ крупный рефакторинг |
+| P3-3 | courier_bot / picker_bot | Дублирование кода между ботами | ✅ shared/bot_utils/ |
 | P3-4 | `run.py`, `tasks.py` | Мёртвый код (`Registration`, `notify_couriers_new_order`) | ✅ |
 | P3-5 | `orders.py`, `views.py` | `DELIVERY_RATE=150` захардкожен в двух местах | ✅ |
 | P3-6 | `settings.py` | Нет `CELERY_TASK_TIME_LIMIT` | ✅ |
@@ -86,15 +84,14 @@
 
 ### P3-3: Дублирование кода между courier_bot и picker_bot
 
-**Статус:** ⏳ Отложено — крупный рефакторинг, требует отдельной сессии.
+**Статус:** ✅ Готово.
 
-**Файлы:**
-- `_check_access` — 3 копии (courier orders.py, toggle.py, help.py)
-- `_fetch_order_with_items` — 2 копии (courier, picker)
-- `_cleanup_notifications` — 3 копии (courier start.py, orders.py, picker start.py)
-- `BackendClient` — 5 экземпляров в courier_bot handlers
-
-**Фикс:** Вынести в `shared/bot_utils/`: `access.py`, `order_helpers.py`, `cleanup.py`. Создать singleton `BackendClient` на уровне бота.
+**Что сделано:**
+- `shared/bot_utils/access.py` — `check_staff_access(backend, telegram_id, role)`
+- `shared/bot_utils/order_helpers.py` — `fetch_order_with_items()`, `to_order_namespace()`
+- `shared/bot_utils/notifications.py` — `cleanup_notifications(backend, bot, chat_id, telegram_id, role)`
+- Singleton `BackendClient` в `courier_bot/config.py` и `picker_bot/config.py`
+- Все handlers обоих ботов обновлены на shared-импорты
 
 ### P3-4: Мёртвый код — детали
 
@@ -112,9 +109,9 @@
 |-----------|-------|--------|----------|
 | P0 | 5 | 5 | 0 |
 | P1 | 3 | 3 | 0 |
-| P2 | 7 | 6 | 1 (P2-1) |
-| P3 | 8 | 7 | 1 (P3-3) |
-| **Итого** | **23** | **21** | **2** |
+| P2 | 7 | 7 | 0 |
+| P3 | 8 | 8 | 0 |
+| **Итого** | **23** | **23** | **0** |
 
 ## Коммиты
 
@@ -130,8 +127,7 @@
 
 ## Оставшиеся задачи
 
-1. **P2-1** — `orders_pending.py` GET меняет статус. Требует решения: отдельный POST или таймаут-откат.
-2. **P3-3** — Рефакторинг дублей между courier_bot/picker_bot в `shared/bot_utils/`.
+Все 23 задачи выполнены.
 
 ## Верификация
 

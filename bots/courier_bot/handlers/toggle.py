@@ -4,20 +4,17 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from shared.clients.backend_client import BackendClient
-from config import BACKEND_URL, INTEGRATION_API_KEY
+from shared.bot_utils.access import check_staff_access
 from shared.bot_utils.chat_cleanup import send_clean
+from config import backend
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
-backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
-
 
 async def _check_access(telegram_id: int) -> bool:
-    result = await backend.check_staff_access(telegram_id, "courier")
-    return result is not None and result.get("status") == "approved"
+    return await check_staff_access(backend, telegram_id, "courier")
 
 
 @router.message(Command("toggle"))

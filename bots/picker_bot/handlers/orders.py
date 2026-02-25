@@ -1,15 +1,16 @@
 import logging
 from functools import partial
-from types import SimpleNamespace
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from shared.clients.backend_client import BackendClient
+from shared.bot_utils.access import check_staff_access
 from shared.bot_utils.chat_cleanup import send_clean
+from shared.bot_utils.notifications import cleanup_notifications
+from shared.bot_utils.order_helpers import fetch_order_with_items, to_order_namespace
 from shared.bot_utils.retry import is_in_flight, schedule_retry
-from config import BACKEND_URL, INTEGRATION_API_KEY
+from config import backend
 from keyboards import (
     get_new_orders_keyboard,
     get_active_orders_keyboard,
@@ -22,13 +23,9 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
-
 
 async def _check_access(telegram_id: int) -> bool:
-    """Check if picker is approved via backend API."""
-    result = await backend.check_staff_access(telegram_id, "picker")
-    return result is not None and result.get("status") == "approved"
+    return await check_staff_access(backend, telegram_id, "picker")
 
 
 _STATUS_DISPLAY = {
@@ -51,52 +48,18 @@ _TRANSITIONS = {
 _PICKER_STATUSES = ("new", "accepted", "assembly", "ready")
 
 
-def _to_namespace(orders: list[dict]) -> list[SimpleNamespace]:
-    result = []
-    for o in orders:
-        if "total_price" in o and o["total_price"] is not None:
-            o["total_price"] = float(o["total_price"])
-        result.append(SimpleNamespace(**o))
-    return result
-
-
 async def _fetch_new_orders():
     orders = await backend.get_new_orders()
-    return _to_namespace(orders)
+    return to_order_namespace(orders)
 
 
 async def _fetch_active_orders(picker_tg_id: int):
     orders = await backend.get_picker_active_orders(picker_tg_id)
-    return _to_namespace(orders)
+    return to_order_namespace(orders)
 
 
 async def _fetch_order_with_items(order_id: int):
-    data = await backend.get_order_detail(order_id)
-    if data is None:
-        return None
-
-    items = []
-    for item_data in data.get("items", []):
-        product = SimpleNamespace(
-            name=item_data.get("product_name", ""),
-            id=item_data.get("product_id"),
-        )
-        item = SimpleNamespace(
-            product=product,
-            product_id=item_data.get("product_id"),
-            quantity=item_data["quantity"],
-            price_at_moment=float(item_data["price_at_moment"]),
-        )
-        items.append(item)
-
-    order_fields = {k: v for k, v in data.items() if k != "items"}
-    for field in ("total_price", "products_price", "delivery_price"):
-        if field in order_fields and order_fields[field] is not None:
-            order_fields[field] = float(order_fields[field])
-
-    order = SimpleNamespace(**order_fields)
-    order.items = items
-    return order
+    return await fetch_order_with_items(backend, order_id)
 
 
 def _format_order_detail(order) -> str:
@@ -134,21 +97,6 @@ async def _update_order_status(order_id: int, new_status: str, assembler_id: int
     )
 
 
-# --- Cleanup notifications ---
-
-async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
-    notifications = await backend.get_picker_messages(user_id)
-    if not notifications:
-        return
-    for n in notifications:
-        try:
-            await bot.delete_message(chat_id, n["telegram_message_id"])
-        except Exception:
-            pass
-    ids = [n["id"] for n in notifications]
-    await backend.bulk_delete_picker_messages(ids)
-
-
 # --- Command: /orders ---
 
 @router.message(Command("orders"))
@@ -156,7 +104,7 @@ async def cmd_orders(message: Message):
     if not await _check_access(message.from_user.id):
         await send_clean(message, "Доступ запрещён.")
         return
-    await _cleanup_notifications(message.bot, message.chat.id, message.from_user.id)
+    await cleanup_notifications(backend, message.bot, message.chat.id, message.from_user.id, "picker")
     orders = await _fetch_new_orders()
     keyboard = get_new_orders_keyboard(orders)
     await send_clean(message, "📦 Новые заказы:", reply_markup=keyboard)

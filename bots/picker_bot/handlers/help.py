@@ -4,15 +4,12 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from shared.clients.backend_client import BackendClient
-from config import BACKEND_URL, INTEGRATION_API_KEY
 from shared.bot_utils.chat_cleanup import send_clean
+from config import backend
 
 logger = logging.getLogger(__name__)
 
 router = Router()
-
-backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
 
 HELP_TEXT = (
     "Доступные команды:\n\n"

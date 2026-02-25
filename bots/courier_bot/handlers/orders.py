@@ -7,23 +7,21 @@ from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from shared.clients.backend_client import BackendClient
+from shared.bot_utils.access import check_staff_access
 from shared.bot_utils.chat_cleanup import send_clean
+from shared.bot_utils.notifications import cleanup_notifications
+from shared.bot_utils.order_helpers import fetch_order_with_items
 from shared.bot_utils.retry import is_in_flight, schedule_retry
-from config import BACKEND_URL, INTEGRATION_API_KEY, STORE_LOCATION
+from config import backend, STORE_LOCATION
 from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
-backend = BackendClient(BACKEND_URL, INTEGRATION_API_KEY)
-
 
 async def _check_access(telegram_id: int) -> bool:
-    """Check if courier is approved via backend API."""
-    result = await backend.check_staff_access(telegram_id, "courier")
-    return result is not None and result.get("status") == "approved"
+    return await check_staff_access(backend, telegram_id, "courier")
 
 
 # Statuses visible to couriers
@@ -64,36 +62,7 @@ async def _fetch_completed_today(courier_tg_id: int):
 
 
 async def _fetch_order_with_items(order_id: int):
-    """Fetch a single order with items and products via HTTP API."""
-    data = await backend.get_order_detail(order_id)
-    if data is None:
-        return None
-
-    # Build SimpleNamespace with nested items/product for compatibility
-    # with _format_order_detail, get_order_detail_keyboard, etc.
-    items = []
-    for item_data in data.get("items", []):
-        product = SimpleNamespace(
-            name=item_data.get("product_name", ""),
-            id=item_data.get("product_id"),
-        )
-        item = SimpleNamespace(
-            product=product,
-            product_id=item_data.get("product_id"),
-            quantity=item_data["quantity"],
-            price_at_moment=float(item_data["price_at_moment"]),
-        )
-        items.append(item)
-
-    order_fields = {k: v for k, v in data.items() if k != "items"}
-    # Convert decimal strings to float for arithmetic in _format_order_detail
-    for field in ("total_price", "products_price", "delivery_price"):
-        if field in order_fields and order_fields[field] is not None:
-            order_fields[field] = float(order_fields[field])
-
-    order = SimpleNamespace(**order_fields)
-    order.items = items
-    return order
+    return await fetch_order_with_items(backend, order_id)
 
 
 def _format_order_detail(order) -> str:
@@ -136,17 +105,7 @@ async def _update_order_status(order_id: int, new_status: str, courier_id: int |
 # --- Cleanup: delete Celery-sent notification messages ---
 
 async def _cleanup_notifications(bot: Bot, chat_id: int, user_id: int):
-    """Delete tracked courier notification messages via HTTP API."""
-    notifications = await backend.get_courier_messages(user_id)
-    if not notifications:
-        return
-    for n in notifications:
-        try:
-            await bot.delete_message(chat_id, n["telegram_message_id"])
-        except Exception:
-            logger.debug("Could not delete notification msg %s", n["telegram_message_id"])
-    ids = [n["id"] for n in notifications]
-    await backend.bulk_delete_courier_messages(ids)
+    await cleanup_notifications(backend, bot, chat_id, user_id, "courier")
 
 
 # --- Command: /orders ---

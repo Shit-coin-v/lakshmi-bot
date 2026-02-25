@@ -29,4 +29,8 @@ app.conf.beat_schedule = {
         'task': 'apps.integrations.payments.tasks.expire_pending_payments',
         'schedule': 300.0,  # every 5 minutes
     },
+    'rollback-stuck-assembly-orders': {
+        'task': 'apps.integrations.onec.tasks.rollback_stuck_assembly_orders',
+        'schedule': 300.0,  # every 5 minutes
+    },
 }
