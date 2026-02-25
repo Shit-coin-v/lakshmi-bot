@@ -23,7 +23,7 @@ void main() {
     return ProviderContainer(overrides: [
       authServiceProvider.overrideWithValue(mockAuth),
       orderServiceProvider
-          .overrideWith((ref) => OrderService(ref, dio: mockDio)),
+          .overrideWith((ref) => OrderService(dio: mockDio)),
     ]);
   }
 

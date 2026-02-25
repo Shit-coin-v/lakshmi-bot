@@ -6,7 +6,7 @@ import '../../../core/extensions/price_extension.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
-import '../services/order_service.dart';
+import '../../orders/services/order_service.dart';
 import '../../address/providers/address_provider.dart';
 import '../../address/models/address_model.dart';
 import '../../home/providers/profile_provider.dart';

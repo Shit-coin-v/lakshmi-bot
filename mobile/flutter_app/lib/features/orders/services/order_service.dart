@@ -2,15 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api_client.dart';
+import '../../cart/models/cart_item.dart';
 import '../models/order_detail_model.dart';
 import '../models/order_model.dart';
 
-final orderServiceProvider = Provider((ref) => OrderService(ref));
+final orderServiceProvider = Provider((ref) => OrderService());
 
 class OrderService {
   final Dio _dio;
 
-  OrderService(Ref ref, {Dio? dio}) : _dio = dio ?? ApiClient().dio;
+  OrderService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
   Future<List<OrderModel>> fetchMyOrders() async {
     try {
@@ -106,7 +107,7 @@ class OrderService {
 
         final int quantity = qtyRaw is int
             ? qtyRaw
-            : int.parse(qtyRaw.toString());
+            : (int.tryParse(qtyRaw.toString()) ?? 1);
         final double price = double.tryParse(priceRaw.toString()) ?? 0.0;
 
         return {
@@ -149,6 +150,60 @@ class OrderService {
       return newIdRaw is int ? newIdRaw : int.parse(newIdRaw.toString());
     } catch (e) {
       throw Exception('Ошибка повтора заказа: $e');
+    }
+  }
+
+  Future<int?> createOrder({
+    required String address,
+    required String phone,
+    required String comment,
+    required String paymentMethod,
+    required double totalPrice,
+    required List<CartItem> items,
+    required int userId,
+    String fulfillmentType = "delivery",
+  }) async {
+    try {
+      final ft = (fulfillmentType.trim().isEmpty)
+          ? "delivery"
+          : fulfillmentType.trim();
+      for (final item in items) {
+        if (item.product.id.isEmpty) {
+          throw Exception('Товар "${item.product.name}" не имеет кода');
+        }
+      }
+
+      final orderData = {
+        "customer": userId,
+        "address": address,
+        "phone": phone,
+        "comment": comment,
+        "payment_method": paymentMethod,
+        "fulfillment_type": ft,
+        "total_price": double.parse(totalPrice.toStringAsFixed(2)),
+        "items": items
+            .map(
+              (item) => {
+                "product_code": item.product.id,
+                "quantity": item.quantity,
+                "price_at_moment":
+                    double.parse(item.product.price.toStringAsFixed(2)),
+              },
+            )
+            .toList(),
+      };
+
+      final response =
+          await _dio.post('/api/orders/create/', data: orderData);
+
+      if (response.statusCode == 201) {
+        return response.data['id'];
+      }
+      return null;
+    } on DioException {
+      rethrow;
+    } catch (e) {
+      throw Exception('Ошибка создания заказа: $e');
     }
   }
 

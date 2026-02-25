@@ -3,8 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:lakshmi_market/features/cart/services/order_service.dart'
-    as cart_order;
+import 'package:lakshmi_market/features/orders/services/order_service.dart';
 import 'package:lakshmi_market/features/cart/models/cart_item.dart';
 import 'package:lakshmi_market/features/home/models/product.dart';
 import 'package:lakshmi_market/features/auth/services/auth_service.dart';
@@ -23,8 +22,8 @@ void main() {
   ProviderContainer createContainer() {
     return ProviderContainer(overrides: [
       authServiceProvider.overrideWithValue(mockAuth),
-      cart_order.orderServiceProvider
-          .overrideWith((ref) => cart_order.OrderService(ref, dio: mockDio)),
+      orderServiceProvider
+          .overrideWith((ref) => OrderService(dio: mockDio)),
     ]);
   }
 
@@ -70,7 +69,7 @@ void main() {
       final container = createContainer();
       addTearDown(container.dispose);
 
-      final service = container.read(cart_order.orderServiceProvider);
+      final service = container.read(orderServiceProvider);
       final orderId = await service.createOrder(
         address: 'ул. Пушкина, д.10',
         phone: '+79991234567',
@@ -120,7 +119,7 @@ void main() {
       final container = createContainer();
       addTearDown(container.dispose);
 
-      final service = container.read(cart_order.orderServiceProvider);
+      final service = container.read(orderServiceProvider);
       final orderId = await service.createOrder(
         address: 'ул. Пушкина, д.10',
         phone: '+79991234567',
@@ -149,7 +148,7 @@ void main() {
       final container = createContainer();
       addTearDown(container.dispose);
 
-      final service = container.read(cart_order.orderServiceProvider);
+      final service = container.read(orderServiceProvider);
       // Call without specifying fulfillmentType to use default
       await service.createOrder(
         address: 'ул. Ленина, д.5',
