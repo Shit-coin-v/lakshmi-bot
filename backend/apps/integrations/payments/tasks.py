@@ -281,15 +281,27 @@ def expire_pending_payments(self):
     """Periodic: cancel orders with pending payments older than timeout."""
     from django.conf import settings as django_settings
     from apps.orders.models import Order
+    from apps.notifications.tasks import send_order_push_task
 
     timeout_minutes = getattr(django_settings, "YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
     cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
 
-    count = Order.objects.filter(
-        payment_status="pending",
-        payment_method="sbp",
-        created_at__lt=cutoff,
-    ).update(payment_status="failed", status="canceled")
+    expired_ids = list(
+        Order.objects.filter(
+            payment_status="pending",
+            payment_method="sbp",
+            created_at__lt=cutoff,
+        ).values_list("id", flat=True)
+    )
 
-    if count:
-        logger.info("expire_pending_payments: canceled %d orders", count)
+    if not expired_ids:
+        return
+
+    Order.objects.filter(id__in=expired_ids).update(
+        payment_status="failed", status="canceled"
+    )
+
+    for oid in expired_ids:
+        send_order_push_task.delay(oid, "new", "canceled")
+
+    logger.info("expire_pending_payments: canceled %d orders", len(expired_ids))
