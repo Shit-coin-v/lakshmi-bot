@@ -23,6 +23,17 @@ class BackendClient:
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self._session: aiohttp.ClientSession | None = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=_TIMEOUT)
+        return self._session
+
+    async def close(self) -> None:
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -41,29 +52,29 @@ class BackendClient:
         """Execute HTTP request with retry.  Returns parsed JSON or None."""
         url = f"{self.base_url}{path}"
         last_exc: Exception | None = None
+        session = await self._get_session()
 
         for attempt in range(_MAX_RETRIES):
             try:
-                async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
-                    kwargs: dict[str, Any] = {"headers": self._headers()}
-                    if json_data is not None:
-                        kwargs["data"] = json.dumps(json_data, ensure_ascii=False)
-                    if params is not None:
-                        kwargs["params"] = params
+                kwargs: dict[str, Any] = {"headers": self._headers()}
+                if json_data is not None:
+                    kwargs["data"] = json.dumps(json_data, ensure_ascii=False)
+                if params is not None:
+                    kwargs["params"] = params
 
-                    async with session.request(method, url, **kwargs) as resp:
-                        text = await resp.text()
-                        if resp.status in (200, 201):
-                            return json.loads(text) if text else {}
-                        if resp.status == 204:
-                            return {}
-                        if resp.status == 404:
-                            return None
-                        logger.error(
-                            "Backend %s %s -> HTTP %s: %s",
-                            method, path, resp.status, text,
-                        )
+                async with session.request(method, url, **kwargs) as resp:
+                    text = await resp.text()
+                    if resp.status in (200, 201):
+                        return json.loads(text) if text else {}
+                    if resp.status == 204:
+                        return {}
+                    if resp.status == 404:
                         return None
+                    logger.error(
+                        "Backend %s %s -> HTTP %s: %s",
+                        method, path, resp.status, text,
+                    )
+                    return None
             except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
                 last_exc = exc
                 delay = 2 ** attempt

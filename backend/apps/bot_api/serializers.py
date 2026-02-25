@@ -38,7 +38,6 @@ class BotUserSerializer(serializers.ModelSerializer):
             "news_enabled",
             "general_enabled",
             "created_at",
-            "password_hash",
             "email_verified",
             "auth_method",
         ]

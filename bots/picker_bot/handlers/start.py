@@ -59,6 +59,9 @@ async def cmd_start(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
     chat_id = message.chat.id
 
+    # Сброс FSM — предотвращает застревание в регистрации при повторном /start
+    await state.clear()
+
     # Cleanup any pending notification messages (approval, new order, etc.)
     await _cleanup_notifications(message.bot, chat_id, telegram_id)
 

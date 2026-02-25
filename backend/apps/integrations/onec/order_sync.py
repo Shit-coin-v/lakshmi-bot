@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 import uuid
 import logging
@@ -21,7 +22,7 @@ def _get_onec_order_url() -> str | None:
 
 
 def send_order_to_onec_impl(self, order_id: int):
-    # 1) Блокируем заказ, чтобы две задачи не отправили одно и то же
+    # 1) Блокируем заказ и собираем payload в одной транзакции
     with transaction.atomic():
         order = (
             Order.objects.select_for_update()
@@ -41,62 +42,55 @@ def send_order_to_onec_impl(self, order_id: int):
             order.sync_idempotency_key = uuid.uuid4()
         order.save(update_fields=["sync_status", "sync_attempts", "last_sync_error", "sync_idempotency_key"])
 
-    # 2) Проверяем, настроен ли 1С URL
-    url = _get_onec_order_url()
-    if url is None:
-        logger.warning("ONEC_ORDER_URL not configured, skipping 1C sync for order %s", order_id)
-        return {"status": "skipped", "order_id": order_id, "reason": "no_onec_url"}
+        # Собираем payload внутри транзакции (items уже prefetch'нуты)
+        items = []
+        store_ids = set()
 
-    # 3) Собираем payload
-    items = []
-    store_ids = set()
+        for it in order.items.all():
+            store_ids.add(getattr(it.product, "store_id", None))
+            items.append(
+                {
+                    "product_code": it.product.product_code,
+                    "name": it.product.name,
+                    "quantity": int(it.quantity),
+                    "price": str(it.price_at_moment),
+                    "line_total": str((it.price_at_moment * it.quantity)),
+                }
+            )
 
-    for it in order.items.all():
-        store_ids.add(getattr(it.product, "store_id", None))
-        items.append(
-            {
-                "product_code": it.product.product_code,
-                "name": it.product.name,
-                "quantity": int(it.quantity),
-                "price": str(it.price_at_moment),
-                "line_total": str((it.price_at_moment * it.quantity)),
-            }
-        )
+        store_ids.discard(None)
+        if len(store_ids) > 1:
+            msg = f"Order contains multiple store_id values: {sorted(store_ids)}"
+            _fail_order(order_id, msg)
+            raise RuntimeError(msg)
 
-    store_ids.discard(None)
-    if len(store_ids) > 1:
-        # Заказ из нескольких магазинов — лучше фейлить сразу
-        msg = f"Order contains multiple store_id values: {sorted(store_ids)}"
-        _fail_order(order_id, msg)
-        raise RuntimeError(msg)
+        store_id = next(iter(store_ids), None)
 
-    store_id = next(iter(store_ids), None)
-
-    payload = {
-        "order_id": order.id,
-        "created_at": order.created_at.isoformat(),
-        "customer": {
-            "id": order.customer_id,
-            "telegram_id": order.customer.telegram_id,
-            "email": order.customer.email,
-            "phone": order.phone,
-            "full_name": order.customer.full_name,
-        },
-        "delivery": {
-            "type": order.fulfillment_type,
-            "address": order.address,
-            "comment": order.comment,
-        },
-        "payment_method": order.payment_method,
-        "fulfillment_type": order.fulfillment_type,
-        "prices": {
-            "products_price": str(order.products_price),
-            "delivery_price": str(order.delivery_price),
-            "total_price": str(order.total_price),
-        },
-        "store_id": store_id,
-        "items": items,
-    }
+        payload = {
+            "order_id": order.id,
+            "created_at": order.created_at.isoformat(),
+            "customer": {
+                "id": order.customer_id,
+                "telegram_id": order.customer.telegram_id,
+                "email": order.customer.email,
+                "phone": order.phone,
+                "full_name": order.customer.full_name,
+            },
+            "delivery": {
+                "type": order.fulfillment_type,
+                "address": order.address,
+                "comment": order.comment,
+            },
+            "payment_method": order.payment_method,
+            "fulfillment_type": order.fulfillment_type,
+            "prices": {
+                "products_price": str(order.products_price),
+                "delivery_price": str(order.delivery_price),
+                "total_price": str(order.total_price),
+            },
+            "store_id": store_id,
+            "items": items,
+        }
 
     # 4) Отправляем в 1С (или в твой proxy)
     headers = {
@@ -125,8 +119,7 @@ def send_order_to_onec_impl(self, order_id: int):
             order.sent_to_onec_at = dj_tz.now()
             order.onec_guid = onec_guid or order.onec_guid
             order.last_sync_error = None
-            order.sync_idempotency_key = None
-            order.save(update_fields=["sync_status", "sent_to_onec_at", "onec_guid", "last_sync_error", "sync_idempotency_key"])
+            order.save(update_fields=["sync_status", "sent_to_onec_at", "onec_guid", "last_sync_error"])
 
         return {"status": "sent", "order_id": order_id, "onec_guid": onec_guid}
 
@@ -139,7 +132,8 @@ def send_order_to_onec_impl(self, order_id: int):
             _fail_order(order_id, str(exc))
             return {"status": "failed", "reason": str(exc)}
 
-        countdown = min(20 + self.request.retries * 10, 70)
+        base = min(20 + self.request.retries * 10, 70)
+        countdown = base + random.uniform(0, base * 0.3)
         raise self.retry(exc=exc, countdown=countdown)
 
 
