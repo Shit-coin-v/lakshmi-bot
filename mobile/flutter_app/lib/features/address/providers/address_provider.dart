@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -37,7 +38,8 @@ class AddressNotifier extends StateNotifier<List<AddressModel>> {
 
   void addAddress(AddressModel address) {
     state = [...state, address];
-    _saveToStorage(); // <-- Сохраняем!
+    // State updated synchronously; persist in background (fire-and-forget)
+    unawaited(_saveToStorage());
   }
 
   void updateAddress(AddressModel updated) {
@@ -45,12 +47,12 @@ class AddressNotifier extends StateNotifier<List<AddressModel>> {
       for (final addr in state)
         if (addr.id == updated.id) updated else addr,
     ];
-    _saveToStorage(); // <-- Сохраняем!
+    unawaited(_saveToStorage());
   }
 
   void removeAddress(String id) {
     state = state.where((a) => a.id != id).toList();
-    _saveToStorage(); // <-- Сохраняем!
+    unawaited(_saveToStorage());
   }
 }
 

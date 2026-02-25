@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../main.dart';
+import '../../../core/extensions/validators.dart';
 import '../providers/auth_provider.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
@@ -39,6 +40,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
     if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
       setState(() => _error = 'Заполните все обязательные поля');
+      return;
+    }
+
+    if (!email.isValidEmail) {
+      setState(() => _error = 'Введите корректный email');
       return;
     }
 

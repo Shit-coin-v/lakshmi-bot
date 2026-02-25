@@ -26,7 +26,7 @@ class NotificationModel {
     }
 
     return NotificationModel(
-      id: json['id'].toString(),
+      id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? json['subject'] ?? 'Уведомление').toString(),
       body: (json['body'] ?? json['content'] ?? '').toString(),
       date: parsedDate,

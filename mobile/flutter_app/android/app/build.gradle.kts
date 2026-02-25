@@ -7,6 +7,7 @@ plugins {
 }
 
 android {
+    // TODO: Change to production package name before Play Store release
     namespace = "com.example.lakshmi_market"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

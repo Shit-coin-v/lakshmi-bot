@@ -1,4 +1,4 @@
-import '../../../core/constants/api_constants.dart';
+import '../../../core/api_client.dart';
 
 class Product {
   final String id;
@@ -36,6 +36,6 @@ class Product {
     }
     if (imageUrl!.startsWith('http')) return imageUrl!;
     // Склеиваем домен + путь к файлу
-    return '${ApiConstants.baseUrl}$imageUrl';
+    return ApiClient.resolveMediaUrl(imageUrl!);
   }
 }
