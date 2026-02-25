@@ -1,18 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/extensions/price_extension.dart';
 import '../providers/products_provider.dart';
 import '../models/product.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../cart/models/cart_item.dart';
 import '../../notifications/providers/notifications_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final productsAsyncValue = ref.watch(productsProvider);
 
     final notificationsAsync = ref.watch(notificationsProvider);
@@ -104,7 +120,10 @@ class HomeScreen extends ConsumerWidget {
                   contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
                 onChanged: (value) {
-                  ref.read(searchQueryProvider.notifier).state = value;
+                  _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 300), () {
+                    ref.read(searchQueryProvider.notifier).state = value;
+                  });
                 },
               ),
             ),
@@ -233,7 +252,7 @@ class _ProductCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${product.price} ₽',
+                  product.price.formatPrice(),
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
@@ -368,7 +387,7 @@ class _CartTotalBar extends ConsumerWidget {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '${totalAmount.toStringAsFixed(0)} ₽',
+                    totalAmount.formatPrice(),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/extensions/price_extension.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
 
@@ -202,7 +203,7 @@ class _OrderCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 14),
               ),
               Text(
-                "${order.totalPrice.toStringAsFixed(0)} ₽",
+                order.totalPrice.formatPrice(),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/models/user_model.dart';
@@ -30,8 +31,8 @@ final loyaltyProfileProvider = FutureProvider<UserModel?>((ref) async {
       if (userId != null) {
         return await authService.fetchProfile(userId);
       }
-    } catch (_) {
-      // QR generation failed — return user as-is, screen will show fallback UI
+    } catch (e) {
+      debugPrint('QR generation failed: $e');
     }
   }
 

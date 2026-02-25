@@ -16,13 +16,11 @@ class _QrAuthScreenState extends ConsumerState<QrAuthScreen> {
   bool _isLoading = false;
 
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _debugController = TextEditingController(
-    text: "12345",
-  ); // Для теста
+  final TextEditingController _codeController = TextEditingController();
 
   @override
   void dispose() {
-    _debugController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -50,7 +48,7 @@ class _QrAuthScreenState extends ConsumerState<QrAuthScreen> {
   }
 
   Future<void> _handleLogin() async {
-    final qrCodeString = _debugController.text.trim();
+    final qrCodeString = _codeController.text.trim();
     if (qrCodeString.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -95,7 +93,7 @@ class _QrAuthScreenState extends ConsumerState<QrAuthScreen> {
         return;
       }
 
-      _debugController.text = raw;
+      _codeController.text = raw;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +132,7 @@ class _QrAuthScreenState extends ConsumerState<QrAuthScreen> {
             const Icon(Icons.qr_code_scanner, size: 100, color: Colors.green),
             const SizedBox(height: 20),
             const Text(
-              "Войти можно по QR из фото или вручную (для теста)",
+              "Войти можно по QR из фото или вручную",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16),
             ),
@@ -165,10 +163,10 @@ class _QrAuthScreenState extends ConsumerState<QrAuthScreen> {
             const SizedBox(height: 16),
 
             TextField(
-              controller: _debugController,
+              controller: _codeController,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Код из QR (тест/отладка)',
+                labelText: 'Введите код из QR',
               ),
             ),
             const SizedBox(height: 12),
