@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -19,6 +21,7 @@ class PushNotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final PushApiService _pushApi = PushApiService();
+  final List<StreamSubscription> _subscriptions = [];
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'order_status_updates',
@@ -95,29 +98,42 @@ class PushNotificationService {
   }
 
   void _listenForTokenRefresh() {
-    _messaging.onTokenRefresh.listen((token) async {
-      try {
-        await registerTokenForCurrentUser(token);
-      } catch (e) {
-        debugPrint('FCM token refresh error (ignored): $e');
-      }
-    });
+    _subscriptions.add(
+      _messaging.onTokenRefresh.listen((token) async {
+        try {
+          await registerTokenForCurrentUser(token);
+        } catch (e) {
+          debugPrint('FCM token refresh error (ignored): $e');
+        }
+      }),
+    );
   }
 
   void _listenForMessages(GoRouter router) {
-    FirebaseMessaging.onMessage.listen((message) {
-      _showForegroundNotification(message);
-    });
+    _subscriptions.add(
+      FirebaseMessaging.onMessage.listen((message) {
+        _showForegroundNotification(message);
+      }),
+    );
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _handleNavigation(router, message.data);
-    });
+    _subscriptions.add(
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        _handleNavigation(router, message.data);
+      }),
+    );
 
     _messaging.getInitialMessage().then((message) {
       if (message != null) {
         _handleNavigation(router, message.data);
       }
     });
+  }
+
+  void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
@@ -154,7 +170,9 @@ class PushNotificationService {
 
     try {
       await _ref.read(notificationsProvider.notifier).loadNotifications();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to reload notifications: $e');
+    }
   }
 
   Future<void> registerTokenForCurrentUser([String? overrideToken]) async {
@@ -183,7 +201,9 @@ class PushNotificationService {
   void _handleNavigation(GoRouter router, Map<String, dynamic> data) async {
     try {
       await _ref.read(notificationsProvider.notifier).loadNotifications();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to reload notifications after nav: $e');
+    }
 
     final orderId = data['order_id']?.toString();
     if (orderId != null && orderId.isNotEmpty) {

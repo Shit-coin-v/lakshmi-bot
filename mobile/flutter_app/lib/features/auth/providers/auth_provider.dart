@@ -1,15 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'package:flutter/foundation.dart';
+import '../../../core/api_client.dart';
 import '../../../core/push_notification_service.dart';
 
 class AuthState extends StateNotifier<UserModel?> {
   final Ref _ref;
   final AuthService _authService;
+  StreamSubscription<void>? _forceLogoutSub;
 
   AuthState(this._ref, this._authService) : super(null) {
+    _forceLogoutSub = ApiClient().onForceLogout.listen((_) async {
+      await _authService.logout();
+      state = null;
+    });
     _checkSavedSession();
+  }
+
+  @override
+  void dispose() {
+    _forceLogoutSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkSavedSession() async {

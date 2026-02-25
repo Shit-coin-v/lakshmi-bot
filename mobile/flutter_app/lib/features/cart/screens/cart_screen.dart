@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/extensions/price_extension.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
@@ -289,7 +290,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          "Подтвердить \u00b7 ${finalTotal.toStringAsFixed(0)} \u20bd",
+                          "Подтвердить \u00b7 ${finalTotal.formatPrice()}",
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -327,7 +328,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       final authService = ref.read(authServiceProvider);
       final realUserId = await authService.getSavedUserId();
-      final userIdToSend = realUserId ?? 1;
+      if (realUserId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ошибка авторизации. Войдите заново.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
 
       final addressToSend = _isPickup
           ? "Самовывоз"
@@ -349,7 +361,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             paymentMethod: _paymentMethod,
             totalPrice: totalPrice,
             items: items,
-            userId: userIdToSend,
+            userId: realUserId,
             fulfillmentType: _isPickup ? "pickup" : "delivery",
           );
 
@@ -651,14 +663,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               children: [
                                 _SummaryRow(
                                   title: "Сумма",
-                                  value: "${productsTotal.toStringAsFixed(0)} \u20bd",
+                                  value: productsTotal.formatPrice(),
                                 ),
                                 const SizedBox(height: 8),
                                 _SummaryRow(
                                   title: "Доставка",
                                   value: _isPickup
                                       ? "Самовывоз"
-                                      : "${deliveryCost.toStringAsFixed(0)} \u20bd",
+                                      : deliveryCost.formatPrice(),
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
@@ -672,7 +684,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       ),
                                     ),
                                     Text(
-                                      "${finalTotal.toStringAsFixed(0)} \u20bd",
+                                      finalTotal.formatPrice(),
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -734,7 +746,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 ),
                               )
                             : Text(
-                                "Оформить заказ \u00b7 ${finalTotal.toStringAsFixed(0)} \u20bd",
+                                "Оформить заказ \u00b7 ${finalTotal.formatPrice()}",
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -976,7 +988,7 @@ class _CartItemRow extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "${item.product.price.toStringAsFixed(2)} \u20bd",
+                  item.product.price.formatPrice(),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
