@@ -36,19 +36,24 @@ import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
 
 import 'core/push_notification_service.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // В фоне тоже нужна инициализация Firebase
-  await Firebase.initializeApp();
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
+  }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
-
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
 
   await initializeDateFormatting('ru', null);
 
@@ -62,152 +67,176 @@ const Color kBackground = Color(0xFFF9F9F9);
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-final _router = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/',
-  routes: [
-    GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
-    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-    GoRoute(
-      path: '/login-choice',
-      builder: (context, state) => const LoginChoiceScreen(),
-    ),
-    GoRoute(
-      path: '/register',
-      builder: (context, state) => const RegistrationScreen(),
-    ),
-    GoRoute(
-      path: '/register-choice',
-      builder: (context, state) => const RegistrationChoiceScreen(),
-    ),
-    GoRoute(
-      path: '/register-telegram',
-      builder: (context, state) => const TelegramRegisterInfoScreen(),
-    ),
-    GoRoute(
-      path: '/qr-auth',
-      builder: (context, state) => const QrAuthScreen(),
-    ),
-    GoRoute(
-      path: '/verify-email',
-      builder: (context, state) {
-        final email = state.extra as String? ?? '';
-        return VerifyEmailScreen(email: email);
-      },
-    ),
-    GoRoute(
-      path: '/reset-password',
-      builder: (context, state) => const ResetPasswordScreen(),
-    ),
-    GoRoute(
-      path: '/telegram-link-choice',
-      builder: (context, state) => const TelegramLinkChoiceScreen(),
-    ),
-    GoRoute(
-      path: '/link-telegram-scan',
-      builder: (context, state) => const LinkTelegramScanScreen(),
-    ),
-    GoRoute(
-      path: '/generate-qr',
-      builder: (context, state) => const GenerateQrScreen(),
-    ),
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) =>
-          MainShell(navigationShell: navigationShell),
-      branches: [
-        // Tab 0: Продукты
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/home',
-            builder: (ctx, st) => const HomeScreen(),
-            routes: [
-              GoRoute(
-                path: 'cart',
-                builder: (ctx, st) => const CartScreen(),
-              ),
-              GoRoute(
-                path: 'notifications',
-                builder: (ctx, st) => const NotificationsScreen(),
-              ),
-              GoRoute(
-                path: 'notifications/:id',
-                builder: (ctx, st) {
-                  final id = st.pathParameters['id']!;
-                  return NotificationDetailScreen(notificationId: id);
-                },
-              ),
-              GoRoute(
-                path: 'saved-addresses',
-                builder: (ctx, st) {
-                  final select =
-                      st.uri.queryParameters['select'] == 'true';
-                  return SavedAddressesScreen(selectionMode: select);
-                },
-              ),
-              GoRoute(
-                path: 'order-status/:id',
-                builder: (ctx, st) {
-                  final id = int.parse(st.pathParameters['id']!);
-                  final isNew =
-                      st.uri.queryParameters['new'] == 'true';
-                  return OrderStatusScreen(
-                      orderId: id, fromOrderCreation: isNew);
-                },
-              ),
-            ],
-          ),
-        ]),
-        // Tab 1: Моя карта
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/loyalty',
-            builder: (ctx, st) => const LoyaltyScreen(),
-          ),
-        ]),
-        // Tab 2: Профиль
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/profile',
-            builder: (ctx, st) => const ProfileScreen(),
-            routes: [
-              GoRoute(
-                path: 'orders',
-                builder: (ctx, st) => const OrdersScreen(),
-              ),
-              GoRoute(
-                path: 'order-status/:id',
-                builder: (ctx, st) {
-                  final id = int.parse(st.pathParameters['id']!);
-                  return OrderStatusScreen(orderId: id);
-                },
-              ),
-              GoRoute(
-                path: 'order-details/:id',
-                builder: (ctx, st) {
-                  final id = int.parse(st.pathParameters['id']!);
-                  return OrderDetailsScreen(orderId: id);
-                },
-              ),
-              GoRoute(
-                path: 'saved-addresses',
-                builder: (ctx, st) {
-                  final select =
-                      st.uri.queryParameters['select'] == 'true';
-                  return SavedAddressesScreen(selectionMode: select);
-                },
-              ),
-              GoRoute(
-                path: 'notification-settings',
-                builder: (ctx, st) =>
-                    const NotificationSettingsScreen(),
-              ),
-            ],
-          ),
-        ]),
-      ],
-    ),
-  ],
-);
+const _publicRoutes = <String>{
+  '/',
+  '/login',
+  '/login-choice',
+  '/register',
+  '/register-choice',
+  '/register-telegram',
+  '/qr-auth',
+  '/verify-email',
+  '/reset-password',
+};
+
+GoRouter _createRouter(WidgetRef ref) {
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/',
+    redirect: (context, state) {
+      final isLoggedIn = ref.read(authProvider) != null;
+      final location = state.matchedLocation;
+      if (!isLoggedIn && !_publicRoutes.contains(location)) {
+        return '/login-choice';
+      }
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
+      GoRoute(
+          path: '/login',
+          builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login-choice',
+        builder: (context, state) => const LoginChoiceScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/register-choice',
+        builder: (context, state) => const RegistrationChoiceScreen(),
+      ),
+      GoRoute(
+        path: '/register-telegram',
+        builder: (context, state) => const TelegramRegisterInfoScreen(),
+      ),
+      GoRoute(
+        path: '/qr-auth',
+        builder: (context, state) => const QrAuthScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) {
+          final email = state.extra as String? ?? '';
+          return VerifyEmailScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/telegram-link-choice',
+        builder: (context, state) => const TelegramLinkChoiceScreen(),
+      ),
+      GoRoute(
+        path: '/link-telegram-scan',
+        builder: (context, state) => const LinkTelegramScanScreen(),
+      ),
+      GoRoute(
+        path: '/generate-qr',
+        builder: (context, state) => const GenerateQrScreen(),
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          // Tab 0: Продукты
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/home',
+              builder: (ctx, st) => const HomeScreen(),
+              routes: [
+                GoRoute(
+                  path: 'cart',
+                  builder: (ctx, st) => const CartScreen(),
+                ),
+                GoRoute(
+                  path: 'notifications',
+                  builder: (ctx, st) => const NotificationsScreen(),
+                ),
+                GoRoute(
+                  path: 'notifications/:id',
+                  builder: (ctx, st) {
+                    final id = st.pathParameters['id']!;
+                    return NotificationDetailScreen(notificationId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'saved-addresses',
+                  builder: (ctx, st) {
+                    final select =
+                        st.uri.queryParameters['select'] == 'true';
+                    return SavedAddressesScreen(selectionMode: select);
+                  },
+                ),
+                GoRoute(
+                  path: 'order-status/:id',
+                  builder: (ctx, st) {
+                    final id = int.parse(st.pathParameters['id']!);
+                    final isNew =
+                        st.uri.queryParameters['new'] == 'true';
+                    return OrderStatusScreen(
+                        orderId: id, fromOrderCreation: isNew);
+                  },
+                ),
+              ],
+            ),
+          ]),
+          // Tab 1: Моя карта
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/loyalty',
+              builder: (ctx, st) => const LoyaltyScreen(),
+            ),
+          ]),
+          // Tab 2: Профиль
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (ctx, st) => const ProfileScreen(),
+              routes: [
+                GoRoute(
+                  path: 'orders',
+                  builder: (ctx, st) => const OrdersScreen(),
+                ),
+                GoRoute(
+                  path: 'order-status/:id',
+                  builder: (ctx, st) {
+                    final id = int.parse(st.pathParameters['id']!);
+                    return OrderStatusScreen(orderId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'order-details/:id',
+                  builder: (ctx, st) {
+                    final id = int.parse(st.pathParameters['id']!);
+                    return OrderDetailsScreen(orderId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'saved-addresses',
+                  builder: (ctx, st) {
+                    final select =
+                        st.uri.queryParameters['select'] == 'true';
+                    return SavedAddressesScreen(selectionMode: select);
+                  },
+                ),
+                GoRoute(
+                  path: 'notification-settings',
+                  builder: (ctx, st) =>
+                      const NotificationSettingsScreen(),
+                ),
+              ],
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
+}
 
 class LakshmiMarketApp extends ConsumerStatefulWidget {
   const LakshmiMarketApp({super.key});
@@ -217,9 +246,12 @@ class LakshmiMarketApp extends ConsumerStatefulWidget {
 }
 
 class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> {
+  late final GoRouter _router;
+
   @override
   void initState() {
     super.initState();
+    _router = _createRouter(ref);
     _initPush();
   }
 
