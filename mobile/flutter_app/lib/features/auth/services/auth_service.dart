@@ -19,8 +19,6 @@ class AuthService {
   // ─── QR login (existing flow) ───
 
   Future<UserModel> loginWithQr(String qrCode) async {
-    await _storage.deleteAll();
-    await ApiClient().clearTokens();
     try {
       final response = await _dio.post(
         '/onec/customer',
@@ -31,6 +29,10 @@ class AuthService {
         final data = response.data;
 
         if (data['customer'] != null) {
+          // Clear old session only after successful response
+          await _storage.deleteAll();
+          await ApiClient().clearTokens();
+
           final user = UserModel.fromJson(data);
 
           await _storage.write(key: _storageQrKey, value: qrCode);
@@ -103,9 +105,6 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    await _storage.deleteAll();
-    await ApiClient().clearTokens();
-
     try {
       final response = await _dio.post('/api/auth/login/', data: {
         'email': email,
@@ -113,6 +112,10 @@ class AuthService {
       });
 
       final data = response.data;
+
+      // Clear old session only after successful response
+      await _storage.deleteAll();
+      await ApiClient().clearTokens();
 
       // Save tokens
       final tokens = data['tokens'];

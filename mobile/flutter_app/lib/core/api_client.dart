@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,7 +12,7 @@ class ApiClient {
 
   static const String _apiKey = String.fromEnvironment(
     'API_KEY',
-    defaultValue: 'my_secret_mobile_key_2025',
+    defaultValue: '',
   );
 
   static const String botUsername = String.fromEnvironment(
@@ -44,24 +46,37 @@ class ApiClient {
   static const _accessTokenKey = 'auth_access_token';
   static const _refreshTokenKey = 'auth_refresh_token';
 
+  Completer<bool>? _refreshCompleter;
+
+  final StreamController<void> _onForceLogout =
+      StreamController<void>.broadcast();
+  Stream<void> get onForceLogout => _onForceLogout.stream;
+
   ApiClient._internal() {
-    debugPrint("API_CLIENT baseUrl=$_baseUrl apiKey=$_apiKey");
+    assert(_apiKey.isNotEmpty, 'API_KEY must be provided via --dart-define');
+
+    if (kDebugMode) {
+      debugPrint("API_CLIENT baseUrl=$_baseUrl");
+    }
+
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          debugPrint(
-            "REQUEST[${options.method}] => URL: ${options.uri}",
-          );
+          if (kDebugMode) {
+            debugPrint(
+              "REQUEST[${options.method}] => URL: ${options.uri}",
+            );
+          }
           return handler.next(options);
         },
         onError: (DioException e, handler) {
-          debugPrint(
-            "ERROR[${e.response?.statusCode}] => PATH: ${e.requestOptions.path}",
-          );
-          debugPrint("Message: ${e.response?.data}");
-          debugPrint("Type: ${e.type}");
-          debugPrint("Error: ${e.message}");
-          debugPrint("URL: ${e.requestOptions.uri}");
+          if (kDebugMode) {
+            debugPrint(
+              "ERROR[${e.response?.statusCode}] => PATH: ${e.requestOptions.path}",
+            );
+            debugPrint("Type: ${e.type}");
+            debugPrint("Error: ${e.message}");
+          }
           return handler.next(e);
         },
       ),
@@ -85,6 +100,8 @@ class ApiClient {
               } on DioException catch (retryError) {
                 return handler.next(retryError);
               }
+            } else {
+              _onForceLogout.add(null);
             }
           }
           return handler.next(e);
@@ -134,11 +151,20 @@ class ApiClient {
   }
 
   /// Try to refresh the access token using the stored refresh token.
+  /// Uses Completer-based mutex to prevent concurrent refresh attempts.
   Future<bool> _tryRefreshToken() async {
-    final refreshToken = await _storage.read(key: _refreshTokenKey);
-    if (refreshToken == null) return false;
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
 
+    _refreshCompleter = Completer<bool>();
     try {
+      final refreshToken = await _storage.read(key: _refreshTokenKey);
+      if (refreshToken == null) {
+        _refreshCompleter!.complete(false);
+        return false;
+      }
+
       final response = await Dio(BaseOptions(
         baseUrl: _baseUrl,
         headers: {'X-Api-Key': _apiKey},
@@ -147,14 +173,21 @@ class ApiClient {
       if (response.statusCode == 200) {
         final tokens = response.data['tokens'];
         await saveTokens(tokens['access'], tokens['refresh']);
+        _refreshCompleter!.complete(true);
         return true;
       }
-    } catch (e) {
-      debugPrint("Token refresh failed: $e");
-    }
 
-    await clearTokens();
-    return false;
+      await clearTokens();
+      _refreshCompleter!.complete(false);
+      return false;
+    } catch (e) {
+      if (kDebugMode) debugPrint("Token refresh failed: $e");
+      await clearTokens();
+      _refreshCompleter!.complete(false);
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
   }
 
   Dio get dio => _dio;

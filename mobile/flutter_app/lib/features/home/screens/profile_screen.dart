@@ -32,9 +32,29 @@ class ProfileScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.red),
             onPressed: () async {
-              await ref.read(authServiceProvider).logout();
-              ref.read(cartProvider.notifier).clear();
-              if (context.mounted) context.go('/login-choice');
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Выход'),
+                  content: const Text('Вы уверены, что хотите выйти?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Отмена'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Выйти',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await ref.read(authServiceProvider).logout();
+                ref.read(cartProvider.notifier).clear();
+                if (context.mounted) context.go('/login-choice');
+              }
             },
           ),
         ],
