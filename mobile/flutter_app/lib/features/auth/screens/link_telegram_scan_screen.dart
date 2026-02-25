@@ -17,11 +17,11 @@ class _LinkTelegramScanScreenState
     extends ConsumerState<LinkTelegramScanScreen> {
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _debugController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
 
   @override
   void dispose() {
-    _debugController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -101,7 +101,7 @@ class _LinkTelegramScanScreenState
         return;
       }
 
-      _debugController.text = raw;
+      _codeController.text = raw;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -129,7 +129,7 @@ class _LinkTelegramScanScreenState
   }
 
   Future<void> _handleManualLink() async {
-    final code = _debugController.text.trim();
+    final code = _codeController.text.trim();
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -189,10 +189,10 @@ class _LinkTelegramScanScreenState
             const SizedBox(height: 24),
 
             TextField(
-              controller: _debugController,
+              controller: _codeController,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Telegram ID (тест/отладка)',
+                labelText: 'Введите Telegram ID из QR',
               ),
               keyboardType: TextInputType.number,
             ),

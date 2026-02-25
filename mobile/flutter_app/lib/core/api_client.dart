@@ -17,7 +17,7 @@ class ApiClient {
 
   static const String botUsername = String.fromEnvironment(
     'BOT_USERNAME',
-    defaultValue: 'lakshmi_test_bot',
+    defaultValue: '',
   );
 
   /// Resolves a media URL returned by the API to use the correct base URL.
@@ -54,6 +54,7 @@ class ApiClient {
 
   ApiClient._internal() {
     assert(_apiKey.isNotEmpty, 'API_KEY must be provided via --dart-define');
+    assert(botUsername.isNotEmpty, 'BOT_USERNAME must be provided via --dart-define');
 
     if (kDebugMode) {
       debugPrint("API_CLIENT baseUrl=$_baseUrl");
