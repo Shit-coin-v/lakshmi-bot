@@ -1,6 +1,7 @@
 import logging
 from datetime import date
 
+from django.conf import settings as django_settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -39,7 +40,8 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-_COURIER_RATE = 150  # roubles per delivery
+def _get_courier_rate() -> int:
+    return getattr(django_settings, "COURIER_DELIVERY_RATE", 150)
 
 
 # --- Customer Bot views ---
@@ -276,7 +278,7 @@ class CompletedTodayView(APIView):
             completed_at__date=today,
         ).count()
 
-        return Response({"count": count, "total": count * _COURIER_RATE})
+        return Response({"count": count, "total": count * _get_courier_rate()})
 
 
 # --- Picker Bot views ---

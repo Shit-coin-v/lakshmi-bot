@@ -9,8 +9,8 @@ test_dir = Path(__file__).resolve().parents[1]
 sys.path.append(str(test_dir))
 sys.path.append(str(test_dir.parent))
 
-from broadcast import generate_unique_open_token  # noqa: E402  pylint: disable=wrong-import-position
 from shared.broadcast import helpers as _broadcast_helpers  # noqa: E402  pylint: disable=wrong-import-position
+from shared.broadcast import generate_unique_open_token  # noqa: E402  pylint: disable=wrong-import-position
 from run import register_newsletter_open  # noqa: E402  pylint: disable=wrong-import-position
 import run  # noqa: E402  pylint: disable=wrong-import-position
 

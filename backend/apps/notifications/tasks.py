@@ -200,13 +200,6 @@ def notify_pickers_new_order(self, order_id: int):
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
-def notify_couriers_new_order(self, order_id: int):
-    """DEPRECATED — kept for backward compat. Use assign_courier_task instead."""
-    logger.warning("notify_couriers_new_order called for order %s — this is deprecated, use assign_courier_task", order_id)
-    assign_courier_task.delay(order_id)
-
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def assign_courier_task(self, order_id: int):
     """Assign a courier to an order via round-robin and notify them."""
     from django.core.cache import cache

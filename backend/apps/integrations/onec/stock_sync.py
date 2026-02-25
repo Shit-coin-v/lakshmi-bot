@@ -3,6 +3,7 @@ import json
 from django.http import JsonResponse
 
 from apps.integrations.onec.serializers import StockUpdateSerializer
+from apps.integrations.onec.utils import onec_error
 from apps.orders.models import Product
 
 
@@ -13,11 +14,11 @@ def onec_stock_sync_impl(request):
     try:
         payload = json.loads(raw_body)
     except json.JSONDecodeError:
-        return JsonResponse({"detail": "invalid_json"}, status=400)
+        return onec_error("invalid_json", "Request body must be valid JSON.")
 
     serializer = StockUpdateSerializer(data=payload)
     if not serializer.is_valid():
-        return JsonResponse({"detail": serializer.errors}, status=400)
+        return onec_error("validation_error", "Invalid payload.", details=serializer.errors)
 
     items = serializer.validated_data["items"]
     codes = [item["product_code"] for item in items]

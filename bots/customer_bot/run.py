@@ -3,7 +3,7 @@ import logging
 import re
 
 import aiohttp
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     BotCommand, BotCommandScopeAllPrivateChats, CallbackQuery,
@@ -12,7 +12,6 @@ from aiogram.types import (
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.fsm.state import StatesGroup
 from aiogram.fsm.context import FSMContext
 
 import config
@@ -32,6 +31,8 @@ backend = BackendClient(config.BACKEND_URL, config.ONEC_API_KEY or "")
 
 bot: Bot | None = None
 dp = Dispatcher()
+dp.message.filter(F.chat.type == "private")
+dp.callback_query.filter(F.message.chat.type == "private")
 
 OPEN_CALLBACK_PREFIX = "open:"
 TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -75,10 +76,6 @@ def get_bot() -> Bot:
     if bot is None:
         raise RuntimeError("Telegram bot is not initialised")
     return bot
-
-
-class Registration(StatesGroup):
-    pass
 
 
 async def save_bot_activity(telegram_id: int, action: str):

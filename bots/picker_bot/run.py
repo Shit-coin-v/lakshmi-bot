@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from config import PICKER_BOT_TOKEN
@@ -10,6 +10,8 @@ from handlers import start, registration, orders, help
 logger = logging.getLogger(__name__)
 
 dp = Dispatcher()
+dp.message.filter(F.chat.type == "private")
+dp.callback_query.filter(F.message.chat.type == "private")
 dp.include_router(start.router)
 dp.include_router(registration.router)
 dp.include_router(orders.router)

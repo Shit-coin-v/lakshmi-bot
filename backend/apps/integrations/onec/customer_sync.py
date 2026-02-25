@@ -78,9 +78,6 @@ def onec_customer_sync(request):
 
 
     if telegram_id is not None:
-        if user and user.telegram_id != telegram_id:
-            return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
-
         user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
         if not user_by_tid:
             return JsonResponse({"detail": {"telegram_id": ["Пользователь не найден"]}}, status=404)
@@ -90,9 +87,6 @@ def onec_customer_sync(request):
 
     if not user:
         return JsonResponse({"detail": {"qr_code": ["Пользователь не найден"]}}, status=404)
-
-    if telegram_id is not None and user.telegram_id != telegram_id:
-        return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
 
     if telegram_id is None:
         telegram_id = user.telegram_id

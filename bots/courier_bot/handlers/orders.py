@@ -1,4 +1,5 @@
 import logging
+import os
 from functools import partial
 from types import SimpleNamespace
 
@@ -27,7 +28,7 @@ async def _check_access(telegram_id: int) -> bool:
 
 # Statuses visible to couriers
 _ACTIVE_STATUSES = ("ready", "delivery", "arrived")
-DELIVERY_RATE = 150  # ₽ за доставку
+DELIVERY_RATE = int(os.environ.get("COURIER_DELIVERY_RATE", "150"))
 
 _STATUS_DISPLAY = {
     "ready": "Заказ собран, ждёт курьера",
