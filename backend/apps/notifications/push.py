@@ -19,6 +19,7 @@ except ImportError:  # pragma: no cover - handled at runtime
 logger = logging.getLogger(__name__)
 
 _STATUS_MESSAGES = {
+    "new": "Ваш заказ оплачен и принят в обработку",
     "accepted": "Заказ принят",
     "assembly": "Заказ собирается",
     "ready": "Заказ собран, ждёт курьера",
