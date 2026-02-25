@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 from datetime import date
 
@@ -152,7 +153,7 @@ def notify_pickers_new_order(self, order_id: int):
         fulfillment = "🚚 Доставка" if order.fulfillment_type == "delivery" else "🏪 Самовывоз"
         text = f"🔔 <b>Новый заказ #{order_id}!</b>\n💰 {total}₽\n{fulfillment}"
         if order.address:
-            text += f"\n🏠 {order.address}"
+            text += f"\n🏠 {html.escape(order.address)}"
         text += "\n\nНажмите /orders для подробностей."
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -252,7 +253,7 @@ def send_courier_notification_task(self, order_id: int, courier_tg_id: int):
         f"💰 {total}₽"
     )
     if order.address:
-        text += f"\n🏠 {order.address}"
+        text += f"\n🏠 {html.escape(order.address)}"
     text += "\n\nНажмите /orders для подробностей."
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"

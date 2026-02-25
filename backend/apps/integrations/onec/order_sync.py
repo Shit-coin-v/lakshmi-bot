@@ -135,6 +135,10 @@ def send_order_to_onec_impl(self, order_id: int):
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             return {"status": "failed", "reason": str(exc)}
 
+        if self.request.retries >= self.max_retries:
+            _fail_order(order_id, str(exc))
+            return {"status": "failed", "reason": str(exc)}
+
         countdown = min(20 + self.request.retries * 10, 70)
         raise self.retry(exc=exc, countdown=countdown)
 
