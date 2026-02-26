@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/models/user_model.dart';
 
-/// Провайдер профиля для экрана лояльности.
-/// Поддерживает оба метода авторизации: email (JWT) и QR (Telegram).
+/// Profile provider for the loyalty screen.
+/// Supports both auth methods: email (JWT) and QR (Telegram).
 final loyaltyProfileProvider = FutureProvider<UserModel?>((ref) async {
   final authService = ref.read(authServiceProvider);
   final authMethod = await authService.getSavedAuthMethod();

@@ -278,7 +278,7 @@ class OrderDetailsScreen extends ConsumerWidget {
         foregroundColor: Colors.black,
       ),
 
-      // ✅ Кнопка фиксированно снизу
+      // Button fixed at the bottom
       bottomNavigationBar: detailAsync.when(
         loading: () => const SizedBox.shrink(),
         error: (err, _) => const SizedBox.shrink(),

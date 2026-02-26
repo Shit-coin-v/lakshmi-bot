@@ -27,19 +27,19 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              // 👇 ВОТ ЗДЕСЬ ИЗМЕНЕНИЯ
+              // Styled text with brand color
               Text.rich(
                 TextSpan(
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87, // Основной цвет (черный)
+                    color: Colors.black87, // Primary color (black)
                   ),
                   children: const [
-                    TextSpan(text: "Добро пожаловать в\n"), // Первая часть
+                    TextSpan(text: "Добро пожаловать в\n"), // First part
                     TextSpan(
-                      text: "Лакшми маркет", // Вторая часть
+                      text: "Лакшми маркет", // Second part
                       style: TextStyle(
-                        color: kPrimaryGreen, // Делаем зеленым
+                        color: kPrimaryGreen, // Brand green
                       ),
                     ),
                   ],

@@ -101,7 +101,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // --- РАССЫЛКИ section ---
+              // --- NEWSLETTERS section ---
               const Padding(
                 padding: EdgeInsets.only(left: 16, bottom: 8),
                 child: Text(

@@ -14,7 +14,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Слушаем данные от сервера (1С/Django) через провайдер
+    // Watch server data (1C/Django) via provider
     final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
@@ -60,10 +60,10 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       body: profileAsync.when(
-        // 1. Состояние загрузки
+        // 1. Loading state
         loading: () => const Center(child: CircularProgressIndicator()),
 
-        // 2. Состояние ошибки
+        // 2. Error state
         error: (err, stack) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -78,21 +78,21 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
 
-        // 3. Данные получены — строим экран
+        // 3. Data loaded — build screen
         data: (user) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // --- АВАТАРКА ---
+                // --- AVATAR ---
                 Center(
                   child: Stack(
                     children: [
-                      // Кружок с фото или инициалами
+                      // Circle with photo or initials
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.grey.shade300,
-                        // Если есть URL, показываем картинку, иначе букву
+                        // Show image if URL exists, otherwise show initial letter
                         backgroundImage: user.avatarUrl != null
                             ? NetworkImage(ApiClient.resolveMediaUrl(user.avatarUrl!))
                             : null,
@@ -109,13 +109,13 @@ class ProfileScreen extends ConsumerWidget {
                             : null,
                       ),
 
-                      // Кнопка камеры
+                      // Camera button
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
                           onTap: () async {
-                            // 1. Вызываем галерею
+                            // 1. Open gallery
                             final ImagePicker picker = ImagePicker();
                             final XFile? image = await picker.pickImage(
                               source: ImageSource.gallery,
@@ -125,8 +125,7 @@ class ProfileScreen extends ConsumerWidget {
                             );
 
                             if (image != null) {
-                              // 2. Если фото выбрано, отправляем на сервер
-                              // (Тут нужно вызвать метод провайдера, давай добавим его ниже)
+                              // 2. If photo selected, upload to server
                               await ref
                                   .read(profileProvider.notifier)
                                   .uploadUserAvatar(File(image.path));
@@ -150,7 +149,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
 
-                // Имя под аватаркой
+                // Name below avatar
                 Text(
                   user.fullName ?? "Гость",
                   style: const TextStyle(
@@ -160,7 +159,7 @@ class ProfileScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
-                // Email под аватаркой
+                // Email below avatar
                 Text(
                   user.email ?? "Email не указан",
                   style: const TextStyle(color: Colors.grey),
@@ -168,7 +167,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // --- ЛИЧНЫЕ ДАННЫЕ ---
+                // --- PERSONAL DATA ---
                 const _SectionHeader(title: "ЛИЧНЫЕ ДАННЫЕ"),
                 const SizedBox(height: 12),
 
@@ -180,7 +179,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      // 1. ФИО (Редактирование через сервер)
+                      // 1. Full name (server-side editing)
                       _ProfileItem(
                         icon: Icons.badge_outlined,
                         label: "ФИО",
@@ -191,7 +190,7 @@ class ProfileScreen extends ConsumerWidget {
                             title: "Редактирование ФИО",
                             initialValue: user.fullName ?? "",
                             onSave: (newValue) {
-                              // 👇 ОТПРАВЛЯЕМ НА СЕРВЕР
+                              // Send to server
                               ref
                                   .read(profileProvider.notifier)
                                   .updateData(name: newValue);
@@ -201,7 +200,7 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const Divider(height: 1, indent: 50),
 
-                      // 2. Телефон
+                      // 2. Phone
                       _ProfileItem(
                         icon: Icons.phone_outlined,
                         label: "Номер телефона",
@@ -213,7 +212,7 @@ class ProfileScreen extends ConsumerWidget {
                             initialValue: user.phone ?? "",
                             inputType: TextInputType.phone,
                             onSave: (newValue) {
-                              // 👇 ОТПРАВЛЯЕМ НА СЕРВЕР
+                              // Send to server
                               ref
                                   .read(profileProvider.notifier)
                                   .updateData(phone: newValue);
@@ -235,7 +234,7 @@ class ProfileScreen extends ConsumerWidget {
                             initialValue: user.email ?? "",
                             inputType: TextInputType.emailAddress,
                             onSave: (newValue) {
-                              // 👇 ОТПРАВЛЯЕМ НА СЕРВЕР
+                              // Send to server
                               ref
                                   .read(profileProvider.notifier)
                                   .updateData(email: newValue);
@@ -249,7 +248,7 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // --- НАСТРОЙКИ ---
+                // --- SETTINGS ---
                 const _SectionHeader(title: "НАСТРОЙКИ"),
                 const SizedBox(height: 12),
                 Container(
@@ -290,7 +289,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// --- ВСПОМОГАТЕЛЬНЫЕ ВИДЖЕТЫ ---
+// --- HELPER WIDGETS ---
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -329,7 +328,7 @@ class _ProfileItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onEdit, // Вся строка кликабельна
+      onTap: onEdit, // Entire row is tappable
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(

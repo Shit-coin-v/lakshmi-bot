@@ -4,7 +4,7 @@ class NotificationModel {
   final String body;
   final DateTime date;
   final bool isRead;
-  final String? type; // backend: personal/broadcast (и возможные будущие типы)
+  final String? type; // backend: personal/broadcast (and possible future types)
 
   NotificationModel({
     required this.id,

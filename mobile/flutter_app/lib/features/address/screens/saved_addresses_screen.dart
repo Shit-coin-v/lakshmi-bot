@@ -88,7 +88,7 @@ class _AddressCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            // Используем новый стандарт withValues
+            // Using new withValues standard
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
@@ -97,7 +97,7 @@ class _AddressCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Иконка зависит от типа (Дом/Работа)
+          // Icon depends on type (Home/Work)
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -115,7 +115,7 @@ class _AddressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Сначала пишем название (Дом/Работа)
+                // First show label (Home/Work)
                 Text(
                   address.label,
                   style: const TextStyle(
@@ -125,7 +125,7 @@ class _AddressCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Потом сам адрес
+                // Then the address itself
                 Text(
                   address.fullAddress,
                   style: const TextStyle(fontSize: 14, color: Colors.black54),

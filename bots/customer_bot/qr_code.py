@@ -85,24 +85,24 @@ def resolve_qr_code_path(
     relative_url: str, telegram_id: Optional[int] = None
 ) -> Tuple[Path, str]:
     """
-    Принимает:
+    Accepts:
       - 'qr_codes/<file>'
       - '/media/qr_codes/<file>'
-      - '/app/media/qr_codes/<file>' (абсолютный путь из контейнера)
-    Возвращает кортеж (путь в файловой системе, нормализованный URL).
+      - '/app/media/qr_codes/<file>' (absolute container path)
+    Returns tuple (filesystem path, normalized URL).
     """
     s = str(relative_url).strip()
     if not s:
         raise ValueError("QR code path is empty")
 
-    # абсол. путь контейнера -> /media/qr_codes/<file>
+    # Container absolute path -> /media/qr_codes/<file>
     if s.startswith("/app/media/"):
-        s = "/" + s.split("/app/", 1)[1]  # теперь '/media/...'
+        s = "/" + s.split("/app/", 1)[1]  # now '/media/...'
 
-    # убрать ведущий слэш
+    # Strip leading slash
     s = s.lstrip("/")
 
-    # голый 'qr_codes/...' -> 'media/qr_codes/...'
+    # Bare 'qr_codes/...' -> 'media/qr_codes/...'
     if s.startswith("qr_codes/"):
         s = "media/" + s
 

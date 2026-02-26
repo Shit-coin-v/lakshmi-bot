@@ -85,9 +85,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // --- BOTTOM SHEET: только способ оплаты ---
+  // --- BOTTOM SHEET: payment method only ---
   void _showPaymentSheet(double finalTotal, List<CartItem> cartItems) {
-    // Валидация перед открытием
+    // Validate before opening
     if (!_isPickup && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Пожалуйста, выберите адрес доставки')),
@@ -171,7 +171,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       },
                     ),
 
-                    // Сдача (для наличных)
+                    // Change amount (for cash)
                     AnimatedSize(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
@@ -256,7 +256,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Кнопка подтверждения
+                    // Confirm button
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -467,7 +467,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- Карточка 1: Ваш заказ ---
+                          // --- Card 1: Your order ---
                           _Card(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +506,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Карточка 2: Детали доставки ---
+                          // --- Card 2: Delivery details ---
                           _Card(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,7 +657,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Карточка 3: Итого ---
+                          // --- Card 3: Total ---
                           _Card(
                             child: Column(
                               children: [
@@ -704,7 +704,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 ),
 
-                // --- НИЖНЯЯ ПАНЕЛЬ: только кнопка ---
+                // --- BOTTOM PANEL: button only ---
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   decoration: BoxDecoration(
@@ -762,7 +762,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 }
 
-// --- Виджет опции оплаты ---
+// --- Payment option widget ---
 class _PaymentOption extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -816,7 +816,7 @@ class _PaymentOption extends StatelessWidget {
   }
 }
 
-// --- Виджет выбора адреса (bottom sheet) ---
+// --- Address picker widget (bottom sheet) ---
 class _AddressPickerSheet extends ConsumerWidget {
   final Function(AddressModel) onSelect;
   final VoidCallback onNavigateToAddresses;

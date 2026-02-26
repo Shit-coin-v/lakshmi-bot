@@ -17,25 +17,25 @@ class Product {
     required this.stock,
   });
 
-  // Превращаем JSON от Django в объект Dart
+  // Convert Django JSON to Dart object
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['product_code']?.toString() ?? '',
       name: json['name'] ?? 'Без названия',
       price: double.tryParse(json['price'].toString()) ?? 0.0,
-      imageUrl: json['image_url'], // Тут приходит "/media/..."
+      imageUrl: json['image_url'], // Comes as "/media/..."
       description: json['description'] ?? '',
       stock: json['stock'] ?? 0,
     );
   }
 
-  // Умный геттер для полной ссылки на картинку
+  // Smart getter for full image URL
   String get fullImageUrl {
     if (imageUrl == null) {
       return 'https://placehold.co/200x200/png?text=No+Image';
     }
     if (imageUrl!.startsWith('http')) return imageUrl!;
-    // Склеиваем домен + путь к файлу
+    // Combine domain + file path
     return ApiClient.resolveMediaUrl(imageUrl!);
   }
 }

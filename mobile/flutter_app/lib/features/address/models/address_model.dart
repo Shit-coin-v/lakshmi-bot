@@ -42,7 +42,7 @@ class AddressModel {
     );
   }
 
-  // 👇 1. Превращаем объект в Map (для сохранения)
+  // 1. Convert object to Map (for storage)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -56,7 +56,7 @@ class AddressModel {
     };
   }
 
-  // 👇 2. Создаем объект из Map (для загрузки)
+  // 2. Create object from Map (for loading)
   factory AddressModel.fromMap(Map<String, dynamic> map) {
     return AddressModel(
       id: map['id'] ?? '',
@@ -70,7 +70,7 @@ class AddressModel {
     );
   }
 
-  // Вспомогательные методы для JSON
+  // Helper methods for JSON
   String toJson() => json.encode(toMap());
   factory AddressModel.fromJson(String source) =>
       AddressModel.fromMap(json.decode(source));

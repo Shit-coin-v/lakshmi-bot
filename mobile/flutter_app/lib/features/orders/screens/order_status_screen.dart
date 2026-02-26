@@ -7,12 +7,12 @@ import '../providers/orders_provider.dart';
 
 class OrderStatusScreen extends ConsumerWidget {
   final int orderId;
-  final bool fromOrderCreation; // <--- НОВОЕ ПОЛЕ
+  final bool fromOrderCreation; // <--- NEW FIELD
 
   const OrderStatusScreen({
     super.key,
     required this.orderId,
-    this.fromOrderCreation = false, // <--- ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ
+    this.fromOrderCreation = false, // <--- DEFAULT VALUE
   });
 
   void _showCancelDialog(BuildContext context, WidgetRef ref, int id) {
@@ -273,7 +273,7 @@ class OrderStatusScreen extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!isPickup) ...[
-                        // До "delivery" — связь с сборщиком, после — с курьером
+                        // Before "delivery" — contact picker, after — contact courier
                         Builder(builder: (context) {
                           final bool showCourier = ['delivery', 'arrived'].contains(order.status);
                           final String? phone = showCourier ? order.courierPhone : order.pickerPhone;

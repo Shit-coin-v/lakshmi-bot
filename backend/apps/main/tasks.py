@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def send_telegram_message_task(self, telegram_id: int, text: str):
-    """Отправка сообщения в Telegram через Celery (C11)."""
+    """Send Telegram message via Celery (C11)."""
     bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
         logger.error("TELEGRAM_BOT_TOKEN is not configured")
@@ -31,10 +31,10 @@ def send_telegram_message_task(self, telegram_id: int, text: str):
 
 @shared_task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True, retry_backoff_max=300)
 def broadcast_send_task(self, message_id: int) -> None:
-    """Фоновая отправка рассылки через Django ORM (без SQLAlchemy)."""
+    """Background broadcast send via Django ORM (without SQLAlchemy)."""
     close_old_connections()
 
-    # ленивые импорты, чтобы избежать циклов и привязать всё к текущему loop
+    # Lazy imports to avoid circular dependencies and bind to current event loop
     from aiogram import Bot
     from aiogram.enums import ParseMode
     from aiogram.client.default import DefaultBotProperties

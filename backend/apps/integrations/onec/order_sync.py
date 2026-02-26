@@ -31,7 +31,7 @@ def _get_onec_order_url() -> str | None:
 
 
 def send_order_to_onec_impl(self, order_id: int):
-    # 1) Блокируем заказ и собираем payload в одной транзакции
+    # 1) Lock order and build payload in a single transaction
     with transaction.atomic():
         order = (
             Order.objects.select_for_update()
@@ -40,7 +40,7 @@ def send_order_to_onec_impl(self, order_id: int):
             .get(id=order_id)
         )
 
-        # Уже отправлен — выходим (идемпотентность на нашей стороне)
+        # Already sent — exit (idempotency on our side)
         if order.sync_status == "sent" and order.sent_to_onec_at:
             return {"status": "already_sent", "order_id": order_id}
 
@@ -51,7 +51,7 @@ def send_order_to_onec_impl(self, order_id: int):
             order.sync_idempotency_key = uuid.uuid4()
         order.save(update_fields=["sync_status", "sync_attempts", "last_sync_error", "sync_idempotency_key"])
 
-        # Собираем payload внутри транзакции (items уже prefetch'нуты)
+        # Build payload inside transaction (items are already prefetched)
         items = []
         store_ids = set()
 
@@ -101,7 +101,7 @@ def send_order_to_onec_impl(self, order_id: int):
             "items": items,
         }
 
-    # 4) Отправляем в 1С (или в твой proxy)
+    # 4) Send to 1C (or proxy)
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),

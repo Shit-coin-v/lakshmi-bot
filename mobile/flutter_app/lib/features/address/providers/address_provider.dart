@@ -11,10 +11,10 @@ class AddressNotifier extends StateNotifier<List<AddressModel>> {
   AddressNotifier({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage(),
         super([]) {
-    _loadAddresses(); // 👇 Загружаем при старте
+    _loadAddresses(); // Load on init
   }
 
-  // Загрузка из памяти
+  // Load from storage
   Future<void> _loadAddresses() async {
     try {
       final jsonString = await _storage.read(key: _storageKey);
@@ -23,18 +23,18 @@ class AddressNotifier extends StateNotifier<List<AddressModel>> {
         state = decoded.map((map) => AddressModel.fromMap(map)).toList();
       }
     } catch (e) {
-      // Если ошибка чтения (например, битый JSON), просто оставляем пустой список
+      // On read error (e.g., corrupted JSON), keep empty list
       state = [];
     }
   }
 
-  // Сохранение в память
+  // Save to storage
   Future<void> _saveToStorage() async {
     final jsonString = json.encode(state.map((e) => e.toMap()).toList());
     await _storage.write(key: _storageKey, value: jsonString);
   }
 
-  // --- МЕТОДЫ ИЗМЕНЕНИЯ (Теперь с сохранением) ---
+  // --- MUTATION METHODS (with persistence) ---
 
   void addAddress(AddressModel address) {
     state = [...state, address];

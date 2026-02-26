@@ -31,17 +31,17 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
 
-    # Данные доставки
+    # Delivery data
     address = models.TextField(verbose_name="Адрес доставки")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
     comment = models.TextField(null=True, blank=True, verbose_name="Комментарий")
 
-    # Деньги
+    # Prices
     products_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма товаров")
     delivery_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Стоимость доставки")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Итого к оплате")
 
-    # Способ оплаты
+    # Payment method
     payment_method = models.CharField(
         max_length=20,
         choices=PAYMENT_CHOICES,
@@ -56,14 +56,14 @@ class Order(models.Model):
         verbose_name="Способ получения",
     )
 
-    # --- Сборка ---
+    # --- Assembly ---
     assembled_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID сборщика")
 
-    # --- Доставка ---
+    # --- Delivery ---
     delivered_by = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name="Telegram ID курьера")
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Время завершения")
 
-    # --- Оплата (ЮKassa) ---
+    # --- Payment (YooKassa) ---
     PAYMENT_STATUS_CHOICES = [
         ("none", "Нет онлайн-оплаты"),
         ("pending", "Ожидает оплаты"),

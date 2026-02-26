@@ -56,20 +56,20 @@ def onec_customer_sync(request):
     if qr_code:
         qr_norm = qr_code.strip()
 
-    # Если пришёл полный URL — оставляем только путь
+    # If full URL received — extract path only
         if qr_norm.startswith("http://") or qr_norm.startswith("https://"):
             try:
                 qr_norm = urlparse(qr_norm).path or qr_norm
             except (ValueError, AttributeError):
                 pass
 
-    # Иногда приходит без ведущего "/"
+    # Sometimes arrives without leading "/"
         if qr_norm.startswith("media/"):
             qr_norm = "/" + qr_norm
 
         user = CustomUser.objects.filter(qr_code=qr_norm).first()
 
-    # Фолбэк: если QR — это просто цифры (telegram_id)
+    # Fallback: if QR is just digits (telegram_id)
         if not user and qr_norm.isdigit():
             user = CustomUser.objects.filter(telegram_id=int(qr_norm)).first()
 

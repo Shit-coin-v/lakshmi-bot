@@ -3,7 +3,7 @@ import '../models/order_model.dart';
 import '../services/order_service.dart';
 import '../models/order_detail_model.dart';
 
-// Этот провайдер сам загрузит данные при открытии экрана
+// This provider auto-loads data when the screen opens
 final myOrdersProvider = FutureProvider.autoDispose<List<OrderModel>>((
   ref,
 ) async {
@@ -11,7 +11,7 @@ final myOrdersProvider = FutureProvider.autoDispose<List<OrderModel>>((
   return service.fetchMyOrders();
 });
 
-// Провайдер для получения одного заказа по ID (family позволяет передать ID)
+// Provider for fetching a single order by ID (family allows passing ID)
 final orderByIdProvider = FutureProvider.family.autoDispose<OrderModel, int>((
   ref,
   id,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class EditProfileModal extends StatefulWidget {
-  final String title; // "Редактирование ФИО" или "Номер телефона"
-  final String initialValue; // Текущее значение (например "Иванов...")
-  final TextInputType inputType; // Текст или цифры
-  final Function(String) onSave; // Функция, которая вернет новое значение
+  final String title; // "Edit name" or "Phone number"
+  final String initialValue; // Current value (e.g. "Ivanov...")
+  final TextInputType inputType; // Text or numbers
+  final Function(String) onSave; // Callback returning new value
 
   const EditProfileModal({
     super.key,
@@ -35,7 +35,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
 
   @override
   Widget build(BuildContext context) {
-    // Отступ для клавиатуры
+    // Keyboard padding
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -69,7 +69,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
           TextField(
             controller: _controller,
             keyboardType: widget.inputType,
-            autofocus: true, // Сразу открываем клавиатуру
+            autofocus: true, // Open keyboard immediately
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.grey[100],
@@ -77,7 +77,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              // Добавляем иконку очистки
+              // Clear icon
               suffixIcon: IconButton(
                 icon: const Icon(Icons.clear, color: Colors.grey),
                 onPressed: _controller.clear,
@@ -114,7 +114,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
   }
 }
 
-// Функция-помощник для вызова
+// Helper function for showing the modal
 void showEditProfileModal({
   required BuildContext context,
   required String title,
@@ -124,7 +124,7 @@ void showEditProfileModal({
 }) {
   showModalBottomSheet(
     context: context,
-    isScrollControlled: true, // Важно для клавиатуры
+    isScrollControlled: true, // Required for keyboard
     backgroundColor: Colors.transparent,
     builder: (context) => EditProfileModal(
       title: title,

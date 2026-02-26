@@ -10,10 +10,10 @@ from apps.loyalty.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
-# Best-effort dedup TTL (сек) для push-задач, привязанных к событиям.
-# Защищает от re-delivery Celery (секунды-минуты), но не блокирует
-# легитимные повторные переходы статуса. Не exactly-once (нужен DB/outbox).
-_DEDUP_SENT_TTL = 7200  # 2 часа
+# Best-effort dedup TTL (seconds) for event-driven push tasks.
+# Protects against Celery re-delivery (seconds-minutes), but does not block
+# legitimate repeated status transitions. Not exactly-once (needs DB/outbox).
+_DEDUP_SENT_TTL = 7200  # 2 hours
 
 
 @shared_task(

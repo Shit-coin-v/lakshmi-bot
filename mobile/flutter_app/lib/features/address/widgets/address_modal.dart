@@ -195,7 +195,7 @@ class _AddressModalState extends ConsumerState<AddressModal> {
     if (_addressController.text.isEmpty) return;
 
     final newAddress = AddressModel(
-      // Используем uuid, если пакет подключен, иначе можно DateTime.now().toString()
+      // Use uuid if package is available, otherwise DateTime.now().toString()
       id: widget.addressToEdit?.id ?? const Uuid().v4(),
       fullAddress: _addressController.text,
       apartment: _aptController.text,

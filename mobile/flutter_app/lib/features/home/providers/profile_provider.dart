@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/models/user_model.dart';
 import '../services/profile_service.dart';
 
-// Этот провайдер загружает профиль и следит за ним
+// This provider loads and watches the user profile
 final profileProvider = AsyncNotifierProvider<ProfileNotifier, UserModel>(() {
   return ProfileNotifier();
 });
@@ -14,7 +14,7 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
     return ref.read(profileServiceProvider).getProfile();
   }
 
-  // Метод для обновления текстовых данных (ФИО, телефон, email)
+  // Method for updating text data (name, phone, email)
   Future<void> updateData({
     String? name,
     String? phone,
@@ -38,7 +38,7 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
         orderStatusEnabled: orderStatusEnabled,
       );
 
-      // 2. Обновляем данные локально (перезапрашиваем с сервера)
+      // 2. Refresh data locally (re-fetch from server)
       final newUser = await ref.read(profileServiceProvider).getProfile();
       state = AsyncValue.data(newUser);
     } catch (e, stack) {
@@ -46,16 +46,16 @@ class ProfileNotifier extends AsyncNotifier<UserModel> {
     }
   }
 
-  // 👇 ДОБАВЛЕННЫЙ МЕТОД ДЛЯ ЗАГРУЗКИ АВАТАРКИ
+  // Avatar upload method
   Future<void> uploadUserAvatar(File file) async {
-    // Можно включить loading, но иногда лучше оставить старую аватарку, пока грузится новая
+    // Could show loading, but better to keep old avatar while uploading
     // state = const AsyncValue.loading();
 
     try {
-      // 1. Загружаем файл через сервис
+      // 1. Upload file via service
       await ref.read(profileServiceProvider).uploadAvatar(file);
 
-      // 2. Получаем обновленный профиль (с новой ссылкой на картинку)
+      // 2. Fetch updated profile (with new image URL)
       final newUser = await ref.read(profileServiceProvider).getProfile();
       state = AsyncValue.data(newUser);
     } catch (e, stack) {

@@ -157,7 +157,7 @@ class _OrderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заголовок + статус
+          // Title + status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -194,7 +194,7 @@ class _OrderCard extends StatelessWidget {
 
           const Divider(height: 24),
 
-          // Итог
+          // Total
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -214,7 +214,7 @@ class _OrderCard extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // ✅ Кнопка "Детали" (не ломает тап по карточке)
+          // "Details" button (does not break card tap)
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(

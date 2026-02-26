@@ -13,17 +13,17 @@ class ProfileService {
 
   ProfileService(this._ref, {Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
-  // Получить данные профиля
+  // Get profile data
   Future<UserModel> getProfile() async {
     final userId = await _ref.read(authServiceProvider).getSavedUserId();
     if (userId == null) throw Exception("Не найден ID пользователя");
 
-    // Стучимся в твой новый Endpoint
+    // Call the customer endpoint
     final response = await _dio.get('/api/customer/$userId/');
     return UserModel.fromJson(response.data);
   }
 
-  // Обновить данные (PATCH)
+  // Update data (PATCH)
   Future<void> updateProfile({
     String? fullName,
     String? phone,
@@ -50,7 +50,7 @@ class ProfileService {
     await _dio.patch('/api/customer/$userId/', data: data);
   }
 
-  // Метод для загрузки фото
+  // Avatar upload method
   Future<void> uploadAvatar(File imageFile) async {
     final userId = await _ref.read(authServiceProvider).getSavedUserId();
     if (userId == null) throw Exception("Не найден ID пользователя");
@@ -64,7 +64,7 @@ class ProfileService {
       ),
     });
 
-    // Отправляем PATCH запрос
+    // Send PATCH request
     await _dio.patch('/api/customer/$userId/', data: formData);
   }
 }

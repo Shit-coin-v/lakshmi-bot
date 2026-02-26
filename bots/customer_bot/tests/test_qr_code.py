@@ -30,7 +30,7 @@ def test_generate_qr_code_creates_file(tmp_media):
     path, normalized = qr_code.resolve_qr_code_path(url, telegram_id=7)
     assert normalized == "/media/qr_codes/user_7.png"
     assert path.exists()
-    assert path.read_bytes()  # файл не пустой
+    assert path.read_bytes()  # file is not empty
 
 
 def test_resolve_legacy_filename(tmp_media):

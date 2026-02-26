@@ -79,7 +79,7 @@ class FulfillmentDisabledTests(TestCase):
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_delivery_enabled_passes(self, _mock):
-        # По дефолту всё включено
+        # By default everything is enabled
         response = self.client.post(
             "/api/orders/create/",
             data=json.dumps(self._order_payload("delivery")),

@@ -19,13 +19,13 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return False
 
     def changelist_view(self, request, extra_context=None):
-        # Singleton: автосоздание + редирект на единственную запись
+        # Singleton: auto-create + redirect to the single record
         obj = SiteSettings.load()
         return redirect(
             f"{request.path}{obj.pk}/change/"
         )
 
     def add_view(self, request, form_url="", extra_context=None):
-        # Singleton: "+" ведёт на редактирование единственной записи
+        # Singleton: "+" redirects to editing the single record
         obj = SiteSettings.load()
         return redirect(f"../{obj.pk}/change/")

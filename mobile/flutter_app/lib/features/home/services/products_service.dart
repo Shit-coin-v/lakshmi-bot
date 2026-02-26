@@ -14,12 +14,12 @@ class ProductsService {
     try {
       final response = await _dio.get(
         '/api/products/',
-        // 👇 Добавляем параметр поиска, если он не пустой
+        // Add search param if not empty
         queryParameters: {if (search.isNotEmpty) 'search': search},
       );
 
       final List<dynamic> data = response.data;
-      // Используем fromJson из класса Product
+      // Use Product.fromJson
       return data.map((json) => Product.fromJson(json)).toList();
     } catch (e) {
       throw Exception('Ошибка загрузки товаров: $e');

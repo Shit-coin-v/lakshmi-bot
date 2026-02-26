@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Локализация
+// Localization
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -143,7 +143,7 @@ GoRouter _createRouter(WidgetRef ref) {
         builder: (context, state, navigationShell) =>
             MainShell(navigationShell: navigationShell),
         branches: [
-          // Tab 0: Продукты
+          // Tab 0: Products
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/home',
@@ -185,14 +185,14 @@ GoRouter _createRouter(WidgetRef ref) {
               ],
             ),
           ]),
-          // Tab 1: Моя карта
+          // Tab 1: Loyalty card
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/loyalty',
               builder: (ctx, st) => const LoyaltyScreen(),
             ),
           ]),
-          // Tab 2: Профиль
+          // Tab 2: Profile
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/profile',

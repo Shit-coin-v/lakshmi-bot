@@ -2,18 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../home/models/product.dart';
 import '../models/cart_item.dart';
 
-// Глобальный доступ к корзине
+// Global access to cart state
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
   return CartNotifier();
 });
 
-// Провайдер для подсчета итоговой суммы (читает состояние корзины)
+// Provider for calculating total price (watches cart state)
 final cartTotalProvider = Provider<double>((ref) {
   final cartItems = ref.watch(cartProvider);
   return cartItems.fold(0, (sum, item) => sum + item.totalPrice);
 });
 
-// Провайдер для подсчета кол-ва товаров (для значка на корзине)
+// Provider for counting items (for cart badge)
 final cartCountProvider = Provider<int>((ref) {
   final cartItems = ref.watch(cartProvider);
   return cartItems.fold(0, (sum, item) => sum + item.quantity);
@@ -22,37 +22,37 @@ final cartCountProvider = Provider<int>((ref) {
 class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]);
 
-  // Добавить товар (или увеличить количество)
+  // Add product (or increase quantity)
   void addProduct(Product product) {
-    // Проверяем, есть ли уже этот товар в корзине
+    // Check if product already exists in cart
     final index = state.indexWhere((item) => item.product.id == product.id);
 
     if (index != -1) {
-      // Если есть - увеличиваем количество
+      // If exists — increase quantity
       final oldItem = state[index];
-      // Делаем копию списка, чтобы Riverpod увидел изменение
+      // Copy list so Riverpod detects the change
       final newState = [...state];
       newState[index] = oldItem.copyWith(quantity: oldItem.quantity + 1);
       state = newState;
     } else {
-      // Если нет - добавляем новый
+      // If not — add new item
       state = [...state, CartItem(product: product, quantity: 1)];
     }
   }
 
-  // Уменьшить количество
+  // Decrease quantity
   void removeProduct(Product product) {
     final index = state.indexWhere((item) => item.product.id == product.id);
 
     if (index != -1) {
       final oldItem = state[index];
       if (oldItem.quantity > 1) {
-        // Уменьшаем на 1
+        // Decrease by 1
         final newState = [...state];
         newState[index] = oldItem.copyWith(quantity: oldItem.quantity - 1);
         state = newState;
       } else {
-        // Если было 1, то удаляем совсем
+        // If was 1, remove entirely
         state = [
           for (final item in state)
             if (item.product.id != product.id) item,
@@ -61,7 +61,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     }
   }
 
-  // Очистить корзину (после заказа)
+  // Clear cart (after order)
   void clear() {
     state = [];
   }

@@ -83,8 +83,8 @@ def _send_to_tokens(
     app=None,
 ) -> dict:
     """
-    Отправка без multicast, чтобы не дергать /batch (у тебя он дает 404).
-    Возвращает счетчики и список невалидных токенов.
+    Send without multicast to avoid /batch endpoint (returns 404).
+    Returns counters and list of invalid tokens.
     """
     tokens = [t for t in tokens if t]
     if not tokens:
@@ -110,7 +110,7 @@ def _send_to_tokens(
             code = getattr(exc, "code", "")  # firebase_admin.exceptions.FirebaseError.code
             logger.warning("FCM push failed token=%s code=%s exc=%s", token, code, exc)
 
-            # Чистим мусорные токены, если Firebase говорит что токен умер
+            # Clean up stale tokens if Firebase reports token is dead
             if code == "registration-token-not-registered" or code == "invalid-argument":
                 invalid_tokens.append(token)
 
@@ -129,7 +129,7 @@ def notify_order_status_change(order, *, previous_status: str | None = None, new
     if not message_text:
         return
 
-    # Самовывоз: другой текст для ready
+    # Pickup: different text for ready status
     if event_status == "ready" and getattr(order, "fulfillment_type", "delivery") == "pickup":
         message_text = "Ваш заказ готов, можете забрать"
 
@@ -143,7 +143,7 @@ def notify_order_status_change(order, *, previous_status: str | None = None, new
         body=message_text,
         type="personal",
     )
-    notif._skip_push = True  # чтобы сигнал Notification не отправил второй пуш
+    notif._skip_push = True  # prevent Notification signal from sending duplicate push
     notif.save()
 
     tokens = _order_tokens(order)
@@ -196,8 +196,8 @@ def send_test_push_to_customer(
     """
     Send a test push notification to devices of a customer. 🧪📲
 
-    Важно: отправляет ПО ОДНОМУ токену через messaging.send(),
-    чтобы не дергать /batch и не ловить 404.
+    Sends one token at a time via messaging.send()
+    to avoid /batch endpoint (returns 404).
     """
     from .models import CustomerDevice
 

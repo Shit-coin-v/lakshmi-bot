@@ -192,7 +192,7 @@ async def send_with_django(message_id: int, bot_instance: Bot | None = None) -> 
             await asyncio.sleep(BATCH_DELAY_SECONDS)
 
     # ================================================================
-    # TELEGRAM CHANNEL — send via bot with spoiler + "Показать" button
+    # TELEGRAM CHANNEL — send via bot with spoiler + "Show" button
     # ================================================================
 
     if not telegram_users or bot_instance is None:

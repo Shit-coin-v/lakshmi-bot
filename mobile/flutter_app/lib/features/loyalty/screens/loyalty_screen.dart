@@ -59,7 +59,7 @@ class LoyaltyScreen extends ConsumerWidget {
               children: [
                 const SizedBox(height: 20),
 
-                // --- САМА КАРТА ---
+                // --- LOYALTY CARD ---
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -67,7 +67,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       colors: [
                         Color(0xFF4CAF50),
                         Color(0xFF2E7D32),
-                      ], // Градиент бренда
+                      ], // Brand gradient
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -84,7 +84,7 @@ class LoyaltyScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 30),
 
-                      // Белая подложка под QR
+                      // White background for QR code
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -123,7 +123,7 @@ class LoyaltyScreen extends ConsumerWidget {
 
                       Text(
                         user.fullName ??
-                            "Уважаемый клиент", // Используем данные из модели
+                            "Уважаемый клиент", // Use data from model
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -138,7 +138,7 @@ class LoyaltyScreen extends ConsumerWidget {
 
                 const SizedBox(height: 40),
 
-                // --- БЛОК БАЛЛОВ ---
+                // --- BONUS BALANCE ---
                 Container(
                   padding: const EdgeInsets.all(24),
                   width: double.infinity,
@@ -174,7 +174,7 @@ class LoyaltyScreen extends ConsumerWidget {
 
                 const SizedBox(height: 30),
 
-                // --- ПОСЛЕДНИЕ ОПЕРАЦИИ (НОВОЕ) ---
+                // --- RECENT TRANSACTIONS ---
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -184,7 +184,7 @@ class LoyaltyScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Заглушка списка операций (пока нет в API)
+                // Placeholder transactions (not yet in API)
                 _TransactionTile(
                   title: "Покупка продуктов",
                   date: "Сегодня, 14:30",
@@ -214,7 +214,7 @@ class LoyaltyScreen extends ConsumerWidget {
   }
 }
 
-// Виджет для одной строки операции
+// Widget for a single transaction row
 class _TransactionTile extends StatelessWidget {
   final String title;
   final String date;

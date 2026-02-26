@@ -19,8 +19,8 @@ _ALLOWED_IPS: tuple[str, ...] = tuple(
 def _client_ip(request) -> str:
     xff = request.META.get("HTTP_X_FORWARDED_FOR")
     if xff:
-        # Последний IP — добавленный nginx ($proxy_add_x_forwarded_for).
-        # Первый может быть подделан клиентом.
+        # Last IP — appended by nginx ($proxy_add_x_forwarded_for).
+        # First one can be spoofed by client.
         return xff.split(",")[-1].strip()
     xri = request.META.get("HTTP_X_REAL_IP")
     if xri:

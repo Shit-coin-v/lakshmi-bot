@@ -10,8 +10,8 @@ backend = BackendClient(config.BACKEND_URL, config.ONEC_API_KEY or "")
 
 async def send_customer_to_onec(user_data, referrer_id=None):
     """
-    Отправляет данные клиента в 1С (или в ваш Django-/proxy-эндпоинт).
-    Требуются переменные окружения:
+    Send customer data to 1C (or Django proxy endpoint).
+    Required environment variables:
       - ONEC_CUSTOMER_URL
       - INTEGRATION_API_KEY
 
@@ -65,8 +65,8 @@ async def send_customer_to_onec(user_data, referrer_id=None):
     if data is None:
         return
 
-    # Ответ может быть как {"one_c_guid": "...", "bonus_balance": ...}
-    # так и {"status":"ok","customer":{...}} — поддержим оба.
+    # Response can be {"one_c_guid": "...", "bonus_balance": ...}
+    # or {"status":"ok","customer":{...}} — support both formats.
     customer_block = data.get("customer") or {}
     guid = data.get("one_c_guid") or customer_block.get("one_c_guid")
     bonus = data.get("bonus_balance")
