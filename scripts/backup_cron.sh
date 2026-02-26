@@ -16,6 +16,14 @@ mkdir -p "$BACKUP_DIR"
 echo "[$(date)] Starting backup: $BACKUP_FILE"
 PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump -h "$POSTGRES_HOST" -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_FILE"
 
+# Validate backup file size (< 1KB likely means failure)
+FILESIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || stat -f%z "$BACKUP_FILE" 2>/dev/null || echo 0)
+if [ "$FILESIZE" -lt 1024 ]; then
+    echo "[$(date)] ERROR: Backup file too small (${FILESIZE} bytes), likely failed" >&2
+    rm -f "$BACKUP_FILE"
+    exit 1
+fi
+
 SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "[$(date)] Backup OK ($SIZE). Rotating (keep ${RETENTION_DAYS}d)..."
 find "$BACKUP_DIR" -name "${POSTGRES_DB}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete

@@ -27,6 +27,7 @@ services:
       - "127.0.0.1:3100:3100"
     volumes:
       - ./infra/observability/loki-config.yaml:/etc/loki/local-config.yaml
+      - lokidata:/loki
     networks:
       - monitoring
     logging:
@@ -148,6 +149,12 @@ services:
       POSTGRES_HOST: db
     entrypoint: ["celery"]
     command: ["-A", "celeryapp", "worker", "--loglevel=info", "--max-tasks-per-child=1000"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A celeryapp inspect ping --timeout 10 2>/dev/null | grep -q pong || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
     networks:
       - backend
     logging:
@@ -231,11 +238,14 @@ services:
       - "127.0.0.1:6379:6379"
     restart: always
     environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
       REDISCLI_AUTH: "${REDIS_PASSWORD}"
     volumes:
       - redis_data:/data
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+      - ./infra/redis/docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+    command: []
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -380,6 +390,7 @@ volumes:
   media:
   pg_data:
   db_backups:
+  lokidata:
   grafanadata:
   prometheusdata:
   metabase-data:

@@ -21,6 +21,14 @@ mkdir -p "$BACKUP_DIR"
 echo "Creating backup: $BACKUP_FILE"
 pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_FILE"
 
+# Validate backup file size (< 1KB likely means failure)
+FILESIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || stat -f%z "$BACKUP_FILE" 2>/dev/null || echo 0)
+if [ "$FILESIZE" -lt 1024 ]; then
+    echo "ERROR: Backup file too small (${FILESIZE} bytes), likely failed" >&2
+    rm -f "$BACKUP_FILE"
+    exit 1
+fi
+
 echo "Backup created successfully: $BACKUP_FILE"
 echo "Size: $(du -h "$BACKUP_FILE" | cut -f1)"
 
