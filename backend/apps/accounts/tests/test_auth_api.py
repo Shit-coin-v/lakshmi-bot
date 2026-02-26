@@ -38,7 +38,8 @@ class RegisterTests(TestCase):
         self.assertIsNotNone(pending)
         self.assertEqual(pending["full_name"], "Test User")
 
-    def test_register_duplicate_email(self):
+    def test_register_duplicate_email_returns_200(self):
+        """Anti-enumeration: duplicate email returns same 200 as success."""
         CustomUser.objects.create(
             email="test@example.com",
             telegram_id=999,
@@ -53,7 +54,7 @@ class RegisterTests(TestCase):
             },
             content_type="application/json",
         )
-        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.status_code, 200)
 
     def test_register_short_password(self):
         resp = self.client.post(
@@ -396,7 +397,7 @@ class RegisterFlowTests(TestCase):
         self.assertFalse(CustomUser.objects.filter(email="new@example.com").exists())
 
     def test_register_duplicate_email_in_db(self):
-        """Cannot register with email that already exists in DB."""
+        """Anti-enumeration: duplicate email returns same 200 as success."""
         CustomUser.objects.create(email="taken@example.com", auth_method="email")
         response = self.client.post(
             "/api/auth/register/",
@@ -407,7 +408,7 @@ class RegisterFlowTests(TestCase):
             }),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 200)
 
 
 class LinkTelegramByQrTests(TestCase):

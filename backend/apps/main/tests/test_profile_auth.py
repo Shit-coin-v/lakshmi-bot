@@ -31,12 +31,13 @@ class CustomerProfileAuthTests(TestCase):
         data = response.json()
         self.assertEqual(data["telegram_id"], self.user.telegram_id)
 
-    def test_profile_get_other_returns_403(self):
+    def test_profile_get_other_returns_404(self):
+        """Accessing another user's profile returns 404 (not 403) to prevent enumeration."""
         response = self.client.get(
             f"/api/customer/{self.other_user.pk}/",
             HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
     def test_profile_update_own_returns_200(self):
         response = self.client.patch(
@@ -49,14 +50,15 @@ class CustomerProfileAuthTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.full_name, "Updated Name")
 
-    def test_profile_update_other_returns_403(self):
+    def test_profile_update_other_returns_404(self):
+        """Updating another user's profile returns 404 (not 403) to prevent enumeration."""
         response = self.client.patch(
             f"/api/customer/{self.other_user.pk}/",
             data=json.dumps({"full_name": "Hacked"}),
             content_type="application/json",
             HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
 
 class SendMessageAuthTests(TestCase):

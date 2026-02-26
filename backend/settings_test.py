@@ -34,5 +34,11 @@ CACHES = {
 REST_FRAMEWORK = {
     **globals().get("REST_FRAMEWORK", {}),
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {},
+    # Keep rates for view-level throttle_classes (AnonAuthThrottle, VerifyCodeThrottle)
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "1000/min",
+        "anon_auth": "1000/min",
+        "verify_code": "1000/min",
+        "telegram_user": "1000/min",
+    },
 }

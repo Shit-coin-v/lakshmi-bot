@@ -96,6 +96,11 @@ class Order(models.Model):
         indexes = [
             models.Index(fields=["customer", "-created_at"], name="order_customer_created_idx"),
         ]
+        constraints = [
+            models.CheckConstraint(check=models.Q(products_price__gte=0), name="order_products_price_non_negative"),
+            models.CheckConstraint(check=models.Q(delivery_price__gte=0), name="order_delivery_price_non_negative"),
+            models.CheckConstraint(check=models.Q(total_price__gte=0), name="order_total_price_non_negative"),
+        ]
 
     def __str__(self):
         return f"Заказ #{self.id} ({self.get_status_display()})"
@@ -111,6 +116,10 @@ class OrderItem(models.Model):
         db_table = "order_items"
         verbose_name = "Позиция заказа"
         verbose_name_plural = "Позиции заказа"
+        constraints = [
+            models.CheckConstraint(check=models.Q(quantity__gte=1), name="orderitem_quantity_positive"),
+            models.CheckConstraint(check=models.Q(price_at_moment__gte=0), name="orderitem_price_non_negative"),
+        ]
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"

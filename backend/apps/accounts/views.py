@@ -42,10 +42,8 @@ class RegisterView(APIView):
         email = d["email"].lower().strip()
 
         if CustomUser.objects.filter(email__iexact=email).exists():
-            return Response(
-                {"detail": "Пользователь с таким email уже существует"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            # Don't reveal that email exists — return same response as success
+            return Response({"detail": "Код подтверждения отправлен", "email": email})
 
         # Save to cache, NOT to DB — user is created only after email verification
         cache.set(

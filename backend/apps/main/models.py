@@ -20,6 +20,9 @@ class Product(models.Model):
         db_table = "products"
         verbose_name = "Товар"
         verbose_name_plural = "Товары"
+        constraints = [
+            models.CheckConstraint(check=models.Q(price__gte=0), name="product_price_non_negative"),
+        ]
 
     def __str__(self):
         return self.name

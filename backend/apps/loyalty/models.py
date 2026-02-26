@@ -8,7 +8,7 @@ __all__ = ["CustomUser", "Product", "Transaction"]
 
 class Transaction(models.Model):
     customer = models.ForeignKey("main.CustomUser", on_delete=models.SET_NULL, null=True, blank=True)
-    product = models.ForeignKey("main.Product", on_delete=models.DO_NOTHING, null=True, blank=True)
+    product = models.ForeignKey("main.Product", on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.IntegerField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

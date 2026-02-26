@@ -1,10 +1,16 @@
 import json
 
 from apps.common import security
+from apps.main.models import CustomUser
+from apps.orders.models import Order
 from .base import OneCTestBase
 
 
 class OneCOrderCreateTests(OneCTestBase):
+    def setUp(self):
+        super().setUp()
+        self.customer = CustomUser.objects.create(telegram_id=90099)
+
     def _post(self, payload, **extra):
         return self.client.post(
             "/onec/order",
@@ -15,18 +21,23 @@ class OneCOrderCreateTests(OneCTestBase):
         )
 
     def test_echo_order_id(self):
-        response = self._post({"order_id": 42})
+        order = Order.objects.create(
+            customer=self.customer, address="Test", phone="+70001112233",
+        )
+        response = self._post({"order_id": order.id})
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "ok")
-        self.assertEqual(data["order_id"], 42)
-        self.assertIsNone(data["onec_guid"])
+        self.assertEqual(data["order_id"], order.id)
 
     def test_with_onec_guid(self):
-        response = self._post({"order_id": 7, "onec_guid": "GUID-7"})
+        order = Order.objects.create(
+            customer=self.customer, address="Test", phone="+70001112233",
+        )
+        response = self._post({"order_id": order.id, "onec_guid": "GUID-7"})
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["order_id"], 7)
+        self.assertEqual(data["order_id"], order.id)
         self.assertEqual(data["onec_guid"], "GUID-7")
 
     def test_missing_order_id_returns_400(self):

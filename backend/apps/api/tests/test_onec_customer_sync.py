@@ -50,6 +50,7 @@ class OneCCustomerSyncTests(OneCTestBase):
 
     def test_mismatched_qr_and_telegram(self):
         CustomUser.objects.create(telegram_id=111, qr_code="QR-111")
+        CustomUser.objects.create(telegram_id=999)  # different user
 
         response = self._post({"qr_code": "QR-111", "telegram_id": 999})
 

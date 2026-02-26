@@ -10,8 +10,9 @@ class ClientIPTests(TestCase):
         self.factory = RequestFactory()
 
     def test_client_ip_from_x_forwarded_for(self):
+        """_client_ip returns LAST IP in XFF (appended by nginx, not spoofable)."""
         request = self.factory.get("/", HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8")
-        self.assertEqual(_client_ip(request), "1.2.3.4")
+        self.assertEqual(_client_ip(request), "5.6.7.8")
 
     def test_client_ip_from_x_real_ip(self):
         request = self.factory.get("/", HTTP_X_REAL_IP="10.0.0.1")

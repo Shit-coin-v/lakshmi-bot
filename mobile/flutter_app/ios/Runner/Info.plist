@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Для загрузки фото аватара профиля</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Для сканирования QR-кода</string>
 </dict>
 </plist>
