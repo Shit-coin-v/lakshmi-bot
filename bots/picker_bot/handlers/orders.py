@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+from html import escape
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -66,17 +67,17 @@ def _format_order_detail(order) -> str:
     lines = [
         f"<b>Заказ #{order.id}</b>",
         f"📦 Тип: {fulfillment_label(order.fulfillment_type)}",
-        f"🏠 Адрес: {order.address}",
-        f"📞 Телефон: {order.phone}",
+        f"🏠 Адрес: {escape(str(order.address or ''))}",
+        f"📞 Телефон: {escape(str(order.phone or ''))}",
     ]
 
     if order.comment:
-        lines.append(f"💬 Комментарий: {order.comment}")
+        lines.append(f"💬 Комментарий: {escape(str(order.comment))}")
 
     lines.append("")
     lines.append("<b>Состав:</b>")
     for item in order.items:
-        name = item.product.name if item.product else f"Товар #{item.product_id}"
+        name = escape(item.product.name) if item.product else f"Товар #{item.product_id}"
         price = int(item.price_at_moment) if item.price_at_moment == int(item.price_at_moment) else item.price_at_moment
         lines.append(f"  • {name} x{item.quantity} — {price}₽")
 

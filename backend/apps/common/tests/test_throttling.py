@@ -3,11 +3,12 @@ from django.test import TestCase
 
 from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
 
-from apps.common.throttling import TelegramUserThrottle
+from apps.common.throttling import AnonAuthThrottle, TelegramUserThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser, Product
 from apps.orders.views import OrderListUserView, ProductListView
 
 RATES = {"anon": "2/min", "telegram_user": "2/min"}
+AUTH_RATES = {"anon_auth": "2/min", "verify_code": "2/min"}
 
 
 class AnonThrottleTests(TestCase):
@@ -45,6 +46,82 @@ class AnonThrottleTests(TestCase):
         # first 2 should be 200, 3rd+ should be 429
         self.assertEqual(statuses[0], 200, f"All statuses: {statuses}")
         self.assertEqual(statuses[1], 200, f"All statuses: {statuses}")
+        self.assertEqual(statuses[2], 429, f"All statuses: {statuses}")
+
+
+class AuthThrottleTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        from apps.accounts.views import RegisterView
+        self._view_cls = RegisterView
+        self._orig_classes = RegisterView.throttle_classes
+        self._orig_rates = SimpleRateThrottle.THROTTLE_RATES
+        RegisterView.throttle_classes = [AnonAuthThrottle]
+        SimpleRateThrottle.THROTTLE_RATES = AUTH_RATES
+
+    def tearDown(self):
+        self._view_cls.throttle_classes = self._orig_classes
+        SimpleRateThrottle.THROTTLE_RATES = self._orig_rates
+        cache.clear()
+
+    def test_auth_throttle_returns_429(self):
+        from rest_framework.test import APIRequestFactory
+        factory = APIRequestFactory()
+        view = self._view_cls.as_view()
+
+        payload = {
+            "email": "throttle@test.com",
+            "password": "testpass123",
+            "full_name": "Test",
+        }
+
+        statuses = []
+        for _ in range(4):
+            request = factory.post(
+                "/api/auth/register/", payload, format="json",
+            )
+            response = view(request)
+            statuses.append(response.status_code)
+
+        # First 2 allowed, 3rd throttled
+        self.assertIn(statuses[0], [200, 409], f"All statuses: {statuses}")
+        self.assertIn(statuses[1], [200, 409], f"All statuses: {statuses}")
+        self.assertEqual(statuses[2], 429, f"All statuses: {statuses}")
+
+
+class VerifyCodeThrottleTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        from apps.accounts.views import VerifyEmailView
+        self._view_cls = VerifyEmailView
+        self._orig_classes = VerifyEmailView.throttle_classes
+        self._orig_rates = SimpleRateThrottle.THROTTLE_RATES
+        VerifyEmailView.throttle_classes = [VerifyCodeThrottle]
+        SimpleRateThrottle.THROTTLE_RATES = AUTH_RATES
+
+    def tearDown(self):
+        self._view_cls.throttle_classes = self._orig_classes
+        SimpleRateThrottle.THROTTLE_RATES = self._orig_rates
+        cache.clear()
+
+    def test_verify_code_throttle_returns_429(self):
+        from rest_framework.test import APIRequestFactory
+        factory = APIRequestFactory()
+        view = self._view_cls.as_view()
+
+        payload = {"email": "test@test.com", "code": "123456"}
+
+        statuses = []
+        for _ in range(4):
+            request = factory.post(
+                "/api/auth/verify-email/", payload, format="json",
+            )
+            response = view(request)
+            statuses.append(response.status_code)
+
+        # First 2 allowed (400 = wrong code but not throttled), 3rd throttled
+        self.assertIn(statuses[0], [200, 400], f"All statuses: {statuses}")
+        self.assertIn(statuses[1], [200, 400], f"All statuses: {statuses}")
         self.assertEqual(statuses[2], 429, f"All statuses: {statuses}")
 
 

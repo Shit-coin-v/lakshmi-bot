@@ -15,18 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class CustomerProfileView(generics.RetrieveUpdateAPIView):
-    """Получение и обновление профиля клиента."""
+    """Customer profile: retrieve and update."""
 
-    queryset = CustomUser.objects.all()
     serializer_class = CustomerProfileSerializer
     permission_classes = [CustomerPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def get_object(self):
-        obj = super().get_object()
-        if obj.pk != self.request.telegram_user.pk:
-            self.permission_denied(self.request, message="Нет доступа к чужому профилю")
-        return obj
+    def get_queryset(self):
+        return CustomUser.objects.filter(pk=self.request.telegram_user.pk)
 
 
 class SendMessageAPIView(APIView):

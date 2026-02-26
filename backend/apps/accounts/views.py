@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.common.authentication import decode_token, generate_tokens
 from apps.common.permissions import CustomerPermission
+from apps.common.throttling import AnonAuthThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser
 
 from . import email_service
@@ -31,6 +32,7 @@ class RegisterView(APIView):
     """POST /api/auth/register/ — save registration data to cache, send verification code."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AnonAuthThrottle]
 
     def post(self, request):
         ser = RegisterSerializer(data=request.data)
@@ -69,6 +71,7 @@ class LoginView(APIView):
     """POST /api/auth/login/ — email + password login."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AnonAuthThrottle]
 
     def post(self, request):
         ser = LoginSerializer(data=request.data)
@@ -105,6 +108,7 @@ class RefreshView(APIView):
     """POST /api/auth/refresh/ — get new access token via refresh token."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AnonAuthThrottle]
 
     def post(self, request):
         ser = RefreshSerializer(data=request.data)
@@ -133,6 +137,7 @@ class VerifyEmailView(APIView):
     """POST /api/auth/verify-email/ — verify email with 6-digit code."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [VerifyCodeThrottle]
 
     def post(self, request):
         ser = VerifyEmailSerializer(data=request.data)
@@ -192,6 +197,7 @@ class ResetPasswordView(APIView):
     """POST /api/auth/reset-password/ — send reset code to email."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AnonAuthThrottle]
 
     def post(self, request):
         ser = ResetPasswordSerializer(data=request.data)
@@ -215,6 +221,7 @@ class ResetPasswordConfirmView(APIView):
     """POST /api/auth/reset-password/confirm/ — set new password with code."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [VerifyCodeThrottle]
 
     def post(self, request):
         ser = ResetPasswordConfirmSerializer(data=request.data)
@@ -297,6 +304,7 @@ class LinkTelegramConfirmView(APIView):
     """POST /api/auth/link-telegram/confirm/ — called by bot to complete linking."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [VerifyCodeThrottle]
 
     def post(self, request):
         ser = LinkTelegramConfirmSerializer(data=request.data)

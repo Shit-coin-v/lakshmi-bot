@@ -53,7 +53,9 @@ class ApiClient {
   Stream<void> get onForceLogout => _onForceLogout.stream;
 
   ApiClient._internal() {
-    assert(_apiKey.isNotEmpty, 'API_KEY must be provided via --dart-define');
+    if (_apiKey.isEmpty) {
+      throw StateError('API_KEY must be provided via --dart-define');
+    }
 
     if (kDebugMode) {
       debugPrint("API_CLIENT baseUrl=$_baseUrl");

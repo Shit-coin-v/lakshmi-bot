@@ -1,7 +1,8 @@
 """Email verification and password reset code service."""
 
+import hmac
 import logging
-import random
+import secrets
 import string
 
 from django.core.cache import cache
@@ -15,7 +16,7 @@ CODE_TTL = 600  # 10 minutes
 
 
 def _generate_code() -> str:
-    return "".join(random.choices(string.digits, k=CODE_LENGTH))
+    return "".join(secrets.choice(string.digits) for _ in range(CODE_LENGTH))
 
 
 def _cache_key(prefix: str, email: str) -> str:
@@ -41,7 +42,7 @@ def verify_code(email: str, code: str) -> bool:
     """Check the verification code. Deletes it on success."""
     key = _cache_key("email_verify", email)
     stored = cache.get(key)
-    if stored and stored == code:
+    if stored is not None and hmac.compare_digest(stored, code):
         cache.delete(key)
         return True
     return False
@@ -66,7 +67,7 @@ def verify_reset_code(email: str, code: str) -> bool:
     """Check the password reset code. Deletes it on success."""
     key = _cache_key("pwd_reset", email)
     stored = cache.get(key)
-    if stored and stored == code:
+    if stored is not None and hmac.compare_digest(stored, code):
         cache.delete(key)
         return True
     return False

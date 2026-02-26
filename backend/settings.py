@@ -243,6 +243,8 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/min",
+        "anon_auth": "10/min",
+        "verify_code": "5/min",
         "telegram_user": "120/min",
     },
 }

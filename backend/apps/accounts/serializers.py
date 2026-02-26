@@ -19,7 +19,7 @@ class RefreshSerializer(serializers.Serializer):
 
 class VerifyEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    code = serializers.CharField(max_length=6)
+    code = serializers.CharField(min_length=6, max_length=6)
 
 
 class ResetPasswordSerializer(serializers.Serializer):
@@ -28,7 +28,7 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 class ResetPasswordConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    code = serializers.CharField(max_length=6)
+    code = serializers.CharField(min_length=6, max_length=6)
     new_password = serializers.CharField(min_length=8, write_only=True)
 
 
@@ -43,7 +43,7 @@ class LinkTelegramRequestSerializer(serializers.Serializer):
 
 
 class LinkTelegramConfirmSerializer(serializers.Serializer):
-    code = serializers.CharField(max_length=6)
+    code = serializers.CharField(min_length=6, max_length=6)
     telegram_id = serializers.IntegerField()
 
 
