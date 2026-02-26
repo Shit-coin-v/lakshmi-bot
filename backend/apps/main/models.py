@@ -8,7 +8,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=100, blank=True, null=True)
     stock = models.IntegerField(blank=True, null=True)
-    store_id = models.IntegerField(db_index=True)
+    store_id = models.IntegerField(db_index=True, help_text="External store ID from 1C ERP (not a FK — Store model is managed by 1C)")
     image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Фото")
     description = models.TextField(null=True, blank=True, verbose_name="Описание")
     is_active = models.BooleanField(default=True, verbose_name="Активен")

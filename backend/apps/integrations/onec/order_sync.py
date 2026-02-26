@@ -1,3 +1,12 @@
+"""Sync HTTP client for sending orders to 1C (used by Celery tasks).
+
+Note (O4): This is the **sync** 1C client (requests-based), designed for
+Celery tasks where retry is handled via ``self.retry()``. The async
+counterpart lives in ``shared/clients/onec_client.py`` (aiohttp-based,
+used in aiogram bot handlers with built-in backoff).
+This split is intentional — different retry strategies and async contexts.
+"""
+
 import os
 import random
 import requests

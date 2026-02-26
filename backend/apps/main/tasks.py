@@ -1,8 +1,8 @@
 # backend/apps/main/tasks.py
-import asyncio
 import logging
 
 import requests
+from asgiref.sync import async_to_sync
 from celery import shared_task
 from django.conf import settings
 from django.db import close_old_connections
@@ -52,4 +52,4 @@ def broadcast_send_task(self, message_id: int) -> None:
             if bot:
                 await bot.session.close()
 
-    asyncio.run(runner())
+    async_to_sync(runner)()

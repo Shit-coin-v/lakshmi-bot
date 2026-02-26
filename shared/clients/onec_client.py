@@ -1,8 +1,14 @@
-"""Generic async HTTP client for 1C API endpoints.
+"""Async HTTP client for 1C API endpoints (used by bots).
 
 All parameters (url, api_key) are passed explicitly — no dependency on
 bot config or Django settings, so this module can be used from both
 the backend and bots.
+
+Note (O4): This is the **async** 1C client (aiohttp), designed for use in
+aiogram bot handlers where an event loop is already running. The sync
+counterpart lives in ``backend/apps/integrations/onec/order_sync.py``
+(requests-based, used in Celery tasks with ``self.retry()``).
+This split is intentional — different retry strategies and async contexts.
 """
 
 import asyncio

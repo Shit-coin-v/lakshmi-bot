@@ -242,41 +242,41 @@
 
 ## 3. Optional — улучшения
 
-### O1. Дублирование `_onec_error()`
-`backend/apps/integrations/onec/order_create.py:13-23` и `receipt.py:33-43` — копипаста. Вынести в shared utils.
+### O1. Дублирование `_onec_error()` — **ИСПРАВЛЕНО**
+`backend/apps/integrations/onec/order_create.py:13-23` и `receipt.py:33-43` — копипаста. Вынесено в `apps.integrations.onec.utils.onec_error`.
 
-### O2. Две реализации broadcast (SQLAlchemy + Django ORM)
-`bots/customer_bot/broadcast.py` и `shared/broadcast/django_sender.py`. Усложняет поддержку.
+### O2. Две реализации broadcast (SQLAlchemy + Django ORM) — **ИСПРАВЛЕНО**
+SA удалена, broadcast только через Django ORM.
 
-### O3. `asyncio.run()` в Celery task
-`backend/apps/main/tasks.py:34` — создаёт новый event loop на каждый вызов. Неэффективно при массовых рассылках.
+### O3. `asyncio.run()` в Celery task — **ИСПРАВЛЕНО**
+Заменено на `async_to_sync()` из asgiref — стандартный Django-способ вызова async-кода из sync-контекста.
 
-### O4. Два 1C-клиента (async + sync)
-`shared/clients/onec_client.py` (aiohttp) и `backend/apps/integrations/onec/order_sync.py` (requests). Осознанный split, но нет единой абстракции.
+### O4. Два 1C-клиента (async + sync) — **WON'T FIX (documented)**
+Async-клиент (aiohttp) используется в ботах, sync-клиент (requests) — в Celery tasks. Осознанное архитектурное решение: разные retry-стратегии и async-контексты. Задокументировано в docstrings обоих файлов.
 
-### O5. `store_id` на Product — Integer, не FK
-`Product.store_id` — `IntegerField` без таблицы `Store`. Нет referential integrity.
+### O5. `store_id` на Product — Integer, не FK — **WON'T FIX (documented)**
+`store_id` — внешний ID из 1C ERP. Модели Store в проекте нет — магазинами управляет 1С. Добавлен `help_text` на поле.
 
-### O6. `settings_prod.py` не используется
-`DJANGO_SETTINGS_MODULE=settings` в обоих compose-файлах. prod-файл дублирует base settings.
+### O6. `settings_prod.py` не используется — **ИСПРАВЛЕНО**
+Удалён неиспользуемый файл.
 
-### O7. Один `requirements.txt` — нет разделения dev/prod
-Все зависимости (включая потенциально dev-only) идут в production образ.
+### O7. Один `requirements.txt` — нет разделения dev/prod — **ИСПРАВЛЕНО**
+Создан `backend/requirements-dev.txt` с dev-зависимостями (pytest, ruff). Prod Dockerfile использует только `requirements.txt`.
 
-### O8. Celery worker без `--max-tasks-per-child`
-Нет защиты от memory leaks. Рекомендуется `--concurrency=4 --max-tasks-per-child=1000`.
+### O8. Celery worker без `--max-tasks-per-child` — **ИСПРАВЛЕНО**
+Добавлен `--max-tasks-per-child=1000`.
 
-### O9. Celery beat без persistent scheduler
-Не использует `DatabaseScheduler`. При рестарте теряет информацию о последних запусках.
+### O9. Celery beat без persistent scheduler — **ИСПРАВЛЕНО**
+Переведён на `DatabaseScheduler`.
 
-### O10. Metabase — файловая БД (H2)
-`MB_DB_FILE=/metabase-data/metabase.db` — при потере volume теряется конфигурация.
+### O10. Metabase — файловая БД (H2) — **ИСПРАВЛЕНО (частично)**
+H2 оставлен (достаточен при текущем масштабе). Metabase DB включена в `scripts/backup_db.sh` для защиты от потери конфигурации.
 
-### O11. Nginx Dockerfile не пиннит версию
-`FROM nginx:latest` — непредсказуемые обновления. Рекомендуется `FROM nginx:1.27-alpine`.
+### O11. Nginx Dockerfile не пиннит версию — **ИСПРАВЛЕНО**
+Пиннут на `nginx:1.27-alpine`.
 
-### O12. Python 3.10 — EOL октябрь 2026
-Планировать миграцию на 3.12+.
+### O12. Python 3.10 — EOL октябрь 2026 — **ИСПРАВЛЕНО**
+Все 4 Dockerfile обновлены до `python:3.12-slim`.
 
 ---
 
