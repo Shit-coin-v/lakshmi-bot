@@ -1,31 +1,29 @@
-# 1C Integration Endpoints
+# Backend API — справочник
 
-## Environment setup (Docker Compose)
+## Настройка окружения (Docker Compose)
 
-1. Copy the env template:
-   ```bash
-   cp .env.example .env
-   ```
-2. Start the stack from the repo root:
-   ```bash
-   docker compose up -d
-   ```
+```bash
+cp .env.example .env
+docker compose up -d
+```
 
-## `/onec/receipt`
+---
 
-`POST /onec/receipt` accepts a minimal JSON payload describing the receipt and
-requires the `X-Api-Key` header. Provide an idempotency token via
-`X-Idempotency-Key` to deduplicate retries.
+## 1C Интеграция
 
-### Required headers
+### `/onec/receipt` — Приём чеков
+
+`POST /onec/receipt` — JSON с данными чека. Требует `X-Api-Key` и IP из whitelist.
+
+**Обязательные заголовки:**
 
 ```
 Content-Type: application/json
-X-Api-Key: <INTEGRATION_API_KEY value>
-X-Idempotency-Key: <uuid4 or other unique identifier per request>
+X-Api-Key: <INTEGRATION_API_KEY>
+X-Idempotency-Key: <uuid4>
 ```
 
-### Minimal payload example
+**Минимальный payload:**
 
 ```json
 {
@@ -52,101 +50,88 @@ X-Idempotency-Key: <uuid4 or other unique identifier per request>
 }
 ```
 
-To process a guest purchase, omit the `customer` block or send it as an empty
-object; the server will allocate the receipt to the configured guest user.
+Гостевая покупка — без блока `customer` (или пустой объект).
 
-## Telegram newsletter tracking
+---
 
-### Local setup
+## Отслеживание рассылок
 
-1. Apply migrations:
-   ```bash
-   SECRET_KEY=dummy python backend/manage.py migrate --settings=settings
-   ```
-2. Run the bot with the required environment (see `.env.example`) so that the
-   Telegram callbacks can be processed.
-3. To execute tests that cover the tracking flow:
-   ```bash
-   DJANGO_SETTINGS_MODULE=settings_test pytest bots/customer_bot/tests/test_newsletter_tracking.py
-   SECRET_KEY=dummy python backend/manage.py test apps.main.tests --settings=settings_test
-   ```
-4. Run the Celery workers that handle broadcast delivery from the repo root:
-   ```bash
-   # Using Docker Compose
-   docker compose up celery_worker
+### Таблицы
 
-   # Or locally
-   celery -A celery worker --loglevel=info
-   ```
-   Keep the worker logs open to watch lines such as `Broadcast <id>: sent=…`
-   for progress. Each delivery is also written to the `newsletter_deliveries`
-   table, so you can monitor completion with a simple count query:
-   ```sql
-   SELECT COUNT(*) FROM newsletter_deliveries WHERE message_id = <broadcast_id>;
-   ```
-   Errors are surfaced in the worker logs with `Broadcast <id> failed` or
-   `Unexpected error` messages.
+- `newsletter_deliveries` — записи доставки: получатель, Telegram ID сообщения, open_token, время открытия
+- `newsletter_open_events` — лог кликов: callback data, Telegram user ID
 
-### Stored data
+### SQL-отчёты (PostgreSQL)
 
-* `newsletter_deliveries` — one record per Telegram message that contains the
-  hidden content. Fields include the recipient, Telegram identifiers, unique
-  open token, and the first-open timestamp.
-* `newsletter_open_events` — immutable log of every callback click with the
-  raw payload and the Telegram user id.
+**Отправлено vs открыто по рассылке:**
 
-### Reporting queries (PostgreSQL)
+```sql
+SELECT
+    bm.id AS broadcast_id,
+    COUNT(nd.id) AS sent,
+    COUNT(nd.opened_at) AS opened
+FROM broadcast_messages bm
+LEFT JOIN newsletter_deliveries nd ON nd.message_id = bm.id
+GROUP BY bm.id
+ORDER BY bm.id;
+```
 
-* Sent vs opened per broadcast:
-  ```sql
-  SELECT
-      bm.id AS broadcast_id,
-      COUNT(nd.id) AS sent,
-      COUNT(nd.opened_at) AS opened
-  FROM broadcast_messages bm
-  LEFT JOIN newsletter_deliveries nd ON nd.message_id = bm.id
-  GROUP BY bm.id
-  ORDER BY bm.id;
-  ```
-* Purchases after an open (using UTC timestamps converted to Asia/Yakutsk):
-  ```sql
-  WITH opened AS (
-      SELECT
-          nd.id,
-          nd.customer_id,
-          nd.message_id,
-          (nd.opened_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk') AS opened_local
-      FROM newsletter_deliveries nd
-      WHERE nd.opened_at IS NOT NULL
-  )
-  SELECT
-      o.message_id,
-      COUNT(DISTINCT t.id) AS purchases_after_open
-  FROM opened o
-  JOIN transactions t ON t.customer_id = o.customer_id
-      AND t.purchased_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk' >= o.opened_local
-  GROUP BY o.message_id;
-  ```
-* Daily open dynamics in the shop’s local time zone:
-  ```sql
-  SELECT
-      (nd.opened_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk')::date AS opened_date,
-      COUNT(*)
-  FROM newsletter_deliveries nd
-  WHERE nd.opened_at IS NOT NULL
-  GROUP BY opened_date
-  ORDER BY opened_date;
-  ```
-* Raw open event log for auditing:
-  ```sql
-  SELECT
-      e.delivery_id,
-      e.telegram_user_id,
-      e.occurred_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk' AS opened_local,
-      e.raw_callback_data
-  FROM newsletter_open_events e
-  ORDER BY e.occurred_at DESC;
-  ```
+**Покупки после открытия (Asia/Yakutsk):**
 
-The queries assume that timestamps are stored in UTC; adjust if the database
-uses a different timezone configuration.
+```sql
+WITH opened AS (
+    SELECT
+        nd.id, nd.customer_id, nd.message_id,
+        (nd.opened_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk') AS opened_local
+    FROM newsletter_deliveries nd
+    WHERE nd.opened_at IS NOT NULL
+)
+SELECT
+    o.message_id,
+    COUNT(DISTINCT t.id) AS purchases_after_open
+FROM opened o
+JOIN transactions t ON t.customer_id = o.customer_id
+    AND t.purchased_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk' >= o.opened_local
+GROUP BY o.message_id;
+```
+
+**Динамика открытий по дням:**
+
+```sql
+SELECT
+    (nd.opened_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Yakutsk')::date AS opened_date,
+    COUNT(*)
+FROM newsletter_deliveries nd
+WHERE nd.opened_at IS NOT NULL
+GROUP BY opened_date
+ORDER BY opened_date;
+```
+
+Все timestamps хранятся в UTC.
+
+---
+
+## Тестирование
+
+```bash
+# В Docker (рекомендуемый способ)
+docker compose run --rm -w /app/backend app python manage.py test --settings=settings_test --verbosity=2
+
+# Только конкретное приложение
+docker compose run --rm -w /app/backend app python manage.py test apps.orders --settings=settings_test --verbosity=2
+```
+
+Настройки тестов: `backend/settings_test.py` (SQLite in-memory, eager Celery, LocMemCache).
+
+---
+
+## Celery
+
+```bash
+# Запуск worker через Docker Compose
+docker compose up celery_worker
+
+# Мониторинг рассылки
+# Логи: "Broadcast <id>: sent=…"
+# SQL: SELECT COUNT(*) FROM newsletter_deliveries WHERE message_id = <id>;
+```

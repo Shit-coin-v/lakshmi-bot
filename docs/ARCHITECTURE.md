@@ -1,378 +1,191 @@
-## Целевая структура репозитория (V2)
+# Архитектура проекта
 
-> **Обновлено:** 2026-02-02 - учтены результаты технического аудита и рекомендации по безопасности
+> **Обновлено:** 2026-02-26
 
-```text
+---
+
+## Стек
+
+| Компонент | Технология |
+|-----------|-----------|
+| Backend | Django 5.2 + DRF 3.15, Python 3.12 |
+| Задачи | Celery 5.5 (worker + beat), Redis 7 |
+| БД | PostgreSQL 17 |
+| Боты | aiogram 3.13 (customer, courier, picker) |
+| Мобильное приложение | Flutter (Dart) |
+| Платежи | ЮKassa (СБП, hold/capture) |
+| Инфраструктура | Docker Compose, Nginx 1.27 |
+| Мониторинг | Prometheus, Grafana, Loki, Promtail |
+| Аналитика | Metabase |
+| CI | GitHub Actions (lint + test + build) |
+
+---
+
+## Структура репозитория
+
+```
 lakshmi-bot/
-├── .env.example                       # Шаблон переменных окружения
-├── .gitignore
-├── .editorconfig
-├── README.md
-├── docker-compose.yml                 # Основной файл для локальной разработки
-├── docker-compose.override.yml.example # Шаблон для локальных переопределений
-├── docker-compose.prod.yml            # Production конфигурация
-├── Makefile                           # Команды для разработки (make test, make deploy)
+├── docker-compose.yml            # Dev-конфигурация
+├── docker-compose.prod.yml       # Production-оверлей (resource limits, replicas)
+├── Makefile                      # make build/up/test/migrate/backup
+├── .github/workflows/            # CI pipeline
 │
-├── scripts/                           # Утилиты для автоматизации
-│   ├── init_dev.sh                    # Инициализация dev окружения
-│   ├── migrate.sh                     # Применение миграций (вынесено из entrypoint)
-│   ├── collectstatic.sh               # Сборка статики
-│   └── backup_db.sh                   # Резервное копирование PostgreSQL
+├── scripts/
+│   ├── migrate.sh                # Миграции (вынесены из entrypoint)
+│   ├── collectstatic.sh
+│   ├── backup_db.sh              # Бэкап PostgreSQL + Metabase
+│   └── init_dev.sh
 │
-├── infra/                             # Инфраструктурные конфигурации
-│   ├── docker/                        # Dockerfile'ы для сервисов
-│   │   ├── backend/
-│   │   │   └── Dockerfile
+├── infra/
+│   ├── docker/
+│   │   ├── backend/Dockerfile    # python:3.12-slim
 │   │   └── bots/
-│   │       └── Dockerfile             # Контейнер для Telegram ботов
+│   │       ├── Dockerfile           # customer_bot
+│   │       ├── Dockerfile.courier
+│   │       └── Dockerfile.picker
 │   ├── nginx/
-│   │   ├── nginx.conf
-│   │   └── Dockerfile
-│   ├── postgres/
-│   │   └── init.sql                   # Начальная инициализация БД
-│   ├── redis/
-│   │   └── redis.conf
-│   └── observability/                 # Мониторинг и логирование
-│       ├── grafana/
-│       │   └── datasources.yaml
+│   │   ├── nginx.conf            # Rate limiting, security headers
+│   │   └── Dockerfile            # nginx:1.27-alpine
+│   ├── redis/redis.conf          # Пароль + protected-mode
+│   └── observability/
+│       ├── grafana/datasources.yaml
 │       ├── prometheus/
-│       │   └── prometheus.yml
-│       ├── loki/
-│       │   └── loki-config.yaml
-│       └── promtail/
-│           └── promtail-config.yaml
+│       │   ├── prometheus.yml
+│       │   └── alerts.yml        # ServiceDown, HighErrorRate, CeleryBacklog
+│       ├── loki/loki-config.yaml
+│       └── promtail/promtail-config.yaml
 │
-├── backend/                           # Django приложение
-│   ├── manage.py
-│   ├── requirements.txt
-│   ├── entrypoint.sh                  # Упрощенный (БЕЗ миграций и collectstatic)
-│   ├── __init__.py
-│   ├── settings.py                    # ← Было: backend/backend/settings.py (убрана вложенность)
-│   ├── settings_test.py               # Настройки для тестов (CELERY_TASK_ALWAYS_EAGER=True)
-│   ├── settings_prod.py               # Production настройки (опционально)
-│   ├── urls.py
-│   ├── wsgi.py
-│   ├── asgi.py
-│   ├── celery.py
+├── backend/                      # Django-приложение
+│   ├── settings.py               # Основные настройки
+│   ├── settings_test.py          # SQLite, eager Celery, LocMemCache
+│   ├── celeryapp.py              # Celery app + beat schedule
+│   ├── requirements.txt          # Production-зависимости
+│   ├── requirements-dev.txt      # Dev: pytest, ruff
+│   ├── entrypoint.sh             # Gunicorn (без миграций)
 │   │
-│   ├── apps/                          # Django приложения
-│   │   ├── api/                       # REST API endpoints
-│   │   │   ├── models.py
-│   │   │   ├── views.py
-│   │   │   ├── serializers.py
-│   │   │   ├── urls.py
-│   │   │   ├── security.py            # ВАЖНО: удалить print() из production кода
-│   │   │   └── tests/
-│   │   │
-│   │   ├── main/                      # Основные модели (Customer, Product, Transaction)
-│   │   │   ├── models.py
-│   │   │   ├── admin.py
-│   │   │   └── views.py
-│   │   │
-│   │   ├── orders/                    # Заказы и доставка
-│   │   │   ├── models.py
-│   │   │   ├── serializers.py
-│   │   │   └── views.py
-│   │   │
-│   │   ├── loyalty/                   # Программа лояльности
-│   │   │   ├── models.py
-│   │   │   └── views.py
-│   │   │
-│   │   ├── notifications/             # Push-уведомления
-│   │   │   ├── models.py
-│   │   │   ├── tasks.py
-│   │   │   ├── push.py
-│   │   │   └── views.py
-│   │   │
-│   │   ├── integrations/              # Внешние интеграции
-│   │   │   ├── onec/                  # 1C ERP интеграция
-│   │   │   │   ├── customer_sync.py
-│   │   │   │   ├── product_sync.py
-│   │   │   │   ├── receipt.py
-│   │   │   │   ├── order_create.py
-│   │   │   │   └── order_status.py
-│   │   │   ├── payments/              # Платежные системы (заглушка)
-│   │   │   └── delivery/              # Службы доставки (заглушка)
-│   │   │
-│   │   └── common/                    # Общие утилиты
-│   │       ├── security.py            # Аутентификация для 1C API
-│   │       ├── health.py              # Health check endpoints
-│   │       └── middleware.py
-│   │
-│   └── tests/                         # Интеграционные и E2E тесты
-│       ├── integration/
-│       │   ├── test_onec_flow.py
-│       │   └── test_order_flow.py
-│       ├── e2e/
-│       └── conftest.py
+│   └── apps/
+│       ├── main/                 # Product, CustomUser, BroadcastMessage, NewsletterDelivery
+│       ├── orders/               # Order, OrderItem, CourierProfile, PickerProfile, RoundRobinCursor
+│       ├── loyalty/              # Transaction (покупки, бонусы)
+│       ├── notifications/        # Notification, CustomerDevice, push-задачи
+│       ├── accounts/             # Email-авторизация: JWT, регистрация, merge аккаунтов
+│       ├── bot_api/              # API для ботов: заказы, персонал, статусы
+│       ├── common/               # security, permissions, middleware, health
+│       └── integrations/
+│           ├── onec/             # 1C ERP: sync клиентов/товаров, чеки, заказы
+│           ├── payments/         # ЮKassa: СБП hold/capture, webhook, expire
+│           └── delivery/         # Заглушка (не реализовано)
 │
-├── bots/                              # Telegram боты
-│   ├── customer_bot/                  # Клиентский бот (активен)
-│   │   ├── run.py
-│   │   ├── config.py
-│   │   ├── requirements.txt           # Отдельные зависимости от backend
-│   │   ├── registration.py
-│   │   ├── qr_code.py
-│   │   ├── broadcast.py
-│   │   ├── keyboards.py
-│   │   ├── onec_client.py
-│   │   ├── database/
-│   │   │   └── models.py              # SQLAlchemy модели
-│   │   └── tests/
-│   │
-│   ├── courier_bot/                   # Бот для курьеров (TODO)
-│   │   └── .gitkeep
-│   │
-│   └── picker_bot/                    # Бот для сборщиков (TODO)
-│       └── .gitkeep
+├── bots/
+│   ├── customer_bot/             # Клиентский Telegram-бот
+│   ├── courier_bot/              # Бот курьера (round-robin назначение)
+│   └── picker_bot/               # Бот сборщика (3-step flow)
 │
-├── shared/                            # Общий код между backend и bots
-│   ├── dto/                           # Data Transfer Objects
-│   ├── clients/                       # Клиенты для внешних API
-│   │   └── onec_client.py             # Shared клиент для 1C
-│   └── config/                        # Общие конфигурации
+├── shared/                       # Общий код между backend и bots
+│   ├── clients/
+│   │   ├── onec_client.py        # Async HTTP-клиент 1C (aiohttp)
+│   │   └── backend_client.py     # Бот → Backend HTTP-клиент
+│   ├── broadcast/                # Django ORM sender для рассылок
+│   ├── bot_utils/                # Общие утилиты ботов: access, cleanup, retry
+│   ├── dto/
+│   └── config/
 │
-├── mobile/                            # Мобильное приложение
-│   └── flutter_app/
-│       ├── lib/
-│       ├── pubspec.yaml
-│       └── README.md
+├── mobile/flutter_app/           # Flutter мобильное приложение
 │
-└── docs/                              # Документация
-    ├── ARCHITECTURE.md                # Этот файл
-    ├── DEPLOYMENT.md                  # Инструкции по деплою (TODO)
-    ├── REFACTOR_PLAN.md               # План рефакторинга
-    ├── SECURITY_AUDIT.md              # Результаты аудита безопасности (TODO)
-    └── AGENT_WORKLOG.md               # Журнал изменений агента
+└── docs/
+    ├── ARCHITECTURE.md           # Этот файл
+    ├── DEPLOYMENT.md             # Инструкции по деплою
+    ├── FULL_AUDIT_2026_02_07.md  # Аудит безопасности v3.0 (39 задач — все закрыты)
+    └── plans/                    # Исторические спецификации и планы
 ```
 
 ---
 
-## Ключевые изменения V2
+## Авторизация
 
-### 1. Упрощение структуры backend
-```diff
-- backend/backend/settings.py  # Двойная вложенность
-+ backend/settings.py           # Плоская структура
-```
+Три механизма, разделены по зонам:
 
-**Влияние:**
-- `DJANGO_SETTINGS_MODULE`: `backend.settings` → `settings`
-- `PYTHONPATH`: `/app:/app/backend` → `/app/backend`
-- Все импорты: `from backend.settings` → `from settings`
-
-### 2. docker-compose.yml в корне
-```diff
-- infra/docker/docker-compose.yml
-+ docker-compose.yml
-```
-
-**Преимущества:**
-- Стандартная практика (docker-compose up в корне проекта)
-- Проще для новых разработчиков
-- Четкое разделение dev/prod конфигураций
-
-### 3. Вынос миграций из entrypoint.sh
-```diff
-- backend/entrypoint.sh: python manage.py migrate --noinput
-+ scripts/migrate.sh + отдельный docker-compose сервис
-```
-
-**Преимущества:**
-- Избавление от race conditions при scaling
-- Миграции выполняются один раз перед запуском app
-- Возможность запускать миграции отдельно
-
-### 4. Интеграция customer_bot в Docker Compose
-```yaml
-# Новый сервис
-services:
-  customer_bot:
-    build: infra/docker/bots
-    restart: always
-```
-
-**Преимущества:**
-- Автоматический запуск вместе с backend
-- Автоперезапуск при падении
-- Единообразное управление сервисами
-
-### 5. Разделение настроек Django
-```
-backend/
-├── settings.py           # Базовые настройки
-├── settings_test.py      # Для тестов (CELERY_TASK_ALWAYS_EAGER=True)
-└── settings_prod.py      # Production (опционально)
-```
-
-**Преимущества:**
-- Четкое разделение окружений
-- Нет случайных production настроек в dev
-- Безопасность (Celery не работает синхронно в prod)
+| Механизм | Где используется | Заголовок | Ответ при ошибке |
+|----------|-----------------|-----------|-----------------|
+| `@require_onec_auth` | 1C endpoints (`/onec/*`) | `X-Api-Key` + IP whitelist | 401 |
+| `ApiKeyPermission` | Backend-to-backend (push, SendMessage) | `X-Api-Key` | 403 |
+| `TelegramUserPermission` | Customer-facing endpoints | `X-Telegram-User-Id` | 403 |
+| JWT (PyJWT) | Email-авторизация (`/api/auth/*`) | `Authorization: Bearer <token>` | 401 |
 
 ---
 
-## Критичные фиксы из аудита безопасности
+## Поток заказа
 
-### P0 - Утечка данных в логах
-**Файл:** `backend/apps/common/security.py:60-69, 89`
+```
+Клиент (Flutter) → POST /api/orders/create/
+  ├── cash/card_courier → Order(new) → 1C + push сборщикам
+  └── sbp → ЮKassa hold → webhook → Order(new) → 1C + push сборщикам
 
-```python
-# УДАЛИТЬ:
-print(f"HEADER: '{key}' = '{value}'")
-print(f"DEBUG: SERVER_KEY='{API_KEY}' | CLIENT_KEY='{api_key}'")
+Сборщик (picker_bot):
+  new → accepted → assembly → ready
+  ready + самовывоз → completed
 
-# ЗАМЕНИТЬ НА:
-logger.debug("API key verification", extra={"ip": _client_ip(request)})
+Курьер (courier_bot, round-robin назначение):
+  ready + доставка → delivery → arrived → completed
+  completed → ЮKassa capture (если СБП)
+
+Отмена на любом этапе → cancel + ЮKassa refund (если СБП)
 ```
 
-### P0 - Production конфиг в git
-**Файл:** `infra/docker/docker-compose.override.yml`
-
-```diff
-+ # Добавить в .gitignore
-+ docker-compose.override.yml
-
-+ # Создать шаблон
-+ docker-compose.override.yml.example
-```
-
-### P1 - Зафиксировать версии Docker images
-```diff
-- nginx:latest
-+ nginx:1.25-alpine
-
-- grafana/grafana:latest
-+ grafana/grafana:10.4.3
-```
+Статусы: `new → accepted → assembly → ready → delivery → arrived → completed` (+ `canceled`)
 
 ---
 
-## Чеклист миграции на V2
+## Celery-задачи
 
-### Подготовка
-- [ ] Создать ветку `refactor/structure-v2`
-- [ ] Убедиться, что все тесты проходят
-- [ ] Сделать бэкап БД
-- [ ] Зафиксировать текущие переменные окружения
-
-### Критичные фиксы безопасности (делать ВМЕСТЕ с рефакторингом)
-- [ ] Удалить все `print()` из `apps/common/security.py`
-- [ ] Переместить `docker-compose.override.yml` в `.gitignore`
-- [ ] Создать `docker-compose.override.yml.example`
-- [ ] Переместить `.env.example` в корень
-- [ ] Создать `settings_test.py` с `CELERY_TASK_ALWAYS_EAGER=True`
-- [ ] Убрать `CELERY_TASK_ALWAYS_EAGER` из `settings.py`
-- [ ] Зафиксировать версии всех Docker images
-
-### Структурные изменения
-- [ ] Переместить `backend/backend/*` → `backend/`
-- [ ] Обновить `DJANGO_SETTINGS_MODULE` в:
-  - [ ] `docker-compose.yml`
-  - [ ] `.env.example`
-  - [ ] `backend/wsgi.py`
-  - [ ] `backend/asgi.py`
-  - [ ] `backend/celery.py`
-  - [ ] `infra/docker/backend/Dockerfile`
-- [ ] Обновить `PYTHONPATH` в `infra/docker/backend/Dockerfile`
-- [ ] Обновить все импорты в коде
-- [ ] Переместить `infra/docker/docker-compose.yml` → `docker-compose.yml`
-- [ ] Создать `scripts/` директорию
-- [ ] Создать `scripts/migrate.sh`
-- [ ] Создать `scripts/collectstatic.sh`
-- [ ] Создать `scripts/backup_db.sh`
-- [ ] Упростить `backend/entrypoint.sh` (убрать миграции и collectstatic)
-- [ ] Добавить сервис `migrate` в `docker-compose.yml`
-- [ ] Создать `infra/docker/bots/Dockerfile`
-- [ ] Добавить сервис `customer_bot` в `docker-compose.yml`
-- [ ] Создать `Makefile` с базовыми командами
-- [ ] Создать `backend/tests/` для интеграционных тестов
-
-### Обновление документации
-- [ ] Обновить README.md с новыми инструкциями
-- [ ] Создать `docs/DEPLOYMENT.md`
-- [ ] Обновить комментарии в `.env.example`
-
-### Тестирование после миграции
-- [ ] Запустить `docker-compose build`
-- [ ] Запустить `docker-compose up`
-- [ ] Проверить логи всех сервисов (без ошибок)
-- [ ] Проверить, что миграции применились
-- [ ] Проверить Django Admin (`/admin/`)
-- [ ] Проверить API endpoints (`/api/products/`, `/onec/health`)
-- [ ] Проверить Telegram bot (отправить `/start`)
-- [ ] Проверить Celery tasks (запустить тестовую задачу)
-- [ ] Проверить Grafana (`/grafana/`)
-- [ ] Проверить Prometheus (`/metrics`)
-- [ ] Запустить все тесты (`make test`)
-- [ ] Проверить отсутствие `print()` в production коде
-- [ ] Проверить, что секреты не попадают в логи
-
-### Финализация
-- [ ] Обновить `docs/AGENT_WORKLOG.md`
-- [ ] Создать Pull Request
-- [ ] Code review
-- [ ] Merge в `dev`
-- [ ] Тестирование на staging
-- [ ] Deploy в production
+| Задача | Расписание | Описание |
+|--------|-----------|----------|
+| `send_order_to_onec` | По событию | Отправка заказа в 1C (retry с jitter) |
+| `broadcast_send_task` | По событию | Рассылка через Telegram (async_to_sync) |
+| `send_telegram_message_task` | По событию | Одиночное сообщение в Telegram |
+| `send_birthday_congratulations` | Beat (ежедневно) | Поздравления с ДР |
+| `expire_pending_payments` | Beat (каждые 5 мин) | Отмена неоплаченных СБП-платежей |
+| `redispatch_unassigned_orders` | Beat (каждые 2 мин) | Назначение курьера на нераспределённые заказы |
+| `rollback_stuck_assembly_orders` | Beat (каждые 5 мин) | Откат застрявших заказов в `new` |
 
 ---
 
-## Важные замечания
+## Docker-сервисы
 
-### DJANGO_SETTINGS_MODULE
-После миграции изменится значение переменной:
-```bash
-# Было
-DJANGO_SETTINGS_MODULE=backend.settings
-
-# Стало
-DJANGO_SETTINGS_MODULE=settings
-```
-
-Обновить в:
-- `.env.example`
-- `docker-compose.yml`
-- `backend/manage.py`
-- `backend/wsgi.py`
-- `backend/asgi.py`
-- `backend/celery.py`
-
-### PYTHONPATH
-```diff
-# Было
-- ENV PYTHONPATH=/app:/app/backend
-
-# Стало
-+ ENV PYTHONPATH=/app/backend
-```
-
-### Импорты
-Все импорты вида `from backend.settings import ...` нужно заменить на `from settings import ...`
-
-### Docker Compose
-Если `.env` будет в корне, обновить:
-```yaml
-services:
-  app:
-    env_file: .env  # Было: ../../backend/.env
-```
+| Сервис | Образ | Описание |
+|--------|-------|----------|
+| `app` | backend/Dockerfile | Django + Gunicorn |
+| `celery_worker` | backend/Dockerfile | Celery worker (max-tasks-per-child=1000) |
+| `celery_beat` | backend/Dockerfile | Celery beat (DatabaseScheduler) |
+| `customer_bot` | bots/Dockerfile | Клиентский Telegram-бот |
+| `courier_bot` | bots/Dockerfile.courier | Бот курьера |
+| `picker_bot` | bots/Dockerfile.picker | Бот сборщика |
+| `db` | postgres:17 | PostgreSQL |
+| `redis` | redis:7 | Брокер Celery + кэш (с паролем) |
+| `nginx` | nginx:1.27-alpine | Reverse proxy (prod) |
+| `prometheus` | prom/prometheus | Метрики |
+| `grafana` | grafana/grafana | Дашборды |
+| `loki` | grafana/loki | Логи |
+| `promtail` | grafana/promtail | Сбор логов |
+| `metabase` | metabase/metabase | Аналитика (H2 DB) |
 
 ---
 
-## Проверка совместимости
+## Сети Docker (production)
 
-### Боты (SQLAlchemy)
-- ✅ Боты используют отдельное подключение к БД
-- ✅ Модели SQLAlchemy не зависят от Django ORM
-- ⚠️ Убедиться, что переменные окружения доступны
+| Сеть | Сервисы |
+|------|---------|
+| `frontend` | nginx |
+| `backend` | app, celery_worker, celery_beat, db, redis, боты |
+| `monitoring` | prometheus, grafana, loki, promtail |
 
-### Mobile App (Flutter)
-- ✅ API endpoints не меняются
-- ✅ Контракт API сохраняется
-- ⚠️ Убедиться, что базовый URL актуален
+---
 
-### 1C Интеграция
-- ✅ REST API endpoints остаются теми же
-- ⚠️ API ключ должен остаться в `.env`
-- ⚠️ Проверить IP whitelist после деплоя
+## Ключевые решения
+
+- **Два 1C-клиента** (async в ботах + sync в Celery) — осознанный split, разные retry-стратегии
+- **`store_id` как Integer** (не FK) — внешний ID из 1C, модель Store не нужна
+- **Round-robin курьеров** — `RoundRobinCursor` с `select_for_update`, event-driven + beat fallback
+- **Broadcast через Django ORM** — SQLAlchemy удалена, единый канал
+- **Header-based пагинация** — тело ответа = массив, мета в заголовках `X-Total-Count`, `Link`
+- **SSL на внешнем proxy** — Nginx слушает порт 80, SSL termination на Cloudflare/Caddy
