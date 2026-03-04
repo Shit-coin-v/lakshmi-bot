@@ -151,7 +151,6 @@ def _handle_payment_canceled(payment_id, Order, send_order_push_task):
             order.save(update_fields=["payment_status", "status"])
 
         oid = order.id
-        final_status = order.status
         if prev_status not in _NON_CANCELLABLE:
             transaction.on_commit(lambda: send_order_push_task.delay(oid, prev_status, "canceled"))
 

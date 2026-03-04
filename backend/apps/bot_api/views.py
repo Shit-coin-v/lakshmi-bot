@@ -501,7 +501,6 @@ class OrderCancelByStaffView(APIView):
 
             # Send push notification to client
             from apps.notifications.tasks import send_order_push_task
-            prev = order.status  # already "canceled" but we need previous
             transaction.on_commit(lambda: send_order_push_task.delay(oid, "delivery", "canceled"))
 
         return Response({"status": "ok", "order_id": pk, "canceled_by": order.canceled_by})

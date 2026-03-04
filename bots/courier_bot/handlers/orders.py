@@ -18,7 +18,6 @@ from keyboards import (
     get_orders_list_keyboard,
     get_order_detail_keyboard,
     get_cancel_reasons_keyboard,
-    _CANCEL_REASON_LABELS,
     payment_label,
 )
 
