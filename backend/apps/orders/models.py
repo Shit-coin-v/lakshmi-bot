@@ -30,6 +30,7 @@ class Order(models.Model):
     CANCEL_REASON_CHOICES = [
         ('client_refused', 'Клиент отказался'),
         ('client_absent', 'Клиент отсутствует'),
+        ('long_wait', 'Клиент долго ждал'),
         ('damaged', 'Товар повреждён'),
         ('other', 'Другая причина'),
     ]

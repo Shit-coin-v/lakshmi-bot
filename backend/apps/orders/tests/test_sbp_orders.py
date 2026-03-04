@@ -140,7 +140,9 @@ class OrderCancelSBPTests(TestCase):
 
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                f"/api/orders/{order.id}/cancel/", **self._auth(),
+                f"/api/orders/{order.id}/cancel/",
+                content_type="application/json",
+                **self._auth(),
             )
 
         self.assertEqual(response.status_code, 200)
@@ -160,7 +162,9 @@ class OrderCancelSBPTests(TestCase):
 
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                f"/api/orders/{order.id}/cancel/", **self._auth(),
+                f"/api/orders/{order.id}/cancel/",
+                content_type="application/json",
+                **self._auth(),
             )
 
         self.assertEqual(response.status_code, 200)

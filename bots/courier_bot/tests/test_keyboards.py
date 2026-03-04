@@ -4,7 +4,13 @@ from types import SimpleNamespace
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
+from keyboards import (
+    get_orders_list_keyboard,
+    get_order_detail_keyboard,
+    get_cancel_reasons_keyboard,
+    _CANCEL_REASON_LABELS,
+    payment_label,
+)
 
 
 def _make_order(id=1, status="ready", total_price=500, phone="79001234567"):
@@ -64,7 +70,7 @@ def test_order_detail_keyboard_ready():
     data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
 
     assert "order:1:pickup" in data
-    assert "order:1:phone" in data
+    assert "order:1:reassign" in data
     assert "orders:back" in data
     assert "order:1:arrived" not in data
     assert "order:1:complete" not in data
@@ -88,13 +94,6 @@ def test_order_detail_keyboard_arrived():
     assert "order:1:arrived" not in data
 
 
-def test_order_detail_keyboard_no_phone():
-    order = _make_order(phone=None)
-    kb = get_order_detail_keyboard(order)
-    data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
-
-    assert not any("phone" in d for d in data)
-
 
 def test_order_detail_keyboard_back_always_last():
     for status in ("ready", "delivery", "arrived"):
@@ -102,3 +101,49 @@ def test_order_detail_keyboard_back_always_last():
         kb = get_order_detail_keyboard(order)
         last_row = kb.inline_keyboard[-1]
         assert last_row[0].callback_data == "orders:back"
+
+
+# --- Cancel button visibility ---
+
+def test_order_detail_cancel_button_delivery():
+    order = _make_order(status="delivery")
+    kb = get_order_detail_keyboard(order)
+    data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "order:1:cancel" in data
+
+
+def test_order_detail_cancel_button_arrived():
+    order = _make_order(status="arrived")
+    kb = get_order_detail_keyboard(order)
+    data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "order:1:cancel" in data
+
+
+def test_order_detail_no_cancel_button_ready():
+    order = _make_order(status="ready")
+    kb = get_order_detail_keyboard(order)
+    data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "order:1:cancel" not in data
+
+
+# --- get_cancel_reasons_keyboard ---
+
+def test_cancel_reasons_keyboard_has_all_reasons():
+    kb = get_cancel_reasons_keyboard(order_id=10)
+    data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "order:10:cancelreason:client_refused" in data
+    assert "order:10:cancelreason:client_absent" in data
+    assert "order:10:cancelreason:long_wait" in data
+    assert "order:10:cancelreason:damaged" in data
+    assert "order:10:cancelreason:other" in data
+
+
+def test_cancel_reasons_keyboard_has_back_button():
+    kb = get_cancel_reasons_keyboard(order_id=10)
+    last_row = kb.inline_keyboard[-1]
+    assert last_row[0].callback_data == "order:10:detail"
+
+
+def test_cancel_reason_labels_long_wait():
+    assert "long_wait" in _CANCEL_REASON_LABELS
+    assert "долго ждал" in _CANCEL_REASON_LABELS["long_wait"]

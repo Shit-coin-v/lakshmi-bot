@@ -67,7 +67,7 @@ def test_retry_all_fail():
             on_success=on_success, on_failure=on_failure,
         ))
 
-    assert update_fn.await_count == 6  # _RETRY_DELAYS has 6 entries
+    assert update_fn.await_count == 8  # _RETRY_DELAYS has 8 entries
     on_success.assert_not_awaited()
     on_failure.assert_awaited_once()
 

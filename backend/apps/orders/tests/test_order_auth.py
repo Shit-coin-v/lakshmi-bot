@@ -181,6 +181,7 @@ class OrderCancelAuthTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
                 f"/api/orders/{self.order.pk}/cancel/",
+                content_type="application/json",
                 HTTP_X_TELEGRAM_USER_ID=str(self.user.telegram_id),
             )
         self.assertEqual(response.status_code, 200)

@@ -314,3 +314,87 @@ class TestOrderStatusChange:
         asyncio.run(order_status_change(cb))
         cb.answer.assert_awaited_once()
         assert "Доступ запрещён" in cb.answer.call_args[0][0]
+
+
+# --- Callback: order_cancel (show reasons) ---
+
+class TestOrderCancelCallback:
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_cancel_shows_reasons(self, mock_access):
+        from handlers.orders import order_cancel
+        mock_access.return_value = True
+        cb = _make_callback(user_id=100, data="order:5:cancel")
+        asyncio.run(order_cancel(cb))
+        cb.message.edit_text.assert_awaited_once()
+        text = cb.message.edit_text.call_args[0][0]
+        assert "причину" in text.lower()
+        cb.answer.assert_awaited_once()
+
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_cancel_unauthorized(self, mock_access):
+        from handlers.orders import order_cancel
+        mock_access.return_value = False
+        cb = _make_callback(user_id=999, data="order:5:cancel")
+        asyncio.run(order_cancel(cb))
+        cb.answer.assert_awaited_once()
+        assert "Доступ запрещён" in cb.answer.call_args[0][0]
+
+
+# --- Callback: order_cancel_reason (immediate cancel) ---
+
+class TestOrderCancelReasonCallback:
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    @patch("handlers.orders.backend.cancel_order", new_callable=AsyncMock)
+    @patch("handlers.orders._fetch_active_orders", new_callable=AsyncMock)
+    def test_cancel_reason_success_with_remaining(self, mock_fetch, mock_cancel, mock_access):
+        from handlers.orders import order_cancel_reason
+        mock_access.return_value = True
+        mock_cancel.return_value = True
+        mock_fetch.return_value = [SimpleNamespace(id=10, status="ready", total_price=300)]
+        cb = _make_callback(user_id=100, data="order:5:cancelreason:long_wait")
+        asyncio.run(order_cancel_reason(cb))
+        mock_cancel.assert_awaited_once_with(5, reason="long_wait", role="courier", courier_tg_id=100)
+        cb.message.edit_text.assert_awaited_once()
+        text = cb.message.edit_text.call_args[0][0]
+        assert "отменён" in text
+        assert "Активные" in text
+
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    @patch("handlers.orders.backend.cancel_order", new_callable=AsyncMock)
+    @patch("handlers.orders._fetch_active_orders", new_callable=AsyncMock)
+    def test_cancel_reason_success_no_remaining(self, mock_fetch, mock_cancel, mock_access):
+        from handlers.orders import order_cancel_reason
+        mock_access.return_value = True
+        mock_cancel.return_value = True
+        mock_fetch.return_value = []
+        cb = _make_callback(user_id=100, data="order:5:cancelreason:client_refused")
+        asyncio.run(order_cancel_reason(cb))
+        text = cb.message.edit_text.call_args[0][0]
+        assert "отменён" in text
+        assert "Нет активных" in text
+
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    @patch("handlers.orders.backend.cancel_order", new_callable=AsyncMock)
+    @patch("handlers.orders._fetch_order_with_items", new_callable=AsyncMock)
+    def test_cancel_reason_failure(self, mock_fetch_order, mock_cancel, mock_access):
+        from handlers.orders import order_cancel_reason
+        mock_access.return_value = True
+        mock_cancel.return_value = False
+        order = SimpleNamespace(
+            id=5, status="delivery", address="ул. Тест", phone="79001234567",
+            comment=None, total_price=500, payment_method="cash", items=[],
+        )
+        mock_fetch_order.return_value = order
+        cb = _make_callback(user_id=100, data="order:5:cancelreason:damaged")
+        asyncio.run(order_cancel_reason(cb))
+        text = cb.message.edit_text.call_args[0][0]
+        assert "Не удалось" in text
+
+    @patch("handlers.orders._check_access", new_callable=AsyncMock)
+    def test_cancel_reason_unauthorized(self, mock_access):
+        from handlers.orders import order_cancel_reason
+        mock_access.return_value = False
+        cb = _make_callback(user_id=999, data="order:5:cancelreason:other")
+        asyncio.run(order_cancel_reason(cb))
+        cb.answer.assert_awaited_once()
+        assert "Доступ запрещён" in cb.answer.call_args[0][0]

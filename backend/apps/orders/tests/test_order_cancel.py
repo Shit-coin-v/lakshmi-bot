@@ -27,7 +27,11 @@ class OrderCancelViewTests(TestCase):
     def test_cancel_from_new(self, mock_notify):
         order = self._create_order("new")
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+            response = self.client.post(
+                f"/api/orders/{order.id}/cancel/",
+                content_type="application/json",
+                **self._auth_header(),
+            )
         self.assertEqual(response.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.status, "canceled")
@@ -37,28 +41,48 @@ class OrderCancelViewTests(TestCase):
     def test_cancel_from_assembly(self, mock_notify):
         order = self._create_order("assembly")
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+            response = self.client.post(
+                f"/api/orders/{order.id}/cancel/",
+                content_type="application/json",
+                **self._auth_header(),
+            )
         self.assertEqual(response.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.status, "canceled")
 
     def test_cancel_from_delivery_rejected(self):
         order = self._create_order("delivery")
-        response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+        response = self.client.post(
+            f"/api/orders/{order.id}/cancel/",
+            content_type="application/json",
+            **self._auth_header(),
+        )
         self.assertEqual(response.status_code, 400)
         order.refresh_from_db()
         self.assertEqual(order.status, "delivery")
 
     def test_cancel_from_completed_rejected(self):
         order = self._create_order("completed")
-        response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+        response = self.client.post(
+            f"/api/orders/{order.id}/cancel/",
+            content_type="application/json",
+            **self._auth_header(),
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_cancel_from_canceled_rejected(self):
         order = self._create_order("canceled")
-        response = self.client.post(f"/api/orders/{order.id}/cancel/", **self._auth_header())
+        response = self.client.post(
+            f"/api/orders/{order.id}/cancel/",
+            content_type="application/json",
+            **self._auth_header(),
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_cancel_nonexistent_order(self):
-        response = self.client.post("/api/orders/99999/cancel/", **self._auth_header())
+        response = self.client.post(
+            "/api/orders/99999/cancel/",
+            content_type="application/json",
+            **self._auth_header(),
+        )
         self.assertEqual(response.status_code, 404)

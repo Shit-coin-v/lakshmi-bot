@@ -18,7 +18,6 @@ from keyboards import (
     get_orders_list_keyboard,
     get_order_detail_keyboard,
     get_cancel_reasons_keyboard,
-    get_cancel_confirm_keyboard,
     _CANCEL_REASON_LABELS,
     payment_label,
 )
@@ -346,34 +345,7 @@ async def order_cancel(callback: CallbackQuery):
 
 @router.callback_query(lambda c: c.data and c.data.startswith("order:") and ":cancelreason:" in c.data)
 async def order_cancel_reason(callback: CallbackQuery):
-    """Step 2: show confirmation screen after reason selection."""
-    if not await _check_access(callback.from_user.id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
-        return
-
-    parts = callback.data.split(":")
-    try:
-        order_id = int(parts[1])
-        reason = parts[3]
-    except (IndexError, ValueError):
-        await callback.answer("Неверные данные.", show_alert=True)
-        return
-
-    reason_label = _CANCEL_REASON_LABELS.get(reason, reason)
-    keyboard = get_cancel_confirm_keyboard(order_id, reason)
-    await callback.message.edit_text(
-        f"Заказ #{order_id}\n\n"
-        f"Причина: {reason_label}\n\n"
-        f"<b>Вы уверены, что хотите отменить заказ?</b>",
-        reply_markup=keyboard,
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-@router.callback_query(lambda c: c.data and c.data.startswith("order:") and ":cancelconfirm:" in c.data)
-async def order_cancel_confirm(callback: CallbackQuery):
-    """Step 3: actually cancel the order after confirmation."""
+    """Step 2: cancel the order with the selected reason."""
     if not await _check_access(callback.from_user.id):
         await callback.answer("Доступ запрещён.", show_alert=True)
         return
