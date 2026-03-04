@@ -27,6 +27,21 @@ class Order(models.Model):
         ('sbp', 'СБП'),
     ]
 
+    CANCEL_REASON_CHOICES = [
+        ('client_refused', 'Клиент отказался'),
+        ('client_absent', 'Клиент отсутствует'),
+        ('damaged', 'Товар повреждён'),
+        ('other', 'Другая причина'),
+    ]
+
+    CANCELED_BY_CHOICES = [
+        ('client', 'Клиент'),
+        ('courier', 'Курьер'),
+        ('picker', 'Сборщик'),
+        ('admin', 'Администратор'),
+        ('onec', '1С'),
+    ]
+
     customer = models.ForeignKey("main.CustomUser", on_delete=models.CASCADE, related_name='orders', verbose_name="Клиент")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
@@ -78,6 +93,12 @@ class Order(models.Model):
                                       default="none", db_index=True, verbose_name="Статус платежа")
     manual_check_required = models.BooleanField(default=False,
                                                 verbose_name="Требует ручной проверки")
+
+    # --- Cancellation ---
+    cancel_reason = models.CharField(max_length=20, choices=CANCEL_REASON_CHOICES,
+                                     null=True, blank=True, verbose_name="Причина отмены")
+    canceled_by = models.CharField(max_length=20, choices=CANCELED_BY_CHOICES,
+                                   null=True, blank=True, verbose_name="Кто отменил")
 
     # --- 1C sync ---
     onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")

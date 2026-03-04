@@ -35,6 +35,14 @@ def get_orders_list_keyboard(orders) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+_CANCEL_REASONS = [
+    ("client_refused", "\u274c \u041a\u043b\u0438\u0435\u043d\u0442 \u043e\u0442\u043a\u0430\u0437\u0430\u043b\u0441\u044f"),
+    ("client_absent", "\U0001f6ab \u041a\u043b\u0438\u0435\u043d\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442"),
+    ("damaged", "\U0001f4e6 \u0422\u043e\u0432\u0430\u0440 \u043f\u043e\u0432\u0440\u0435\u0436\u0434\u0451\u043d"),
+    ("other", "\u2753 \u0414\u0440\u0443\u0433\u0430\u044f \u043f\u0440\u0438\u0447\u0438\u043d\u0430"),
+]
+
+
 def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
     """InlineKeyboard: action buttons for a specific order."""
     buttons = []
@@ -67,6 +75,15 @@ def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
             )]
         )
 
+    # Cancel button for delivery/arrived statuses
+    if order.status in ("delivery", "arrived"):
+        buttons.append(
+            [InlineKeyboardButton(
+                text="\u274c \u041e\u0442\u043a\u0430\u0437 \u043a\u043b\u0438\u0435\u043d\u0442\u0430",
+                callback_data=f"order:{order.id}:cancel",
+            )]
+        )
+
     buttons.append(
         [InlineKeyboardButton(
             text="\u2b05 \u041d\u0430\u0437\u0430\u0434",
@@ -75,6 +92,42 @@ def get_order_detail_keyboard(order) -> InlineKeyboardMarkup:
     )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+_CANCEL_REASON_LABELS = dict(_CANCEL_REASONS)
+
+
+def get_cancel_reasons_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """InlineKeyboard: cancel reason selection."""
+    buttons = []
+    for reason_code, reason_label in _CANCEL_REASONS:
+        buttons.append(
+            [InlineKeyboardButton(
+                text=reason_label,
+                callback_data=f"order:{order_id}:cancelreason:{reason_code}",
+            )]
+        )
+    buttons.append(
+        [InlineKeyboardButton(
+            text="\u2b05 \u041d\u0430\u0437\u0430\u0434",
+            callback_data=f"order:{order_id}:detail",
+        )]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_cancel_confirm_keyboard(order_id: int, reason: str) -> InlineKeyboardMarkup:
+    """InlineKeyboard: confirmation before cancel."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="\u274c \u0414\u0430, \u043e\u0442\u043c\u0435\u043d\u0438\u0442\u044c",
+            callback_data=f"order:{order_id}:cancelconfirm:{reason}",
+        )],
+        [InlineKeyboardButton(
+            text="\u2b05 \u041d\u0435\u0442, \u043d\u0430\u0437\u0430\u0434",
+            callback_data=f"order:{order_id}:cancel",
+        )],
+    ])
 
 
 def payment_label(method: str) -> str:

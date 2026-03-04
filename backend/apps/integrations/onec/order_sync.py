@@ -91,6 +91,8 @@ def send_order_to_onec_impl(self, order_id: int):
                 "comment": order.comment,
             },
             "payment_method": order.payment_method,
+            "payment_id": order.payment_id,
+            "payment_status": order.payment_status,
             "fulfillment_type": order.fulfillment_type,
             "prices": {
                 "products_price": str(order.products_price),

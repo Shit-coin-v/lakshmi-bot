@@ -234,6 +234,23 @@ class BackendClient:
         result = await self.post("/onec/order/status", payload)
         return bool(result and isinstance(result, dict) and result.get("status") == "ok")
 
+    async def cancel_order(
+        self,
+        order_id: int,
+        *,
+        reason: str | None = None,
+        role: str = "courier",
+        courier_tg_id: int | None = None,
+    ) -> bool:
+        """POST /api/bot/orders/<id>/cancel/ — cancel order with reason."""
+        payload: dict = {"role": role}
+        if reason:
+            payload["reason"] = reason
+        if courier_tg_id is not None:
+            payload["courier_tg_id"] = courier_tg_id
+        result = await self.post(f"/api/bot/orders/{order_id}/cancel/", payload)
+        return bool(result and isinstance(result, dict) and result.get("status") == "ok")
+
     async def reassign_order(self, order_id: int) -> bool:
         """POST /api/bot/orders/<id>/reassign/ — transfer order to another courier."""
         result = await self.post(f"/api/bot/orders/{order_id}/reassign/", {})

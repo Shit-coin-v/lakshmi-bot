@@ -105,6 +105,15 @@ def onec_order_status(request):
                     o.assembled_by = int(assembler_id)
                     updates.append("assembled_by")
 
+                # Track who canceled the order
+                if status_in == "canceled":
+                    o.canceled_by = "onec"
+                    updates.append("canceled_by")
+                    cancel_reason = (payload.get("cancel_reason") or "").strip() or None
+                    if cancel_reason:
+                        o.cancel_reason = cancel_reason
+                        updates.append("cancel_reason")
+
                 # Return to pool: clear assembler on reset to new
                 if status_in == "new":
                     o.assembled_by = None

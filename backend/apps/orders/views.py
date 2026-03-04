@@ -103,16 +103,27 @@ class OrderCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            cancel_reason = request.data.get("cancel_reason")
+            valid_reasons = {c[0] for c in Order.CANCEL_REASON_CHOICES}
+            if cancel_reason and cancel_reason not in valid_reasons:
+                cancel_reason = None
+
             order.status = "canceled"
-            order.save(update_fields=["status"])
+            order.canceled_by = "client"
+            order.cancel_reason = cancel_reason
+            order.save(update_fields=["status", "canceled_by", "cancel_reason"])
+
+            oid = order.id
 
             # Cancel/refund online payment if exists.
-            # Note: onec_order_status may also trigger cancel_payment_task
-            # on status→canceled — that's OK, the task is idempotent.
             if order.payment_id and order.payment_status in ("authorized", "captured"):
                 from apps.integrations.payments.tasks import cancel_payment_task
-                oid = order.id
                 transaction.on_commit(lambda: cancel_payment_task.delay(oid))
+
+            # Notify 1C about cancellation (if order was sent to 1C).
+            if order.onec_guid or order.sync_status in ("sent", "confirmed"):
+                from apps.integrations.onec.tasks import notify_onec_order_canceled
+                transaction.on_commit(lambda: notify_onec_order_canceled.delay(oid))
 
         # Push notification handled by _order_post_save signal
         return Response({"detail": "Заказ отменён"})

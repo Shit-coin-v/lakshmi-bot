@@ -14,7 +14,14 @@ from shared.bot_utils.notifications import cleanup_notifications
 from shared.bot_utils.order_helpers import fetch_order_with_items
 from shared.bot_utils.retry import is_in_flight, schedule_retry
 from config import backend, STORE_LOCATION
-from keyboards import get_orders_list_keyboard, get_order_detail_keyboard, payment_label
+from keyboards import (
+    get_orders_list_keyboard,
+    get_order_detail_keyboard,
+    get_cancel_reasons_keyboard,
+    get_cancel_confirm_keyboard,
+    _CANCEL_REASON_LABELS,
+    payment_label,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +319,113 @@ async def order_reassign(callback: CallbackQuery):
         await callback.answer()
     else:
         await callback.answer("Не удалось передать заказ. Попробуйте позже.", show_alert=True)
+
+
+# --- Callback: cancel order ---
+
+@router.callback_query(F.data.startswith("order:") & F.data.endswith(":cancel"))
+async def order_cancel(callback: CallbackQuery):
+    if not await _check_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+
+    parts = callback.data.split(":")
+    try:
+        order_id = int(parts[1])
+    except (IndexError, ValueError):
+        await callback.answer("Неверные данные.", show_alert=True)
+        return
+
+    keyboard = get_cancel_reasons_keyboard(order_id)
+    await callback.message.edit_text(
+        f"Заказ #{order_id}\n\nУкажите причину отмены:",
+        reply_markup=keyboard,
+    )
+    await callback.answer()
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("order:") and ":cancelreason:" in c.data)
+async def order_cancel_reason(callback: CallbackQuery):
+    """Step 2: show confirmation screen after reason selection."""
+    if not await _check_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+
+    parts = callback.data.split(":")
+    try:
+        order_id = int(parts[1])
+        reason = parts[3]
+    except (IndexError, ValueError):
+        await callback.answer("Неверные данные.", show_alert=True)
+        return
+
+    reason_label = _CANCEL_REASON_LABELS.get(reason, reason)
+    keyboard = get_cancel_confirm_keyboard(order_id, reason)
+    await callback.message.edit_text(
+        f"Заказ #{order_id}\n\n"
+        f"Причина: {reason_label}\n\n"
+        f"<b>Вы уверены, что хотите отменить заказ?</b>",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("order:") and ":cancelconfirm:" in c.data)
+async def order_cancel_confirm(callback: CallbackQuery):
+    """Step 3: actually cancel the order after confirmation."""
+    if not await _check_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+
+    parts = callback.data.split(":")
+    try:
+        order_id = int(parts[1])
+        reason = parts[3]
+    except (IndexError, ValueError):
+        await callback.answer("Неверные данные.", show_alert=True)
+        return
+
+    # Show "processing" state
+    pending_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="⏳ Отменяю заказ...",
+            callback_data=f"order:{order_id}:pending",
+        )]
+    ])
+    await callback.message.edit_reply_markup(reply_markup=pending_kb)
+    await callback.answer("Отменяю заказ...")
+
+    success = await backend.cancel_order(
+        order_id,
+        reason=reason,
+        role="courier",
+        courier_tg_id=callback.from_user.id,
+    )
+
+    if success:
+        orders = await _fetch_active_orders(callback.from_user.id)
+        if orders:
+            keyboard = get_orders_list_keyboard(orders)
+            await callback.message.edit_text(
+                f"❌ Заказ #{order_id} отменён.\n\n📦 Активные заказы:",
+                reply_markup=keyboard,
+            )
+        else:
+            await callback.message.edit_text(
+                f"❌ Заказ #{order_id} отменён.\n\nНет активных заказов.",
+            )
+    else:
+        order = await _fetch_order_with_items(order_id)
+        if order and order.status in _ACTIVE_STATUSES:
+            text = _format_order_detail(order)
+            text += "\n\n❌ <b>Не удалось отменить заказ. Попробуйте снова.</b>"
+            keyboard = get_order_detail_keyboard(order)
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await callback.message.edit_text(
+                f"❌ Не удалось отменить заказ #{order_id}.",
+            )
 
 
 # --- Callback: status transitions (pickup, arrived, complete) ---

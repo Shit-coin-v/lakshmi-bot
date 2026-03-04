@@ -438,6 +438,75 @@ class CourierProfileView(APIView):
         return Response(CourierProfileSerializer(profile).data)
 
 
+class OrderCancelByStaffView(APIView):
+    """POST /api/bot/orders/<pk>/cancel/
+
+    Courier or picker cancels an order with a reason.
+    Triggers payment cancel/refund and 1C notification.
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    CANCELLABLE_STATUSES = ("new", "accepted", "assembly", "ready", "delivery", "arrived")
+
+    def post(self, request, pk):
+        reason = (request.data.get("reason") or "").strip() or None
+        role = (request.data.get("role") or "courier").strip()
+        courier_tg_id = request.data.get("courier_tg_id")
+
+        valid_reasons = {c[0] for c in Order.CANCEL_REASON_CHOICES}
+        if reason and reason not in valid_reasons:
+            return Response(
+                {"detail": f"Invalid reason. Allowed: {sorted(valid_reasons)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(pk=pk)
+            except Order.DoesNotExist:
+                return Response(
+                    {"detail": "Order not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if order.status not in self.CANCELLABLE_STATUSES:
+                return Response(
+                    {"detail": "Order cannot be canceled in current status."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Verify courier is assigned to this order (if courier_tg_id provided)
+            if courier_tg_id and order.delivered_by and int(courier_tg_id) != order.delivered_by:
+                return Response(
+                    {"detail": "You are not assigned to this order."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            order.status = "canceled"
+            order.canceled_by = role if role in ("courier", "picker") else "courier"
+            order.cancel_reason = reason
+            order._skip_signal_notification = True
+            order.save(update_fields=["status", "canceled_by", "cancel_reason"])
+
+            oid = order.id
+
+            if order.payment_id and order.payment_status in ("authorized", "captured"):
+                from apps.integrations.payments.tasks import cancel_payment_task
+                transaction.on_commit(lambda: cancel_payment_task.delay(oid))
+
+            if order.onec_guid or order.sync_status in ("sent", "confirmed"):
+                from apps.integrations.onec.tasks import notify_onec_order_canceled
+                transaction.on_commit(lambda: notify_onec_order_canceled.delay(oid))
+
+            # Send push notification to client
+            from apps.notifications.tasks import send_order_push_task
+            prev = order.status  # already "canceled" but we need previous
+            transaction.on_commit(lambda: send_order_push_task.delay(oid, "delivery", "canceled"))
+
+        return Response({"status": "ok", "order_id": pk, "canceled_by": order.canceled_by})
+
+
 class OrderReassignView(APIView):
     """POST /api/bot/orders/<pk>/reassign/
 
