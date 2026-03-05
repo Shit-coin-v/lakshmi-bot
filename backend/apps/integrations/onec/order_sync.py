@@ -106,8 +106,8 @@ def send_order_to_onec_impl(self, order_id: int):
     # 4) Send to 1C (or proxy)
     url = _get_onec_order_url()
     if not url:
-        _fail_order(order_id, "ONEC_ORDER_URL not configured")
-        raise RuntimeError("ONEC_ORDER_URL not configured")
+        logger.warning("ONEC_ORDER_URL not configured — skipping 1C sync for order %s", order_id)
+        return {"status": "skipped", "reason": "ONEC_ORDER_URL not configured"}
 
     headers = {
         "Content-Type": "application/json",
