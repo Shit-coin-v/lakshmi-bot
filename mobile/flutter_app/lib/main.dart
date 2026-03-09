@@ -35,6 +35,8 @@ import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
 
+import 'core/analytics_observer.dart';
+import 'core/analytics_service.dart';
 import 'core/push_notification_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 
@@ -83,6 +85,7 @@ GoRouter _createRouter(WidgetRef ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    observers: [AnalyticsNavigatorObserver()],
     redirect: (context, state) {
       final isLoggedIn = ref.read(authProvider) != null;
       final location = state.matchedLocation;
@@ -245,14 +248,30 @@ class LakshmiMarketApp extends ConsumerStatefulWidget {
   ConsumerState<LakshmiMarketApp> createState() => _LakshmiMarketAppState();
 }
 
-class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> {
+class _LakshmiMarketAppState extends ConsumerState<LakshmiMarketApp> with WidgetsBindingObserver {
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = _createRouter(ref);
     _initPush();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AnalyticsService().trackSessionStart();
+    } else if (state == AppLifecycleState.paused) {
+      AnalyticsService().trackSessionEnd();
+    }
   }
 
   Future<void> _initPush() async {
