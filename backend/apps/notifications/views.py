@@ -59,9 +59,16 @@ class NotificationViewSet(viewsets.ViewSet):
         except Notification.DoesNotExist:
             return Response({"detail": "not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        NotificationOpenEvent.objects.get_or_create(
+        from django.utils import timezone
+
+        now = timezone.now()
+        time_to_open = now - n.created_at if n.created_at else None
+
+        NotificationOpenEvent.objects.create(
             notification=n,
-            defaults={"user": request.telegram_user, "source": source},
+            user=request.telegram_user,
+            source=source,
+            time_to_open=time_to_open,
         )
 
         if not n.is_read:

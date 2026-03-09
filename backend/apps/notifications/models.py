@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Notification(models.Model):
@@ -67,17 +68,16 @@ class NotificationOpenEvent(models.Model):
         db_index=True,
         verbose_name="Открыто",
     )
+    time_to_open = models.DurationField(
+        null=True,
+        blank=True,
+        verbose_name="Время до открытия",
+    )
 
     class Meta:
         db_table = "notification_open_events"
         verbose_name = "Открытие уведомления"
         verbose_name_plural = "Открытия уведомлений"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["notification"],
-                name="uniq_notification_open_once",
-            )
-        ]
 
     def __str__(self) -> str:
         return f"{self.user_id} | notif={self.notification_id} | {self.source}"

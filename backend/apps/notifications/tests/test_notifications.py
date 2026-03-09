@@ -71,11 +71,40 @@ class NotificationViewSetTests(TestCase):
 
         self.notification.refresh_from_db()
         self.assertTrue(self.notification.is_read)
-        self.assertTrue(
+        self.assertEqual(
             NotificationOpenEvent.objects.filter(
                 notification=self.notification,
-            ).exists()
+            ).count(),
+            1,
         )
+
+    def test_mark_read_multiple_times_creates_multiple_events(self):
+        """After removing UniqueConstraint, multiple opens are tracked."""
+        for _ in range(3):
+            response = self.client.post(
+                f"/api/notifications/{self.notification.pk}/read/",
+                data=json.dumps({"source": "push"}),
+                content_type="application/json",
+                **self._headers(),
+            )
+            self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            NotificationOpenEvent.objects.filter(notification=self.notification).count(),
+            3,
+        )
+
+    def test_mark_read_sets_time_to_open(self):
+        response = self.client.post(
+            f"/api/notifications/{self.notification.pk}/read/",
+            data=json.dumps({"source": "inapp"}),
+            content_type="application/json",
+            **self._headers(),
+        )
+        self.assertEqual(response.status_code, 200)
+        event = NotificationOpenEvent.objects.get(notification=self.notification)
+        self.assertIsNotNone(event.time_to_open)
+        self.assertGreaterEqual(event.time_to_open.total_seconds(), 0)
 
     def test_missing_header_returns_403(self):
         response = self.client.get("/api/notifications/")
