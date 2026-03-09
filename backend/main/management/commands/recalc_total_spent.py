@@ -10,6 +10,7 @@ Usage:
 
 from decimal import Decimal as D
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Count, Sum
 
@@ -28,10 +29,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         apply = options["apply"]
+        guest_tid = getattr(settings, "GUEST_TELEGRAM_ID", 0)
 
-        # Агрегируем по клиентам из транзакций
+        # Агрегируем по клиентам из транзакций (без гостя)
         aggregated = (
             Transaction.objects.filter(customer__isnull=False)
+            .exclude(customer__telegram_id=guest_tid)
             .values("customer_id")
             .annotate(
                 calc_spent=Sum("total_amount"),
@@ -44,7 +47,7 @@ class Command(BaseCommand):
             for row in aggregated
         }
 
-        users = CustomUser.objects.all()
+        users = CustomUser.objects.exclude(telegram_id=guest_tid)
         fixed = 0
         total_drift = D("0")
 
