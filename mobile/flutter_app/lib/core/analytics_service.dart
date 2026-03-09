@@ -23,10 +23,10 @@ class AnalyticsService {
   Future<void> trackScreenView(String screen, {Map<String, dynamic>? payload}) =>
       _track('screen_view', screen: screen, payload: payload);
 
-  Future<void> trackCartAdd(int productId, int quantity) =>
+  Future<void> trackCartAdd(String productId, int quantity) =>
       _track('cart_add', payload: {'product_id': productId, 'quantity': quantity});
 
-  Future<void> trackCartRemove(int productId) =>
+  Future<void> trackCartRemove(String productId) =>
       _track('cart_remove', payload: {'product_id': productId});
 
   Future<void> trackSearch(String query, int resultsCount) =>
