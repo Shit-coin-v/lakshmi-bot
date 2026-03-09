@@ -57,6 +57,8 @@ services:
       GF_SERVER_ROOT_URL: "${PUBLIC_BASE_URL:-http://localhost:8000}/grafana/"
     volumes:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafanadata:/var/lib/grafana
     logging:
       driver: json-file
