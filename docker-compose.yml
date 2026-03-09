@@ -66,6 +66,8 @@ services:
       GF_SERVER_ROOT_URL: "${PUBLIC_BASE_URL:-http://localhost:8000}/grafana/"
     volumes:
       - ./infra/observability/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./infra/observability/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./infra/observability/grafana/json:/etc/grafana/provisioning/dashboards/json
       - grafanadata:/var/lib/grafana
     networks:
       - monitoring
