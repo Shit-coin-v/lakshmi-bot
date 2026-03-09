@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'apps.integrations.payments.apps.PaymentsConfig',
     'apps.accounts.apps.AccountsConfig',
     'apps.bot_api.apps.BotApiConfig',
+    'apps.analytics.apps.AnalyticsConfig',
 ]
 
 MIDDLEWARE = [

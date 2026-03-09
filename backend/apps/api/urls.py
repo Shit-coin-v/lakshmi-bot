@@ -50,4 +50,6 @@ urlpatterns = [
     path("api/payments/webhook/", yukassa_webhook, name="yukassa-webhook"),
     # Bot API (service endpoints for Telegram bots)
     path("api/bot/", include("apps.bot_api.urls")),
+    # Analytics
+    path("api/analytics/", include("apps.analytics.urls")),
 ]
