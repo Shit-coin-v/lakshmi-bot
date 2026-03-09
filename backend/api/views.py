@@ -32,7 +32,6 @@ from .models import OneCClientMap
 from .security import require_onec_auth
 from .serializers import (
     ProductUpdateSerializer,
-    PurchaseSerializer,
     ReceiptSerializer,
 )
 
@@ -81,71 +80,13 @@ class DuplicateReceiptLineError(Exception):
 @method_decorator(csrf_exempt, name="dispatch")
 @method_decorator(require_onec_auth, name="dispatch")
 class PurchaseAPIView(APIView):
-    """Simplified webhook for legacy purchase notifications."""
+    """Legacy endpoint — disabled. Use /onec/receipt instead."""
 
     def post(self, request):
-        serializer = PurchaseSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        data = serializer.validated_data
-        telegram_id = data["telegram_id"]
-        try:
-            customer = CustomUser.objects.get(telegram_id=telegram_id)
-        except CustomUser.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        purchase_dt = datetime.combine(data["purchase_date"], data["purchase_time"])
-        if settings.USE_TZ and dj_tz.is_naive(purchase_dt):
-            purchase_dt = dj_tz.make_aware(purchase_dt, timezone=timezone.utc)
-
-        customer.bonuses = data["total_bonuses"]
-        customer.last_purchase_date = purchase_dt
-        customer.total_spent = (customer.total_spent or D("0")) + data["total"]
-        customer.purchase_count = (customer.purchase_count or 0) + 1
-        customer.save(
-            update_fields=[
-                "bonuses",
-                "last_purchase_date",
-                "total_spent",
-                "purchase_count",
-            ]
+        return Response(
+            {"error": "Endpoint deprecated. Use /onec/receipt."},
+            status=status.HTTP_410_GONE,
         )
-
-        was_first_purchase = not Transaction.objects.filter(customer=customer).exists()
-
-        product_defaults = {
-            "name": data["product_name"],
-            "category": data["category"],
-            "price": data["price"],
-            "store_id": data["store_id"],
-            "is_promotional": data["is_promotional"],
-        }
-        product, _ = Product.objects.get_or_create(
-            product_code=data["product_code"], defaults=product_defaults
-        )
-
-        transaction = Transaction.objects.create(
-            customer=customer,
-            product=product,
-            quantity=data["quantity"],
-            total_amount=data["total"],
-            bonus_earned=data["bonus_earned"],
-            purchase_date=data["purchase_date"],
-            purchase_time=data["purchase_time"],
-            store_id=data["store_id"],
-            is_promotional=data["is_promotional"],
-        )
-
-        response = {
-            "msg": "Successfully",
-            "transaction_id": transaction.id,
-            "bonus_earned": float(transaction.bonus_earned or 0),
-            "total_bonuses": float(customer.bonuses or 0),
-            "is_first_purchase": was_first_purchase,
-            "referrer": getattr(customer.referrer, "telegram_id", None),
-        }
-        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class SendMessageAPIView(APIView):
@@ -375,8 +316,25 @@ def onec_receipt(request):
     B_left = B_tot - B_fixed
     if B_left < 0:
         logger.warning(
-            "onec_receipt: positional bonuses exceed totals; clamping to totals"
+            "onec_receipt: positional bonuses (%s) exceed totals (%s) "
+            "for receipt %s; scaling down to match totals",
+            B_fixed,
+            B_tot,
+            data["receipt_guid"],
         )
+        if B_fixed > 0:
+            scale = B_tot / B_fixed
+            for p in pos_with:
+                p["bonus_earned"] = str(
+                    _quantize(_as_decimal(p["bonus_earned"]) * scale)
+                )
+            # Пересчитываем B_fixed после масштабирования и корректируем
+            # последнюю позицию, чтобы сумма точно совпала с B_tot
+            recalc = [_quantize(_as_decimal(p["bonus_earned"])) for p in pos_with]
+            diff = B_tot - sum(recalc)
+            if diff and pos_with:
+                last_val = _as_decimal(pos_with[-1]["bonus_earned"]) + diff
+                pos_with[-1]["bonus_earned"] = str(_quantize(last_val))
         B_left = D("0")
 
     if B_left > 0 and pos_without:
@@ -699,9 +657,20 @@ def onec_customer_sync(request):
 
     if bonus_balance is not None:
         try:
-            user.bonuses = _as_decimal(bonus_balance)
+            new_balance = _as_decimal(bonus_balance)
         except Exception:
             return JsonResponse({"detail": {"bonus_balance": ["Неверное число"]}}, status=400)
+        current = user.bonuses or D("0")
+        if current != new_balance:
+            logger.warning(
+                "onec_customer_sync: bonus mismatch for user %s: "
+                "local=%s, onec=%s, delta=%s",
+                user.telegram_id,
+                current,
+                new_balance,
+                new_balance - current,
+            )
+        user.bonuses = new_balance
 
     if referrer_tid:
         try:
