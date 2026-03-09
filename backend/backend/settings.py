@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.getenv("POSTGRES_DB"),
         "USER": os.getenv("POSTGRES_USER"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
