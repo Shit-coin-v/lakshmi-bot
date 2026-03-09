@@ -452,8 +452,13 @@ def onec_receipt(request):
                     transaction_defaults["receipt_bonus_earned"] = pos_bonus_earned
                 if hasattr(Transaction, "receipt_bonus_spent"):
                     transaction_defaults["receipt_bonus_spent"] = pos_bonus_spent
-                if first_line and hasattr(Transaction, "idempotency_key"):
-                    transaction_defaults["idempotency_key"] = idem_key
+                if first_line:
+                    if hasattr(Transaction, "idempotency_key"):
+                        transaction_defaults["idempotency_key"] = idem_key
+                    if hasattr(Transaction, "receipt_total_amount"):
+                        transaction_defaults["receipt_total_amount"] = total_amount
+                    if hasattr(Transaction, "receipt_discount_total"):
+                        transaction_defaults["receipt_discount_total"] = discount_total
 
                 try:
                     transaction, created = Transaction.objects.get_or_create(
