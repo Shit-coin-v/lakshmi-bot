@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../home/models/product.dart';
 import '../models/cart_item.dart';
+import '../../../core/analytics_service.dart';
 
 // Global access to cart state
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
@@ -38,6 +39,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       // If not — add new item
       state = [...state, CartItem(product: product, quantity: 1)];
     }
+    AnalyticsService().trackCartAdd(product.id, 1);
   }
 
   // Decrease quantity
@@ -59,6 +61,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         ];
       }
     }
+    AnalyticsService().trackCartRemove(product.id);
   }
 
   // Clear cart (after order)

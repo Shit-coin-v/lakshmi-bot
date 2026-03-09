@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/analytics_service.dart';
 import '../../../core/extensions/price_extension.dart';
 import '../providers/products_provider.dart';
 import '../models/product.dart';
@@ -123,6 +124,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _debounce?.cancel();
                   _debounce = Timer(const Duration(milliseconds: 300), () {
                     ref.read(searchQueryProvider.notifier).state = value;
+                    if (value.isNotEmpty) {
+                      AnalyticsService().trackSearch(value, 0);
+                    }
                   });
                 },
               ),
