@@ -115,8 +115,6 @@ class LoginQrView(APIView):
         qr_code = ser.validated_data["qr_code"].strip()
 
         user = CustomUser.objects.filter(qr_code=qr_code).first()
-        if not user and qr_code.isdigit():
-            user = CustomUser.objects.filter(telegram_id=int(qr_code)).first()
         if not user:
             logger.warning("QR login failed: qr_code not found ip=%s", request.META.get("REMOTE_ADDR", ""))
             return Response(

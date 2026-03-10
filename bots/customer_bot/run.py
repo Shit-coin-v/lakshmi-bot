@@ -91,39 +91,35 @@ async def ensure_qr_code_path(user_data: dict):
     qr_code_value = str(user_data["qr_code"]).strip()
     telegram_id = user_data["telegram_id"]
     user_id = user_data["id"]
-    path = None
-    normalized_url = None
-
-    try:
-        path, normalized_url = resolve_qr_code_path(
-            qr_code_value, telegram_id=telegram_id
-        )
-    except ValueError:
-        logger.warning(
-            "Не удалось преобразовать значение QR-кода в путь (telegram_id=%s, value=%r)",
-            telegram_id,
-            qr_code_value,
-        )
-    else:
-        if path.exists():
-            if normalized_url and normalized_url != qr_code_value:
-                await backend.patch_user(user_id, {"qr_code": normalized_url})
-            return path
-        logger.warning(
-            "Файл QR-кода не найден на диске (telegram_id=%s, path=%s)",
-            telegram_id,
-            path,
-        )
-
-    data_for_qr = qr_code_value if qr_code_value and path is None else str(telegram_id)
+    tid_str = str(telegram_id)
     filename = qr_code_filename(telegram_id)
-    new_qr_value = generate_qr_code(
-        data_for_qr, filename=filename, telegram_id=telegram_id
-    )
-    if qr_code_value != new_qr_value:
-        await backend.patch_user(user_id, {"qr_code": new_qr_value})
-    new_path, _ = resolve_qr_code_path(new_qr_value, telegram_id=telegram_id)
-    return new_path
+
+    # Try to resolve existing file path (handles legacy /media/... values)
+    if not qr_code_value.isdigit():
+        try:
+            path, _ = resolve_qr_code_path(
+                qr_code_value, telegram_id=telegram_id
+            )
+            if path.exists():
+                # Migrate DB: store telegram_id instead of file path
+                await backend.patch_user(user_id, {"qr_code": tid_str})
+                return path
+        except ValueError:
+            pass
+
+    # Check if QR image already exists on disk
+    from qr_code import QR_DIR
+    expected_path = QR_DIR / filename
+    if expected_path.exists():
+        if qr_code_value != tid_str:
+            await backend.patch_user(user_id, {"qr_code": tid_str})
+        return expected_path
+
+    # Regenerate QR image
+    generate_qr_code(tid_str, filename=filename, telegram_id=telegram_id)
+    if qr_code_value != tid_str:
+        await backend.patch_user(user_id, {"qr_code": tid_str})
+    return QR_DIR / filename
 
 
 @dp.message(CommandStart())
@@ -176,8 +172,8 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
     await state.update_data(personal_data_consent=True)
     data = await state.get_data()
 
-    # Generate QR code locally before registration
-    qr_code = generate_qr_code(
+    # Generate QR code image locally before registration
+    generate_qr_code(
         callback.from_user.id, telegram_id=callback.from_user.id
     )
 
@@ -187,7 +183,7 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         "last_name": callback.from_user.last_name,
         "referrer_id": data.get("referrer_id"),
         "personal_data_consent": True,
-        "qr_code": qr_code,
+        "qr_code": str(callback.from_user.id),
     })
 
     # Delete the consent message
