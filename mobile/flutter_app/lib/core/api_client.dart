@@ -143,9 +143,23 @@ class ApiClient {
     clearBearerToken();
   }
 
+  /// Whether a Bearer token is currently set.
+  bool get hasAccessToken =>
+      _dio.options.headers.containsKey('Authorization');
+
   /// Restore Bearer token from storage (for auto-login).
   Future<String?> getSavedAccessToken() async {
     return await _storage.read(key: _accessTokenKey);
+  }
+
+  /// Restore Bearer header from saved token (call once on app start).
+  Future<bool> restoreTokenFromStorage() async {
+    final token = await getSavedAccessToken();
+    if (token != null && token.isNotEmpty) {
+      setBearerToken(token);
+      return true;
+    }
+    return false;
   }
 
   Future<String?> getSavedRefreshToken() async {

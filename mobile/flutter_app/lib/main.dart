@@ -35,6 +35,7 @@ import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
 
+import 'core/api_client.dart';
 import 'core/analytics_observer.dart';
 import 'core/analytics_service.dart';
 import 'core/push_notification_service.dart';
@@ -58,6 +59,9 @@ Future<void> main() async {
   }
 
   await initializeDateFormatting('ru', null);
+
+  // Restore Bearer token before any widget init to avoid 403 on early requests
+  await ApiClient().restoreTokenFromStorage();
 
   runApp(const ProviderScope(child: LakshmiMarketApp()));
 }

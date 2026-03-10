@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/notifications/providers/notifications_provider.dart';
 import '../features/notifications/services/push_api_service.dart';
+import 'api_client.dart';
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>(
   (ref) => PushNotificationService(ref),
@@ -176,6 +177,8 @@ class PushNotificationService {
   }
 
   Future<void> registerTokenForCurrentUser([String? overrideToken]) async {
+    if (!ApiClient().hasAccessToken) return;
+
     String? token;
 
     try {

@@ -9,6 +9,7 @@ class AnalyticsService {
   final Dio _dio = ApiClient().dio;
 
   Future<void> _track(String eventType, {String screen = '', Map<String, dynamic>? payload}) async {
+    if (!ApiClient().hasAccessToken) return;
     try {
       await _dio.post('/api/analytics/events/', data: {
         'event_type': eventType,

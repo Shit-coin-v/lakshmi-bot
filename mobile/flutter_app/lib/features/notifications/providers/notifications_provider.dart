@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api_client.dart';
 import '../models/notification_model.dart';
 import '../services/notifications_api_service.dart';
 
@@ -9,13 +10,20 @@ final notificationsApiServiceProvider = Provider<NotificationsApiService>(
 
 class NotificationsNotifier
     extends StateNotifier<AsyncValue<List<NotificationModel>>> {
-  NotificationsNotifier(this._ref) : super(const AsyncValue.loading()) {
-    loadNotifications();
+  NotificationsNotifier(this._ref) : super(const AsyncValue.data([])) {
+    _initLoad();
   }
 
   final Ref _ref;
 
+  void _initLoad() {
+    if (ApiClient().hasAccessToken) {
+      loadNotifications();
+    }
+  }
+
   Future<void> loadNotifications() async {
+    if (!ApiClient().hasAccessToken) return;
     state = const AsyncValue.loading();
     try {
       final api = _ref.read(notificationsApiServiceProvider);
