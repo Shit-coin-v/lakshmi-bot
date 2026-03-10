@@ -17,6 +17,7 @@ from .serializers import (
     LinkEmailSerializer,
     LinkTelegramByQrSerializer,
     LinkTelegramConfirmSerializer,
+    LoginQrSerializer,
     LoginSerializer,
     RefreshSerializer,
     RegisterSerializer,
@@ -99,6 +100,39 @@ class LoginView(APIView):
             "email_verified": user.email_verified,
             "telegram_id": user.telegram_id,
             "tokens": tokens,
+        })
+
+
+class LoginQrView(APIView):
+    """POST /api/auth/login-qr/ — QR code login (mobile app)."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonAuthThrottle]
+
+    def post(self, request):
+        ser = LoginQrSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        qr_code = ser.validated_data["qr_code"].strip()
+
+        user = CustomUser.objects.filter(qr_code=qr_code).first()
+        if not user:
+            logger.warning("QR login failed: qr_code not found ip=%s", request.META.get("REMOTE_ADDR", ""))
+            return Response(
+                {"detail": "Неверный QR-код"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        tokens = generate_tokens(user)
+        return Response({
+            "user_id": user.pk,
+            "telegram_id": user.telegram_id,
+            "tokens": tokens,
+            "customer": {
+                "id": user.pk,
+                "telegram_id": user.telegram_id,
+                "qr_code": user.qr_code,
+                "bonus_balance": float(user.bonuses or 0),
+            },
         })
 
 

@@ -108,6 +108,49 @@ class LoginTests(TestCase):
         self.assertEqual(resp.status_code, 401)
 
 
+class LoginQrTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = CustomUser.objects.create(
+            telegram_id=123456789,
+            qr_code="/media/qr/test123",
+            full_name="QR User",
+            auth_method="telegram",
+            bonuses=50,
+        )
+
+    def test_login_qr_success(self):
+        resp = self.client.post(
+            "/api/auth/login-qr/",
+            data={"qr_code": "/media/qr/test123"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("tokens", data)
+        self.assertIn("access", data["tokens"])
+        self.assertIn("refresh", data["tokens"])
+        self.assertEqual(data["user_id"], self.user.pk)
+        self.assertEqual(data["customer"]["telegram_id"], 123456789)
+        self.assertEqual(data["customer"]["bonus_balance"], 50.0)
+
+    def test_login_qr_not_found(self):
+        resp = self.client.post(
+            "/api/auth/login-qr/",
+            data={"qr_code": "nonexistent"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_login_qr_empty(self):
+        resp = self.client.post(
+            "/api/auth/login-qr/",
+            data={"qr_code": ""},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
 class RefreshTests(TestCase):
     def setUp(self):
         self.client = Client()

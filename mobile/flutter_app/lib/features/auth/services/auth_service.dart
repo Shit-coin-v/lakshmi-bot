@@ -21,7 +21,7 @@ class AuthService {
   Future<UserModel> loginWithQr(String qrCode) async {
     try {
       final response = await _dio.post(
-        '/onec/customer',
+        '/api/auth/login-qr/',
         data: {"qr_code": qrCode},
       );
 
@@ -32,6 +32,12 @@ class AuthService {
           // Clear old session only after successful response
           await _storage.deleteAll();
           await ApiClient().clearTokens();
+
+          // Save JWT tokens
+          if (data['tokens'] != null) {
+            final tokens = data['tokens'];
+            await ApiClient().saveTokens(tokens['access'], tokens['refresh']);
+          }
 
           final user = UserModel.fromJson(data);
 
@@ -64,8 +70,8 @@ class AuthService {
         throw Exception('Ошибка сервера: ${response.statusCode}');
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        throw Exception('Пользователь с таким QR-кодом не найден');
+      if (e.response?.statusCode == 401) {
+        throw Exception('Неверный QR-код');
       }
       if (e.response?.data != null && e.response?.data['detail'] != null) {
         throw Exception('Ошибка: ${e.response?.data['detail']}');
