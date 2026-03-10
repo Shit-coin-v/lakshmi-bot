@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'apps.accounts.apps.AccountsConfig',
     'apps.bot_api.apps.BotApiConfig',
     'apps.analytics.apps.AnalyticsConfig',
+    'apps.campaigns.apps.CampaignsConfig',
 ]
 
 MIDDLEWARE = [
