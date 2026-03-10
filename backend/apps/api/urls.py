@@ -13,6 +13,7 @@ from apps.loyalty.views import PurchaseAPIView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
 from apps.integrations.payments.webhook import yukassa_webhook
+from apps.campaigns.views import UserAssignedCampaignsView
 from apps.orders.views import OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
 
 urlpatterns = [
@@ -38,6 +39,8 @@ urlpatterns = [
     path("api/orders/<int:pk>/", OrderDetailView.as_view(), name="order-detail"),
     path("api/orders/<int:pk>/cancel/", OrderCancelView.as_view(), name="order-cancel"),
     path("api/customer/<int:pk>/", CustomerProfileView.as_view(), name="customer-profile"),
+    # Campaigns
+    path("api/campaigns/active/", UserAssignedCampaignsView.as_view(), name="campaigns-active"),
     # Notifications
     path("api/notifications/", NotificationViewSet.as_view({"get": "list"}), name="notifications-list"),
     path("api/notifications/read-all/", NotificationViewSet.as_view({"post": "mark_all_read"}), name="notifications-read-all"),
