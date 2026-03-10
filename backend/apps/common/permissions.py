@@ -84,7 +84,12 @@ class CustomerPermission(BasePermission):
                     except CustomUser.DoesNotExist:
                         return False
 
-        # 2. Fallback: X-Telegram-User-Id header (backward compat)
+        # 2. Fallback: X-Telegram-User-Id header (behind feature flag)
+        from django.conf import settings as django_settings
+
+        if not getattr(django_settings, "ALLOW_TELEGRAM_HEADER_AUTH", False):
+            return False
+
         header = (
             request.headers.get("X-Telegram-User-Id")
             or request.META.get("HTTP_X_TELEGRAM_USER_ID")

@@ -292,6 +292,7 @@ class LinkTelegramTests(TestCase):
             "/api/auth/link-telegram/confirm/",
             data={"code": "123456", "telegram_id": 444555666},
             content_type="application/json",
+            HTTP_X_API_KEY="test-key",
         )
         self.assertEqual(resp.status_code, 200)
         self.email_user.refresh_from_db()
@@ -313,6 +314,7 @@ class LinkTelegramTests(TestCase):
             "/api/auth/link-telegram/confirm/",
             data={"code": "654321", "telegram_id": 777888999},
             content_type="application/json",
+            HTTP_X_API_KEY="test-key",
         )
         self.assertEqual(resp.status_code, 200)
 

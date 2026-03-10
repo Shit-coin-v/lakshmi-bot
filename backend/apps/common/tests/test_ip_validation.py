@@ -34,9 +34,16 @@ class IPAllowedTests(TestCase):
         self.factory = RequestFactory()
 
     @patch("apps.common.security._ALLOWED_IPS", ())
-    def test_empty_whitelist_allows_all(self):
+    @patch("django.conf.settings.DEBUG", True)
+    def test_empty_whitelist_allows_all_in_debug(self):
         request = self.factory.get("/", REMOTE_ADDR="1.2.3.4")
         self.assertTrue(_ip_allowed(request))
+
+    @patch("apps.common.security._ALLOWED_IPS", ())
+    @patch("django.conf.settings.DEBUG", False)
+    def test_empty_whitelist_denies_in_production(self):
+        request = self.factory.get("/", REMOTE_ADDR="1.2.3.4")
+        self.assertFalse(_ip_allowed(request))
 
     @patch("apps.common.security._ALLOWED_IPS", ("10.0.0.1",))
     def test_exact_match(self):

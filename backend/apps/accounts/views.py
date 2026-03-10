@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.authentication import decode_token, generate_tokens
-from apps.common.permissions import CustomerPermission
+from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.common.throttling import AnonAuthThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser
 
@@ -301,7 +301,7 @@ class LinkTelegramRequestView(APIView):
 class LinkTelegramConfirmView(APIView):
     """POST /api/auth/link-telegram/confirm/ — called by bot to complete linking."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [ApiKeyPermission]
     throttle_classes = [VerifyCodeThrottle]
 
     def post(self, request):

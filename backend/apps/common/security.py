@@ -11,6 +11,15 @@ from django.http import JsonResponse
 logger = logging.getLogger(__name__)
 
 API_KEY = (os.getenv("INTEGRATION_API_KEY") or "").strip()
+
+
+def _get_onec_api_key() -> str:
+    """Lazy read ONEC_API_KEY from settings (available after Django setup)."""
+    from django.conf import settings as django_settings
+
+    return getattr(django_settings, "ONEC_API_KEY", "") or ""
+
+
 _ALLOWED_IPS: tuple[str, ...] = tuple(
     ip.strip() for ip in (os.getenv("ONEC_ALLOW_IPS") or "").split(",") if ip.strip()
 )
@@ -35,11 +44,16 @@ def _iter_ip_rules() -> Iterable[str]:
 
 
 def _ip_allowed(request) -> bool:
-    """Allow empty whitelist or match exact/prefix rules."""
+    """Check client IP against whitelist. Empty whitelist denies in production."""
 
     rules = list(_iter_ip_rules())
     if not rules:
-        logger.warning("ONEC AUTH: IP whitelist is empty, allowing all IPs")
+        from django.conf import settings as django_settings
+
+        if not getattr(django_settings, "DEBUG", False):
+            logger.error("ONEC AUTH: IP whitelist empty in production — denying")
+            return False
+        logger.warning("ONEC AUTH: IP whitelist empty (DEBUG), allowing all")
         return True
 
     real_ip = _client_ip(request)
@@ -60,7 +74,8 @@ def require_onec_auth(view_func):
 
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
-        if not API_KEY:
+        onec_key = _get_onec_api_key()
+        if not onec_key:
             logger.error("ONEC AUTH denied: server auth not configured")
             return _bad(401, "Server auth not configured")
 
@@ -86,7 +101,7 @@ def require_onec_auth(view_func):
             )
             return _bad(401, "Missing API key")
 
-        if not compare_digest(api_key, API_KEY):
+        if not compare_digest(api_key, onec_key):
             logger.warning(
                 "ONEC AUTH denied: bad api key ip=%s path=%s",
                 _client_ip(request),
