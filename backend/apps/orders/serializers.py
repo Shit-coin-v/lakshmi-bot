@@ -13,15 +13,16 @@ _DELIVERY_FEE = Decimal("150.00")
 
 class ProductListSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    category = serializers.CharField(source='category_text', read_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 
-            'product_code', 
-            'name', 
-            'price', 
-            'category_text',
+            'id',
+            'product_code',
+            'name',
+            'price',
+            'category',
             'stock', 
             'image_url',     
             'description',   
