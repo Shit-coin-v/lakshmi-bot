@@ -6,6 +6,7 @@ from django.db.models import Count
 from .models import (
     BotActivity,
     BroadcastMessage,
+    Category,
     CustomUser,
     NewsletterDelivery,
     NewsletterOpenEvent,
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'product_code', 'price', 'stock', 'is_promotional')
-    list_filter = ('category', 'is_promotional')
+    list_filter = ('category_text', 'is_promotional')
     search_fields = ('name', 'product_code')
     readonly_fields = ('updated_at',)
 
@@ -142,5 +143,6 @@ class NewsletterOpenEventAdmin(admin.ModelAdmin):
     readonly_fields = ('occurred_at',)
 
 
+admin.site.register(Category)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(CustomUser, CustomUserAdmin)

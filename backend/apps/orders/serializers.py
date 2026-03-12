@@ -21,7 +21,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'product_code', 
             'name', 
             'price', 
-            'category', 
+            'category_text',
             'stock', 
             'image_url',     
             'description',   

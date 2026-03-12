@@ -25,7 +25,7 @@ def onec_product_sync_impl(request):
         "one_c_guid": data.get("one_c_guid"),
         "name": data["name"],
         "price": data["price"],
-        "category": data["category"],
+        "category_text": data["category"],
         "is_promotional": data["is_promotional"],
     }
     if hasattr(Product, "store_id"):
@@ -42,7 +42,7 @@ def onec_product_sync_impl(request):
             "one_c_guid": product.one_c_guid,
             "name": product.name,
             "price": float(product.price),
-            "category": product.category,
+            "category": product.category_text,
             "is_promotional": product.is_promotional,
         },
     }

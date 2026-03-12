@@ -2,11 +2,33 @@ from django.db import models
 from django.utils import timezone
 
 
+class Category(models.Model):
+    name = models.CharField(max_length=255)
+    parent = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.CASCADE, related_name='children',
+    )
+    external_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'categories'
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     product_code = models.CharField(max_length=50, unique=True, blank=True, null=True)
     name = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    category = models.CharField(max_length=100, blank=True, null=True)
+    category_text = models.CharField(max_length=100, blank=True, null=True, db_column='category')
+    category = models.ForeignKey(
+        'Category', null=True, blank=True, on_delete=models.SET_NULL, related_name='products',
+    )
     stock = models.IntegerField(blank=True, null=True)
     store_id = models.IntegerField(db_index=True, help_text="External store ID from 1C ERP (not a FK — Store model is managed by 1C)")
     image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Фото")

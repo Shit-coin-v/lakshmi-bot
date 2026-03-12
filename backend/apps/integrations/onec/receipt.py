@@ -300,7 +300,7 @@ def onec_receipt(request):
 
                 product_defaults = {"name": name, "price": price, "is_promotional": is_promotional}
                 if "category" in position:
-                    product_defaults["category"] = position["category"]
+                    product_defaults["category_text"] = position["category"]
                 if hasattr(Product, "store_id") and "store_id" in data:
                     product_defaults.setdefault("store_id", data["store_id"])
 

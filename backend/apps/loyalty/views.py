@@ -53,7 +53,7 @@ class PurchaseAPIView(APIView):
 
         product_defaults = {
             "name": data["product_name"],
-            "category": data["category"],
+            "category_text": data["category"],
             "price": data["price"],
             "store_id": data["store_id"],
             "is_promotional": data["is_promotional"],
