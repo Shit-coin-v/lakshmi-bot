@@ -268,7 +268,7 @@ services:
       - app
     restart: always
     ports:
-      - "127.0.0.1:8000:80"
+      - "8000:80"
     environment:
       SERVER_NAME: ${SERVER_NAME:-_}
     volumes:
