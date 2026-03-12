@@ -82,6 +82,20 @@ class ProductUpdateSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField()
 
 
+class OneCCategoryItemSerializer(serializers.Serializer):
+    external_id = serializers.CharField()
+    name = serializers.CharField()
+    parent_external_id = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None,
+    )
+    is_active = serializers.BooleanField(required=False, default=True)
+    sort_order = serializers.IntegerField(required=False, default=0)
+
+
+class OneCCategorySyncSerializer(serializers.Serializer):
+    categories = OneCCategoryItemSerializer(many=True, min_length=1)
+
+
 class StockItemSerializer(serializers.Serializer):
     product_code = serializers.CharField()
     stock = serializers.IntegerField(min_value=0)
