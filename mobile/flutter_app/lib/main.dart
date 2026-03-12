@@ -34,6 +34,7 @@ import 'features/address/screens/saved_addresses_screen.dart';
 import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
+import 'features/catalog/screens/category_tree_screen.dart';
 
 import 'core/api_client.dart';
 import 'core/analytics_observer.dart';
@@ -156,6 +157,10 @@ GoRouter _createRouter(WidgetRef ref) {
               path: '/home',
               builder: (ctx, st) => const HomeScreen(),
               routes: [
+                GoRoute(
+                  path: 'categories',
+                  builder: (ctx, st) => const CategoryTreeScreen(),
+                ),
                 GoRoute(
                   path: 'cart',
                   builder: (ctx, st) => const CartScreen(),
