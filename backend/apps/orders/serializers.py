@@ -4,11 +4,23 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.common.models import SiteSettings
+from apps.main.models import Category
 from apps.orders.models import Order, OrderItem, Product
 
 logger = logging.getLogger(__name__)
 
 _DELIVERY_FEE = Decimal("150.00")
+
+
+class CategoryListSerializer(serializers.ModelSerializer):
+    has_children = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'parent_id', 'has_children']
+
+    def get_has_children(self, obj):
+        return obj.children.filter(is_active=True).exists()
 
 
 class ProductListSerializer(serializers.ModelSerializer):

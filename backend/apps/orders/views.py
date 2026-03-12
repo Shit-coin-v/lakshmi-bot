@@ -9,13 +9,30 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.permissions import CustomerPermission
+from apps.main.models import Category
 from apps.orders.serializers import (
+    CategoryListSerializer,
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
     ProductListSerializer,
 )
 from apps.orders.models import Order, Product
+
+
+class CatalogRootView(generics.ListAPIView):
+    queryset = Category.objects.filter(is_active=True, parent__isnull=True)
+    serializer_class = CategoryListSerializer
+    permission_classes = [AllowAny]
+
+
+class CatalogChildrenView(generics.ListAPIView):
+    serializer_class = CategoryListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        parent = generics.get_object_or_404(Category, pk=self.kwargs["pk"])
+        return parent.children.filter(is_active=True)
 
 
 class ProductListView(generics.ListAPIView):
@@ -25,6 +42,19 @@ class ProductListView(generics.ListAPIView):
 
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "description"]
+
+    def get_queryset(self):
+        from rest_framework.exceptions import ValidationError
+
+        qs = super().get_queryset()
+        category_id = self.request.query_params.get("category_id")
+        if category_id is not None:
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                raise ValidationError({"category_id": "Должно быть целым числом."})
+            qs = qs.filter(category_id=category_id)
+        return qs
 
 
 class OrderCreateView(generics.CreateAPIView):

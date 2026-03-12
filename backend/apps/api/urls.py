@@ -15,7 +15,7 @@ from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
 from apps.integrations.payments.webhook import yukassa_webhook
 from apps.campaigns.views import UserAssignedCampaignsView
-from apps.orders.views import OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
+from apps.orders.views import CatalogChildrenView, CatalogRootView, OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
 
 urlpatterns = [
     # Health checks
@@ -35,6 +35,8 @@ urlpatterns = [
     path("api/send-message/", SendMessageAPIView.as_view(), name="send-message"),
     path("api/push/register/", PushRegisterView.as_view(), name="push-register"),
     path("api/fcm/token/", UpdateFCMTokenView.as_view(), name="fcm-token"),
+    path("api/catalog/root/", CatalogRootView.as_view(), name="catalog-root"),
+    path("api/catalog/<int:pk>/children/", CatalogChildrenView.as_view(), name="catalog-children"),
     path("api/products/", ProductListView.as_view(), name="product-list"),
     path("api/orders/create/", OrderCreateView.as_view(), name="order-create"),
     path("api/orders/", OrderListUserView.as_view(), name="order-history"),
