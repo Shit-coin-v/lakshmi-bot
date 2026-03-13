@@ -151,10 +151,6 @@ def onec_order_status(request):
                 # Courier finished delivery → try to assign waiting orders
                 if new == "completed" and prev in ("delivery", "arrived"):
                     db_tx.on_commit(lambda: redispatch_unassigned_orders.delay())
-                # Notify 1C about order completion
-                if new == "completed":
-                    from apps.integrations.onec.tasks import notify_onec_order_completed
-                    db_tx.on_commit(lambda: notify_onec_order_completed.delay(oid))
                 # Capture payment on delivery completion
                 if new == "completed" and payment_id and payment_status == "authorized":
                     from apps.integrations.payments.tasks import capture_payment_task
