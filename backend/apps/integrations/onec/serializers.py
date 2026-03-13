@@ -96,6 +96,21 @@ class OneCCategorySyncSerializer(serializers.Serializer):
     categories = OneCCategoryItemSerializer(many=True, min_length=1)
 
 
+class OneCCustomerItemSerializer(serializers.Serializer):
+    one_c_guid = serializers.CharField(max_length=64)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    full_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True, default=None)
+    bonuses = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True, default=None,
+    )
+
+
+class OneCCustomersSyncSerializer(serializers.Serializer):
+    customers = OneCCustomerItemSerializer(many=True, min_length=1)
+
+
 class StockItemSerializer(serializers.Serializer):
     product_code = serializers.CharField()
     stock = serializers.IntegerField(min_value=0)
