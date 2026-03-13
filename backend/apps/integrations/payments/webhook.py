@@ -153,5 +153,8 @@ def _handle_payment_canceled(payment_id, Order, send_order_push_task):
         oid = order.id
         if prev_status not in _NON_CANCELLABLE:
             transaction.on_commit(lambda: send_order_push_task.delay(oid, prev_status, "canceled"))
+            if order.onec_guid or getattr(order, "sync_status", "") in ("sent", "confirmed"):
+                from apps.integrations.onec.tasks import notify_onec_order_canceled
+                transaction.on_commit(lambda: notify_onec_order_canceled.delay(oid))
 
     logger.info("Webhook: order %s payment canceled (order_status=%s)", order.id, order.status)

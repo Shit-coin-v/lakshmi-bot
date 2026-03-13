@@ -304,4 +304,15 @@ def expire_pending_payments(self):
     for oid in expired_ids:
         send_order_push_task.delay(oid, "new", "canceled")
 
+    # Notify 1C about canceled orders that were already synced
+    from apps.integrations.onec.tasks import notify_onec_order_canceled
+    from django.db.models import Q
+    synced_ids = list(
+        Order.objects.filter(id__in=expired_ids).filter(
+            Q(onec_guid__isnull=False) | Q(sync_status__in=("sent", "confirmed"))
+        ).values_list("id", flat=True)
+    )
+    for oid in synced_ids:
+        notify_onec_order_canceled.delay(oid)
+
     logger.info("expire_pending_payments: canceled %d orders", len(expired_ids))
