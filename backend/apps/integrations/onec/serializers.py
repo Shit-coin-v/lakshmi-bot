@@ -114,7 +114,7 @@ class OneCCustomersSyncSerializer(serializers.Serializer):
 
 class StockItemSerializer(serializers.Serializer):
     product_code = serializers.CharField()
-    stock = serializers.IntegerField(min_value=0)
+    stock = serializers.DecimalField(max_digits=12, decimal_places=3)
 
 
 class StockUpdateSerializer(serializers.Serializer):

@@ -29,7 +29,7 @@ class Product(models.Model):
     category = models.ForeignKey(
         'Category', null=True, blank=True, on_delete=models.SET_NULL, related_name='products',
     )
-    stock = models.IntegerField(blank=True, null=True)
+    stock = models.DecimalField(max_digits=12, decimal_places=3, blank=True, null=True)
     store_id = models.IntegerField(db_index=True, help_text="External store ID from 1C ERP (not a FK — Store model is managed by 1C)")
     image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Фото")
     description = models.TextField(null=True, blank=True, verbose_name="Описание")
