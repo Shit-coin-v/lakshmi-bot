@@ -77,6 +77,7 @@ def send_order_to_onec_impl(self, order_id: int):
 
         payload = {
             "order_id": order.id,
+            "status": order.status,
             "created_at": order.created_at.isoformat(),
             "customer": {
                 "id": order.customer_id,
