@@ -63,6 +63,13 @@ def notify_onec_order_canceled(self, order_id: int):
         "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),
     }
 
+    onec_user = os.getenv("ONEC_BASIC_AUTH_USER", "")
+    if onec_user:
+        import base64
+        onec_pass = os.getenv("ONEC_BASIC_AUTH_PASSWORD", "")
+        credentials = base64.b64encode(f"{onec_user}:{onec_pass}".encode("utf-8")).decode("ascii")
+        headers["Authorization"] = f"Basic {credentials}"
+
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=10)
         if resp.status_code not in (200, 201):
