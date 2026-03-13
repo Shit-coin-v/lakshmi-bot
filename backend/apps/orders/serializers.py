@@ -26,6 +26,7 @@ class CategoryListSerializer(serializers.ModelSerializer):
 class ProductListSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     category = serializers.CharField(source='category_text', read_only=True)
+    stock = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Product
