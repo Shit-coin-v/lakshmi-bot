@@ -6,7 +6,7 @@ class Product {
   final double price;
   final String? imageUrl;
   final String description;
-  final int stock;
+  final double stock;
 
   Product({
     required this.id,
@@ -25,7 +25,7 @@ class Product {
       price: double.tryParse(json['price'].toString()) ?? 0.0,
       imageUrl: json['image_url'], // Comes as "/media/..."
       description: json['description'] ?? '',
-      stock: json['stock'] ?? 0,
+      stock: (json['stock'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
