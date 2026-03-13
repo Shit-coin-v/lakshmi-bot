@@ -88,6 +88,8 @@ def _build_defaults(item: dict) -> dict:
         defaults["full_name"] = item["full_name"]
     if item.get("phone"):
         defaults["phone"] = item["phone"]
+    if item["telegram_id"] is not None:
+        defaults["telegram_id"] = item["telegram_id"]
     if item["bonuses"] is not None:
         defaults["bonuses"] = item["bonuses"]
     return defaults
