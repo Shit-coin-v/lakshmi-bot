@@ -115,8 +115,14 @@ def send_order_to_onec_impl(self, order_id: int):
         "X-Idempotency-Key": str(order.sync_idempotency_key),
     }
 
+    auth = None
+    onec_user = os.getenv("ONEC_BASIC_AUTH_USER", "")
+    if onec_user:
+        onec_pass = os.getenv("ONEC_BASIC_AUTH_PASSWORD", "")
+        auth = (onec_user, onec_pass)
+
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        resp = requests.post(url, json=payload, headers=headers, auth=auth, timeout=10)
         text = resp.text
         if resp.status_code not in (200, 201):
             raise RuntimeError(f"HTTP {resp.status_code}: {text}")
