@@ -89,7 +89,7 @@ class OneCCategoryItemSerializer(serializers.Serializer):
         required=False, allow_null=True, allow_blank=True, default=None,
     )
     is_active = serializers.BooleanField(required=False, default=True)
-    sort_order = serializers.IntegerField(required=False, default=0)
+    sort_order = serializers.IntegerField(required=False, allow_null=True, default=0)
 
 
 class OneCCategorySyncSerializer(serializers.Serializer):

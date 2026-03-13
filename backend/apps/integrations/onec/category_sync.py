@@ -35,7 +35,7 @@ def onec_category_sync_impl(request):
         defaults = {
             "name": item["name"],
             "is_active": item["is_active"],
-            "sort_order": item["sort_order"],
+            "sort_order": item["sort_order"] or 0,
         }
         _, was_created = Category.objects.update_or_create(
             external_id=ext_id, defaults=defaults,
