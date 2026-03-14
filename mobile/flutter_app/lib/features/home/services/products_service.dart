@@ -10,12 +10,14 @@ class ProductsService {
 
   ProductsService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
-  Future<List<Product>> getProducts({String search = ''}) async {
+  Future<List<Product>> getProducts({String search = '', int? categoryId}) async {
     try {
       final response = await _dio.get(
         '/api/products/',
-        // Add search param if not empty
-        queryParameters: {if (search.isNotEmpty) 'search': search},
+        queryParameters: {
+          if (search.isNotEmpty) 'search': search,
+          if (categoryId != null) 'category_id': categoryId,
+        },
       );
 
       final List<dynamic> data = response.data;

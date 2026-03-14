@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/category_node.dart';
 import '../providers/catalog_provider.dart';
@@ -33,12 +34,6 @@ class CategoryTreeScreen extends ConsumerWidget {
             color: Colors.black,
           ),
         ),
-        leading: parentId != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : null,
       ),
       body: asyncCategories.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -95,21 +90,14 @@ class _CategoryTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
+          final encodedName = Uri.encodeComponent(node.name);
           if (node.isLeaf) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Товары «${node.name}» будут подключены позже'),
-                duration: const Duration(seconds: 2),
-              ),
+            context.push(
+              '/home/categories/products/${node.id}?title=$encodedName',
             );
           } else {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => CategoryTreeScreen(
-                  parentId: node.id,
-                  title: node.name,
-                ),
-              ),
+            context.push(
+              '/home/categories/sub/${node.id}?title=$encodedName',
             );
           }
         },

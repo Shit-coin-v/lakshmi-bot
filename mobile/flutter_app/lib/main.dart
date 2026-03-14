@@ -35,6 +35,7 @@ import 'features/notifications/screens/notification_settings_screen.dart';
 import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
 import 'features/catalog/screens/category_tree_screen.dart';
+import 'features/catalog/screens/category_products_screen.dart';
 
 import 'core/api_client.dart';
 import 'core/analytics_observer.dart';
@@ -160,6 +161,27 @@ GoRouter _createRouter(WidgetRef ref) {
                 GoRoute(
                   path: 'categories',
                   builder: (ctx, st) => const CategoryTreeScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'sub/:id',
+                      builder: (ctx, st) {
+                        final id = int.parse(st.pathParameters['id']!);
+                        final title = st.uri.queryParameters['title'] ?? 'Категория';
+                        return CategoryTreeScreen(parentId: id, title: title);
+                      },
+                    ),
+                    GoRoute(
+                      path: 'products/:categoryId',
+                      builder: (ctx, st) {
+                        final categoryId = int.parse(st.pathParameters['categoryId']!);
+                        final title = st.uri.queryParameters['title'] ?? 'Товары';
+                        return CategoryProductsScreen(
+                          categoryId: categoryId,
+                          title: title,
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'cart',
