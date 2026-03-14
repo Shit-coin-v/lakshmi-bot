@@ -53,8 +53,27 @@ class ProductListView(generics.ListAPIView):
                 category_id = int(category_id)
             except (ValueError, TypeError):
                 raise ValidationError({"category_id": "Должно быть целым числом."})
-            qs = qs.filter(category_id=category_id)
+            ids = self._collect_descendant_ids(category_id)
+            qs = qs.filter(category_id__in=ids)
         return qs
+
+    @staticmethod
+    def _collect_descendant_ids(category_id: int) -> set[int]:
+        """Собрать ID категории и всех её потомков (BFS)."""
+        ids = {category_id}
+        queue = [category_id]
+        while queue:
+            parent_id = queue.pop()
+            children = list(
+                Category.objects.filter(
+                    parent_id=parent_id, is_active=True,
+                ).values_list("id", flat=True)
+            )
+            for child_id in children:
+                if child_id not in ids:
+                    ids.add(child_id)
+                    queue.append(child_id)
+        return ids
 
 
 class OrderCreateView(generics.CreateAPIView):

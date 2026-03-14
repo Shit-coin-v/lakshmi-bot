@@ -2,9 +2,11 @@ import json
 
 from django.http import JsonResponse
 
+from apps.integrations.onec.category_resolver import resolve_category
 from apps.integrations.onec.serializers import OneCCategorySyncSerializer
 from apps.integrations.onec.utils import onec_error
 from apps.main.models import Category
+from apps.orders.models import Product
 
 
 def onec_category_sync_impl(request):
@@ -68,9 +70,22 @@ def onec_category_sync_impl(request):
         )
         parent_linked += 1
 
+    # Pass 3: link orphan products to categories
+    products_linked = 0
+    orphans = Product.objects.filter(
+        category__isnull=True, category_text__isnull=False,
+    )
+    for product in orphans:
+        cat = resolve_category(product.category_text)
+        if cat:
+            product.category = cat
+            product.save(update_fields=["category_id"])
+            products_linked += 1
+
     return JsonResponse({
         "created": created,
         "updated": updated,
         "parent_linked": parent_linked,
+        "products_linked": products_linked,
         "errors": errors,
     })

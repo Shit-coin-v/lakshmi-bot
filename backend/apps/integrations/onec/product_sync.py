@@ -2,6 +2,7 @@ import json
 
 from django.http import JsonResponse
 
+from apps.integrations.onec.category_resolver import resolve_category
 from apps.integrations.onec.serializers import ProductUpdateSerializer
 from apps.integrations.onec.utils import onec_error
 from apps.orders.models import Product
@@ -26,6 +27,7 @@ def onec_product_sync_impl(request):
         "name": data["name"],
         "price": data["price"],
         "category_text": data["category"],
+        "category": resolve_category(data["category"]),
         "is_promotional": data["is_promotional"],
     }
     if hasattr(Product, "store_id"):
