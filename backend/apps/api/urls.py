@@ -40,6 +40,7 @@ urlpatterns = [
     path("api/catalog/root/", CatalogRootView.as_view(), name="catalog-root"),
     path("api/catalog/<int:pk>/children/", CatalogChildrenView.as_view(), name="catalog-children"),
     path("api/products/", ProductListView.as_view(), name="product-list"),
+    path("api/showcase/", include("apps.showcase.urls")),
     path("api/orders/create/", OrderCreateView.as_view(), name="order-create"),
     path("api/orders/", OrderListUserView.as_view(), name="order-history"),
     path("api/orders/<int:pk>/", OrderDetailView.as_view(), name="order-detail"),

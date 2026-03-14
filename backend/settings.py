@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'apps.analytics.apps.AnalyticsConfig',
     'apps.campaigns.apps.CampaignsConfig',
     'apps.rfm.apps.RfmConfig',
+    'apps.showcase.apps.ShowcaseConfig',
 ]
 
 MIDDLEWARE = [
@@ -201,6 +202,8 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_TIME_LIMIT = 600        # hard kill after 10 min
 CELERY_TASK_SOFT_TIME_LIMIT = 300   # SoftTimeLimitExceeded after 5 min
+CELERY_TIMEZONE = TIME_ZONE         # crontab расписание по Asia/Yakutsk
+CELERY_ENABLE_UTC = True            # внутри хранит UTC, crontab по CELERY_TIMEZONE
 
 COURIER_DELIVERY_RATE = int(os.getenv("COURIER_DELIVERY_RATE", "150"))
 

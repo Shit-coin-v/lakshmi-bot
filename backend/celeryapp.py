@@ -33,4 +33,8 @@ app.conf.beat_schedule = {
         'task': 'apps.integrations.onec.tasks.rollback_stuck_assembly_orders',
         'schedule': 300.0,  # every 5 minutes
     },
+    'calculate-showcase-rankings': {
+        'task': 'apps.showcase.tasks.calculate_showcase_rankings',
+        'schedule': crontab(hour=4, minute=0),  # 04:00 по CELERY_TIMEZONE (Asia/Yakutsk)
+    },
 }
