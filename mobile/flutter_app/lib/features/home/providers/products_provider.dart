@@ -7,13 +7,13 @@ import '../models/product.dart';
 // 1. Provider for search query state
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-// 2. Products provider (re-fetches when search query changes)
+// 2. Showcase provider — витрина главной страницы (предрассчитанный ranking)
 final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
   final search = ref.watch(searchQueryProvider);
 
   final service = ref.read(productsServiceProvider);
 
-  return service.getProducts(search: search);
+  return service.getShowcase(search: search);
 });
 
 // 3. Products by category provider (cached for 5 minutes)

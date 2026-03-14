@@ -10,6 +10,24 @@ class ProductsService {
 
   ProductsService({Dio? dio}) : _dio = dio ?? ApiClient().dio;
 
+  /// Витрина главной страницы — предрассчитанный ranking + актуальный stock.
+  Future<List<Product>> getShowcase({String search = ''}) async {
+    try {
+      final response = await _dio.get(
+        '/api/showcase/',
+        queryParameters: {
+          if (search.isNotEmpty) 'search': search,
+        },
+      );
+
+      final List<dynamic> data = response.data;
+      return data.map((json) => Product.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Ошибка загрузки витрины: $e');
+    }
+  }
+
+  /// Каталог — товары по категории или поиск.
   Future<List<Product>> getProducts({String search = '', int? categoryId}) async {
     try {
       final response = await _dio.get(
@@ -21,7 +39,6 @@ class ProductsService {
       );
 
       final List<dynamic> data = response.data;
-      // Use Product.fromJson
       return data.map((json) => Product.fromJson(json)).toList();
     } catch (e) {
       throw Exception('Ошибка загрузки товаров: $e');

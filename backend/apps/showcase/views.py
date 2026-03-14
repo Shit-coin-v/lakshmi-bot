@@ -12,7 +12,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from rest_framework import generics
+from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
 
 from apps.main.models import Product
@@ -31,6 +31,9 @@ class ShowcaseView(generics.ListAPIView):
 
     serializer_class = ProductListSerializer
     permission_classes = [AllowAny]
+
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name", "description"]
 
     def get_queryset(self):
         from django.db.models import FilteredRelation
