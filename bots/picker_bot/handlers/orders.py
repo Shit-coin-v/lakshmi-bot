@@ -3,7 +3,7 @@ from functools import partial
 from html import escape
 
 from aiogram import Bot, F, Router
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -319,9 +319,12 @@ async def order_status_change(callback: CallbackQuery):
     ])
     try:
         await callback.message.edit_reply_markup(reply_markup=pending_kb)
-    except TelegramBadRequest:
-        pass  # message already has pending keyboard
-    await callback.answer("Обновляю статус...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass  # UI update is non-critical, proceed to schedule_retry
+    try:
+        await callback.answer("Обновляю статус...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass
 
     # Launch background retry
     assembler_id = callback.from_user.id if action == "accept" else None

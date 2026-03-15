@@ -5,7 +5,7 @@ from html import escape
 from types import SimpleNamespace
 
 from aiogram import Bot, F, Router
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -369,9 +369,12 @@ async def order_cancel_reason(callback: CallbackQuery):
     ])
     try:
         await callback.message.edit_reply_markup(reply_markup=pending_kb)
-    except TelegramBadRequest:
-        pass  # message already has pending keyboard
-    await callback.answer("Отменяю заказ...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass  # UI update is non-critical
+    try:
+        await callback.answer("Отменяю заказ...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass
 
     success = await backend.cancel_order(
         order_id,
@@ -457,9 +460,12 @@ async def order_status_change(callback: CallbackQuery):
     ])
     try:
         await callback.message.edit_reply_markup(reply_markup=pending_kb)
-    except TelegramBadRequest:
-        pass  # message already has pending keyboard
-    await callback.answer("Обновляю статус...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass  # UI update is non-critical, proceed to schedule_retry
+    try:
+        await callback.answer("Обновляю статус...")
+    except (TelegramBadRequest, TelegramNetworkError):
+        pass
 
     # Launch background retry task
     update_fn = partial(_update_order_status, courier_id=callback.from_user.id)
