@@ -282,6 +282,8 @@ ONEC_ORDER_URL = os.getenv("ONEC_ORDER_URL", "")
 
 ALLOW_TELEGRAM_HEADER_AUTH = _env_bool("ALLOW_TELEGRAM_HEADER_AUTH", False)
 
+PERSONAL_RANKING_ENABLED = _env_bool("PERSONAL_RANKING_ENABLED", False)
+
 # Email
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"

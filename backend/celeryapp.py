@@ -37,4 +37,8 @@ app.conf.beat_schedule = {
         'task': 'apps.showcase.tasks.calculate_showcase_rankings',
         'schedule': crontab(hour=4, minute=0),  # 04:00 по CELERY_TIMEZONE (Asia/Yakutsk)
     },
+    'calculate-personal-rankings': {
+        'task': 'apps.showcase.tasks.calculate_personal_rankings_task',
+        'schedule': crontab(hour=4, minute=30),  # 04:30, после глобального расчёта
+    },
 }

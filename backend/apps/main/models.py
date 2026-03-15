@@ -109,6 +109,15 @@ class CustomUser(models.Model):
             f"User {self.telegram_id}" if self.telegram_id else f"User #{self.pk}"
         )
 
+    @property
+    def is_authenticated(self):
+        """DRF compatibility: always True for real user instances."""
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
     def set_password(self, raw_password):
         from django.contrib.auth.hashers import make_password
         self.password_hash = make_password(raw_password)
