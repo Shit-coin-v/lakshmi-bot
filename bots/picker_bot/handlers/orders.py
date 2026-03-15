@@ -3,6 +3,7 @@ from functools import partial
 from html import escape
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -316,7 +317,10 @@ async def order_status_change(callback: CallbackQuery):
             callback_data=f"order:{order_id}:pending",
         )]
     ])
-    await callback.message.edit_reply_markup(reply_markup=pending_kb)
+    try:
+        await callback.message.edit_reply_markup(reply_markup=pending_kb)
+    except TelegramBadRequest:
+        pass  # message already has pending keyboard
     await callback.answer("Обновляю статус...")
 
     # Launch background retry
