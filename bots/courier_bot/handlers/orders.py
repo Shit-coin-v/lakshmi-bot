@@ -101,8 +101,10 @@ def _format_order_detail(order) -> str:
     return "\n".join(lines)
 
 
-async def _update_order_status(order_id: int, new_status: str, courier_id: int | None = None) -> bool:
-    """POST status change to backend. Returns True on success."""
+async def _update_order_status(
+    order_id: int, new_status: str, courier_id: int | None = None,
+) -> tuple[bool, bool]:
+    """POST status change to backend. Returns (success, is_retryable)."""
     return await backend.update_order_status(
         order_id, new_status, courier_id=courier_id,
     )

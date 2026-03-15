@@ -11,19 +11,14 @@ from django.views.decorators.http import require_POST
 
 from apps.api.security import require_onec_auth
 from apps.integrations.onec.utils import onec_error
+from apps.orders.services import (
+    VALID_STATUSES,
+    AlreadyAccepted,
+    InvalidTransition,
+    update_order_status,
+)
 
 logger = logging.getLogger(__name__)
-
-_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "new": {"accepted", "canceled"},
-    "accepted": {"assembly", "canceled", "new"},
-    "assembly": {"ready", "canceled"},
-    "ready": {"delivery", "completed", "canceled"},  # completed for pickup
-    "delivery": {"arrived", "canceled"},
-    "arrived": {"completed", "canceled"},
-    "completed": set(),
-    "canceled": {"new"},  # reopen
-}
 
 
 @csrf_exempt
@@ -31,7 +26,6 @@ _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 @require_onec_auth
 def onec_order_status(request):
     from apps.orders.models import Order
-    from apps.notifications.tasks import send_order_push_task, assign_courier_task, redispatch_unassigned_orders
 
     raw = request.body or b"{}"
     if isinstance(raw, (bytes, bytearray)):
@@ -55,111 +49,64 @@ def onec_order_status(request):
             details={"order_id": ["required"]},
         )
 
-    allowed = {"new", "accepted", "assembly", "ready", "delivery", "arrived", "completed", "canceled"}
-    if status_in and status_in not in allowed:
+    if status_in and status_in not in VALID_STATUSES:
         return onec_error(
             "invalid_status",
             "Invalid status value.",
-            details={"status": sorted(allowed)},
+            details={"status": sorted(VALID_STATUSES)},
         )
+
+    cancel_reason = (payload.get("cancel_reason") or "").strip() or None
 
     try:
         with db_tx.atomic():
-            o = Order.objects.select_for_update().get(id=int(order_id))
+            o, previous_status = update_order_status(
+                order_id=int(order_id),
+                new_status=status_in,
+                assembler_id=int(assembler_id) if assembler_id is not None else None,
+                courier_id=int(courier_id) if courier_id is not None else None,
+                cancel_reason=cancel_reason,
+                canceled_by="onec" if status_in == "canceled" else None,
+            )
 
-            updates: list[str] = []
-            status_changed = False
-            previous_status = o.status
-
-            if status_in and o.status != status_in:
-                allowed_next = _ALLOWED_TRANSITIONS.get(o.status, set())
-                if status_in not in allowed_next:
-                    logger.warning(
-                        "Invalid transition %s → %s for order %s",
-                        o.status, status_in, order_id,
-                    )
-                    return onec_error(
-                        "invalid_transition",
-                        f"Transition {o.status} → {status_in} is not allowed.",
-                        status_code=409,
-                    )
-
-                o.status = status_in
-                updates.append("status")
-                status_changed = True
-
-                if status_in == "completed":
-                    o.completed_at = dj_tz.now()
-                    updates.append("completed_at")
-                    if courier_id is not None:
-                        o.delivered_by = int(courier_id)
-                        updates.append("delivered_by")
-
-                if status_in == "accepted" and assembler_id is not None:
-                    if o.assembled_by is not None and o.assembled_by != int(assembler_id):
-                        return onec_error(
-                            "already_accepted",
-                            f"Order already accepted by assembler {o.assembled_by}.",
-                            status_code=409,
-                        )
-                    o.assembled_by = int(assembler_id)
-                    updates.append("assembled_by")
-
-                # Track who canceled the order
-                if status_in == "canceled":
-                    o.canceled_by = "onec"
-                    updates.append("canceled_by")
-                    cancel_reason = (payload.get("cancel_reason") or "").strip() or None
-                    if cancel_reason:
-                        o.cancel_reason = cancel_reason
-                        updates.append("cancel_reason")
-
-                # Return to pool: clear assembler on reset to new
-                if status_in == "new":
-                    o.assembled_by = None
-                    updates.append("assembled_by")
+            # --- 1C-specific fields (not part of core service) ---
+            onec_updates: list[str] = []
 
             if onec_guid and hasattr(o, "onec_guid") and o.onec_guid != onec_guid:
                 o.onec_guid = onec_guid
-                updates.append("onec_guid")
+                onec_updates.append("onec_guid")
 
             if hasattr(o, "sync_status") and o.sync_status != "sent":
                 o.sync_status = "sent"
-                updates.append("sync_status")
+                onec_updates.append("sync_status")
 
             if hasattr(o, "sent_to_onec_at") and not o.sent_to_onec_at:
                 o.sent_to_onec_at = dj_tz.now()
-                updates.append("sent_to_onec_at")
+                onec_updates.append("sent_to_onec_at")
 
             if hasattr(o, "last_sync_error") and o.last_sync_error:
                 o.last_sync_error = None
-                updates.append("last_sync_error")
+                onec_updates.append("last_sync_error")
 
-            if updates:
-                if status_changed:
-                    # Skip signal-based notifications; push is dispatched explicitly below.
-                    o._skip_signal_notification = True
-                o.save(update_fields=updates)
+            if onec_updates:
+                o.save(update_fields=onec_updates)
 
-            if status_changed:
-                oid, prev, new = o.id, previous_status, o.status
-                payment_status = o.payment_status
-                payment_id = o.payment_id
-                db_tx.on_commit(lambda: send_order_push_task.delay(oid, prev, new))
-                if new == "ready" and o.fulfillment_type != "pickup":
-                    db_tx.on_commit(lambda: assign_courier_task.delay(oid))
-                # Courier finished delivery → try to assign waiting orders
-                if new == "completed" and prev in ("delivery", "arrived"):
-                    db_tx.on_commit(lambda: redispatch_unassigned_orders.delay())
-                # Capture payment on delivery completion
-                if new == "completed" and payment_id and payment_status == "authorized":
-                    from apps.integrations.payments.tasks import capture_payment_task
-                    db_tx.on_commit(lambda: capture_payment_task.delay(oid))
-                # Cancel/refund payment on order cancellation
-                if new == "canceled" and payment_id and payment_status in ("authorized", "captured"):
-                    from apps.integrations.payments.tasks import cancel_payment_task
-                    db_tx.on_commit(lambda: cancel_payment_task.delay(oid))
-
+    except InvalidTransition as exc:
+        logger.warning(
+            "Invalid transition %s → %s for order %s",
+            exc.current, exc.target, order_id,
+        )
+        return onec_error(
+            "invalid_transition",
+            f"Transition {exc.current} → {exc.target} is not allowed.",
+            status_code=409,
+        )
+    except AlreadyAccepted as exc:
+        return onec_error(
+            "already_accepted",
+            f"Order already accepted by assembler {exc.assembled_by}.",
+            status_code=409,
+        )
     except Order.DoesNotExist:
         return onec_error(
             "order_not_found",

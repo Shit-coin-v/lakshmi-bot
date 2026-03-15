@@ -17,6 +17,7 @@ from .views import (
     OneCMapUpsertView,
     OrderCancelByStaffView,
     OrderReassignView,
+    OrderUpdateStatusView,
     PickerActiveOrdersView,
     PickerMessageBulkDeleteView,
     PickerMessageListView,
@@ -56,4 +57,5 @@ urlpatterns = [
     path("orders/assembled-today/", AssembledTodayView.as_view(), name="bot-orders-assembled-today"),
     path("picker-messages/", PickerMessageListView.as_view(), name="bot-picker-messages"),
     path("picker-messages/bulk-delete/", PickerMessageBulkDeleteView.as_view(), name="bot-picker-messages-bulk-delete"),
+    path("orders/<int:pk>/update-status/", OrderUpdateStatusView.as_view(), name="bot-order-update-status"),
 ]

@@ -706,3 +706,85 @@ class CourierPhoneView(APIView):
             )
 
         return Response({"phone": courier.phone})
+
+
+class OrderUpdateStatusView(APIView):
+    """POST /api/bot/orders/<pk>/update-status/
+
+    Bot endpoint for changing order status.
+    Uses the same core state machine as /onec/order/status,
+    but with ApiKeyPermission (no IP whitelist).
+    """
+
+    permission_classes = [ApiKeyPermission]
+
+    def post(self, request, pk):
+        from apps.orders.services import (
+            VALID_STATUSES,
+            AlreadyAccepted,
+            InvalidTransition,
+            update_order_status,
+        )
+
+        new_status = (request.data.get("status") or "").strip()
+        if not new_status:
+            return Response(
+                {"detail": "status is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new_status not in VALID_STATUSES:
+            return Response(
+                {"detail": f"Invalid status. Allowed: {sorted(VALID_STATUSES)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_assembler = request.data.get("assembler_id")
+        raw_courier = request.data.get("courier_id")
+        cancel_reason = (request.data.get("cancel_reason") or "").strip() or None
+        canceled_by = (request.data.get("canceled_by") or "").strip() or None
+
+        try:
+            assembler_id = int(raw_assembler) if raw_assembler is not None else None
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid assembler_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            courier_id = int(raw_courier) if raw_courier is not None else None
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid courier_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                o, previous_status = update_order_status(
+                    order_id=pk,
+                    new_status=new_status,
+                    assembler_id=assembler_id,
+                    courier_id=courier_id,
+                    cancel_reason=cancel_reason,
+                    canceled_by=canceled_by,
+                )
+        except InvalidTransition:
+            return Response(
+                {"detail": f"Transition {new_status} not allowed."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except AlreadyAccepted as exc:
+            return Response(
+                {"detail": f"Already accepted by assembler {exc.assembled_by}."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Order.DoesNotExist:
+            return Response(
+                {"detail": "Order not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {"status": "ok", "order_id": pk, "new_status": o.status},
+            status=status.HTTP_200_OK,
+        )

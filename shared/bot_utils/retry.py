@@ -30,16 +30,24 @@ async def retry_status_update(
     message_id: int,
     order_id: int,
     new_status: str,
-    update_fn: Callable[[int, str], Awaitable[bool]],
+    update_fn: Callable[[int, str], Awaitable[tuple[bool, bool]]],
     on_success: Callable[[Bot, int, int, int, str], Awaitable[None]],
     on_failure: Callable[[Bot, int, int, int, str], Awaitable[None]],
 ) -> None:
     try:
         total = len(_RETRY_DELAYS)
         for attempt, base_delay in enumerate(_RETRY_DELAYS, start=1):
-            result = await update_fn(order_id, new_status)
-            if result:
+            success, retryable = await update_fn(order_id, new_status)
+            if success:
                 await on_success(bot, chat_id, message_id, order_id, new_status)
+                return
+
+            if not retryable:
+                logger.error(
+                    "Permanent error for order %d->%s, not retrying",
+                    order_id, new_status,
+                )
+                await on_failure(bot, chat_id, message_id, order_id, new_status)
                 return
 
             if attempt < total:
@@ -76,7 +84,7 @@ def schedule_retry(
     message_id: int,
     order_id: int,
     new_status: str,
-    update_fn: Callable[[int, str], Awaitable[bool]],
+    update_fn: Callable[[int, str], Awaitable[tuple[bool, bool]]],
     on_success: Callable[[Bot, int, int, int, str], Awaitable[None]],
     on_failure: Callable[[Bot, int, int, int, str], Awaitable[None]],
 ) -> asyncio.Task:

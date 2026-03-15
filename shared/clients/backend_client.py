@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
 _MAX_RETRIES = 3
+_NON_RETRYABLE_STATUSES = {400, 401, 403, 404, 409, 422}
+_RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 
 class BackendClient:
@@ -92,6 +94,63 @@ class BackendClient:
             method, path, _MAX_RETRIES, last_exc,
         )
         return None
+
+    async def _request_classified(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_data: dict | None = None,
+        params: dict | None = None,
+    ) -> tuple[dict | list | None, bool]:
+        """Like _request, but returns (result, is_retryable).
+
+        is_retryable=False for permanent client errors (400, 401, 403, 404, 409, 422).
+        is_retryable=True for transient errors (5xx, 429, timeout, network).
+        On success is_retryable is True (irrelevant).
+        """
+        url = f"{self.base_url}{path}"
+        last_exc: Exception | None = None
+        session = await self._get_session()
+
+        for attempt in range(_MAX_RETRIES):
+            try:
+                kwargs: dict[str, Any] = {"headers": self._headers()}
+                if json_data is not None:
+                    kwargs["data"] = json.dumps(json_data, ensure_ascii=False)
+                if params is not None:
+                    kwargs["params"] = params
+
+                async with session.request(method, url, **kwargs) as resp:
+                    text = await resp.text()
+                    if resp.status in (200, 201):
+                        parsed = json.loads(text) if text else {}
+                        return (parsed, True)
+                    if resp.status == 204:
+                        return ({}, True)
+                    logger.error(
+                        "Backend %s %s -> HTTP %s: %s",
+                        method, path, resp.status, text,
+                    )
+                    retryable = resp.status in _RETRYABLE_STATUSES
+                    return (None, retryable)
+            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                last_exc = exc
+                delay = 2 ** attempt
+                logger.warning(
+                    "Backend %s %s attempt %d/%d failed: %s, retry in %ds",
+                    method, path, attempt + 1, _MAX_RETRIES, exc, delay,
+                )
+                await asyncio.sleep(delay)
+            except Exception:
+                logger.exception("Backend request failed: %s %s", method, path)
+                return (None, False)
+
+        logger.error(
+            "Backend %s %s failed after %d attempts: %s",
+            method, path, _MAX_RETRIES, last_exc,
+        )
+        return (None, True)  # network exhaustion is retryable at higher level
 
     # --- Generic HTTP methods ---
 
@@ -224,15 +283,21 @@ class BackendClient:
         *,
         courier_id: int | None = None,
         assembler_id: int | None = None,
-    ) -> bool:
-        """Update order status via /onec/order/status endpoint."""
-        payload: dict = {"order_id": order_id, "status": new_status}
+    ) -> tuple[bool, bool]:
+        """Update order status via bot endpoint.
+
+        Returns (success, is_retryable).
+        """
+        payload: dict = {"status": new_status}
         if courier_id is not None:
             payload["courier_id"] = courier_id
         if assembler_id is not None:
             payload["assembler_id"] = assembler_id
-        result = await self.post("/onec/order/status", payload)
-        return bool(result and isinstance(result, dict) and result.get("status") == "ok")
+        result, retryable = await self._request_classified(
+            "POST", f"/api/bot/orders/{order_id}/update-status/", json_data=payload,
+        )
+        success = bool(result and isinstance(result, dict) and result.get("status") == "ok")
+        return (success, retryable)
 
     async def cancel_order(
         self,

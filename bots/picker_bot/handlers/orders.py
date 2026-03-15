@@ -92,7 +92,10 @@ def _format_order_detail(order) -> str:
     return "\n".join(lines)
 
 
-async def _update_order_status(order_id: int, new_status: str, assembler_id: int | None = None) -> bool:
+async def _update_order_status(
+    order_id: int, new_status: str, assembler_id: int | None = None,
+) -> tuple[bool, bool]:
+    """Returns (success, is_retryable)."""
     return await backend.update_order_status(
         order_id, new_status, assembler_id=assembler_id,
     )
