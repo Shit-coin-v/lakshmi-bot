@@ -1,6 +1,24 @@
 from django.contrib import admin
 
-from .models import CustomerRFMProfile
+from .models import CustomerBonusTier, CustomerRFMProfile
+
+
+@admin.register(CustomerBonusTier)
+class CustomerBonusTierAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "tier",
+        "segment_label_at_fixation",
+        "effective_from",
+        "effective_to",
+        "created_at",
+    )
+    list_filter = ("tier", "effective_from")
+    search_fields = (
+        "customer__telegram_id",
+        "customer__full_name",
+    )
+    readonly_fields = ("created_at",)
 
 
 @admin.register(CustomerRFMProfile)

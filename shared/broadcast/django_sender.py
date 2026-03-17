@@ -80,6 +80,23 @@ async def send_with_django(message_id: int, bot_instance: Bot | None = None) -> 
         if cat_filter:
             base_qs = base_qs.filter(**cat_filter)
 
+        # Исключить клиентов с активной рекламной кампанией из promo-рассылок
+        if message.category == "promo":
+            from django.utils import timezone as _tz
+            from apps.campaigns.models import CustomerCampaignAssignment
+
+            _now = _tz.now()
+            active_campaign_user_ids = (
+                CustomerCampaignAssignment.objects.filter(
+                    campaign__is_active=True,
+                    campaign__start_at__lte=_now,
+                    campaign__end_at__gte=_now,
+                )
+                .exclude(campaign__one_time_use=True, used=True)
+                .values_list("customer_id", flat=True)
+            )
+            base_qs = base_qs.exclude(id__in=active_campaign_user_ids)
+
         if not message.send_to_all:
             target_ids = parse_target_user_ids(message.target_user_ids)
             if not target_ids:

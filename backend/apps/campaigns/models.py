@@ -71,7 +71,7 @@ class CampaignRule(models.Model):
     )
     STACKING_MODE_CHOICES = (
         ("stack_with_base", "Суммировать с базовым"),
-        ("replace_base", "Заменить базовый"),
+        ("replace_base", "Заменить базовый (не поддерживается v1)"),
     )
 
     campaign = models.ForeignKey(
@@ -104,10 +104,25 @@ class CampaignRule(models.Model):
         null=True,
         blank=True,
         related_name="campaign_rules",
-        verbose_name="Товар",
+        verbose_name="Товар (deprecated, используйте products)",
+    )
+    products = models.ManyToManyField(
+        "main.Product",
+        blank=True,
+        related_name="campaign_rules_m2m",
+        verbose_name="Товары",
+    )
+    category = models.ForeignKey(
+        "main.Category",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="campaign_rules",
+        verbose_name="Категория",
+        help_text="Включает все дочерние подкатегории. Дерево разворачивает 1С.",
     )
     min_purchase_amount = models.DecimalField(
-        "Мин. сумма покупки",
+        "Мин. сумма покупки (после скидок)",
         max_digits=10,
         decimal_places=2,
         null=True,
@@ -127,6 +142,13 @@ class CampaignRule(models.Model):
         db_table = "campaign_rules"
         verbose_name = "Правило кампании"
         verbose_name_plural = "Правила кампаний"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign"],
+                condition=models.Q(is_active=True),
+                name="unique_active_rule_per_campaign",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.campaign} — {self.get_reward_type_display()}"
@@ -134,6 +156,7 @@ class CampaignRule(models.Model):
     def clean(self):
         errors = {}
 
+        # --- reward_type валидация ---
         if self.reward_type == "fixed_bonus":
             if not self.reward_value:
                 errors["reward_value"] = "Обязательно для фиксированного бонуса."
@@ -149,10 +172,47 @@ class CampaignRule(models.Model):
                 errors["reward_percent"] = "Обязательно для фикс + процент."
 
         if self.reward_type == "product_discount":
-            if not self.product:
-                errors["product"] = "Обязательно для скидки на товар."
             if not self.reward_value or self.reward_value <= 0:
                 errors["reward_value"] = "Размер скидки обязателен и должен быть больше 0."
+            # product_discount требует хотя бы один товарный фильтр.
+            # product (legacy FK) и category проверяем здесь;
+            # products M2M проверяется на уровне admin form (M2M недоступна в clean до save).
+            has_any_filter = self.product_id is not None or self.category_id is not None
+            if not has_any_filter and not self.pk:
+                # Новый объект без FK-фильтров. M2M ещё не сохранена —
+                # не блокируем здесь, admin form проверит полную картину.
+                pass
+            elif not has_any_filter and self.pk:
+                # Существующий объект: можем проверить M2M
+                if not self.products.exists():
+                    errors["product"] = (
+                        "Для product_discount обязателен товарный фильтр: "
+                        "product, products или category."
+                    )
+
+        # --- v1: replace_base не поддерживается ---
+        if self.stacking_mode == "replace_base":
+            errors["stacking_mode"] = (
+                "Режим replace_base не поддерживается в v1. "
+                "Используйте stack_with_base."
+            )
+
+        # --- Допустим только один тип товарного фильтра ---
+        has_category = self.category_id is not None
+        has_legacy_product = self.product_id is not None
+
+        if has_legacy_product and has_category:
+            errors["product"] = (
+                "Нельзя указать одновременно product и category. "
+                "Допустим только один товарный фильтр."
+            )
+
+        # --- валидация 1С идентификаторов (для FK полей, проверяемых в clean) ---
+        if has_legacy_product and self.product and not self.product.one_c_guid:
+            errors["product"] = "У товара отсутствует one_c_guid (1С идентификатор)."
+
+        if has_category and self.category and not self.category.external_id:
+            errors["category"] = "У категории отсутствует external_id (1С идентификатор)."
 
         if errors:
             raise ValidationError(errors)
@@ -180,6 +240,10 @@ class CustomerCampaignAssignment(models.Model):
     synced_at = models.DateTimeField("Дата синхронизации", null=True, blank=True)
     used = models.BooleanField("Использована", default=False)
     used_at = models.DateTimeField("Дата использования", null=True, blank=True)
+    receipt_id = models.CharField(
+        "ID чека (1С)", max_length=100, null=True, blank=True,
+        help_text="Внешний идентификатор чека из 1С для аудита",
+    )
     push_sent = models.BooleanField("Push отправлен", default=False)
     push_sent_at = models.DateTimeField("Дата отправки push", null=True, blank=True)
 

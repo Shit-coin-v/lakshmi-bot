@@ -1,6 +1,54 @@
 from django.db import models
 
 
+class CustomerBonusTier(models.Model):
+    """Месячная фиксация бонусного статуса клиента.
+
+    Фиксируется 1-го числа каждого месяца в 00:05 Asia/Yakutsk.
+    Стабилен весь месяц: champions → 7%, standard → 5% (процент определяет 1С).
+    """
+
+    TIER_CHOICES = (
+        ("champions", "Champions"),
+        ("standard", "Standard"),
+    )
+
+    customer = models.ForeignKey(
+        "main.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="bonus_tiers",
+        verbose_name="Клиент",
+    )
+    tier = models.CharField("Бонусный статус", max_length=20, choices=TIER_CHOICES)
+    segment_label_at_fixation = models.CharField(
+        "Сегмент при фиксации", max_length=50,
+        help_text="segment_label, вычисленный при фиксации (аудит)",
+    )
+    effective_from = models.DateField("Начало действия")
+    effective_to = models.DateField("Конец действия")
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    class Meta:
+        db_table = "customer_bonus_tiers"
+        verbose_name = "Месячный бонусный статус"
+        verbose_name_plural = "Месячные бонусные статусы"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer", "effective_from"],
+                name="unique_customer_bonus_tier_period",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["effective_from", "effective_to"],
+                name="idx_bonus_tier_period",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.customer} — {self.tier} ({self.effective_from}–{self.effective_to})"
+
+
 class CustomerRFMProfile(models.Model):
     customer = models.OneToOneField(
         "main.CustomUser",

@@ -85,6 +85,40 @@ def _get_segment_label(rfm_code: str) -> str:
     return "lost"
 
 
+def compute_segment_for_customer_data(
+    last_purchase_date,
+    purchase_count: int | None,
+    total_spent: Decimal | None,
+    now=None,
+) -> tuple[str, str]:
+    """Вычисляет segment_label по сырым данным клиента.
+
+    Общая утилита для RFM-сервиса и monthly bonus tier batch.
+    Не обращается к БД, не создаёт/обновляет записи.
+
+    Returns:
+        (rfm_code, segment_label)
+    """
+    if now is None:
+        now = timezone.now()
+
+    recency_days = None
+    if last_purchase_date:
+        delta = now - last_purchase_date
+        recency_days = max(delta.days, 0)
+
+    frequency = purchase_count or 0
+    monetary = total_spent or Decimal("0")
+
+    r_score = _score_recency(recency_days)
+    f_score = _score_frequency(frequency)
+    m_score = _score_monetary(monetary)
+
+    rfm_code = f"{r_score}{f_score}{m_score}"
+    segment_label = _get_segment_label(rfm_code)
+    return rfm_code, segment_label
+
+
 def calculate_customer_rfm(customer_id: int) -> CustomerRFMProfile:
     """
     Рассчитывает RFM-профиль для одного клиента.

@@ -1,12 +1,15 @@
+import logging
 from datetime import date
 
 from django.core.exceptions import ValidationError
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.main.models import CustomUser
 
 from .models import Campaign, CustomerCampaignAssignment, CustomerSegment
+
+logger = logging.getLogger(__name__)
 
 
 class CampaignError(Exception):
@@ -59,6 +62,31 @@ def get_segment_customers(segment: CustomerSegment) -> QuerySet[CustomUser]:
     raise ValidationError(f"Неизвестный тип сегмента: {segment.segment_type}")
 
 
+def _get_overlapping_assignment_user_ids(campaign: Campaign) -> set[int]:
+    """Находит клиентов с assignment в другой кампании с пересекающимся периодом.
+
+    Два периода пересекаются (включительно по обеим границам):
+    start_a <= end_b AND start_b <= end_a.
+
+    Не блокируют:
+    - Кампании с is_active=False.
+    - Одноразовые кампании, уже отмеченные как used.
+    """
+    overlapping_q = (
+        Q(campaign__is_active=True)
+        & Q(campaign__start_at__lte=campaign.end_at)
+        & Q(campaign__end_at__gte=campaign.start_at)
+        & ~Q(campaign=campaign)
+    )
+    # Одноразовая кампания с used=True не блокирует
+    overlapping_q &= ~Q(campaign__one_time_use=True, used=True)
+
+    return set(
+        CustomerCampaignAssignment.objects.filter(overlapping_q)
+        .values_list("customer_id", flat=True)
+    )
+
+
 def assign_campaign_to_customers(campaign_id: int) -> dict:
     try:
         campaign = Campaign.objects.select_related("segment").get(id=campaign_id)
@@ -86,6 +114,7 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
     eligible = candidates.filter(promo_enabled=True)
     total_candidates = eligible.count()
 
+    # Исключить уже назначенных в эту кампанию
     existing_user_ids = set(
         CustomerCampaignAssignment.objects.filter(
             campaign=campaign,
@@ -93,8 +122,14 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
         ).values_list("customer_id", flat=True)
     )
 
-    new_users = eligible.exclude(id__in=existing_user_ids)
-    skipped_existing = total_candidates - new_users.count()
+    # Исключить клиентов с пересекающимися кампаниями (активные/будущие)
+    overlapping_user_ids = _get_overlapping_assignment_user_ids(campaign)
+
+    blocked_ids = existing_user_ids | overlapping_user_ids
+    new_users = eligible.exclude(id__in=blocked_ids)
+
+    skipped_existing = len(existing_user_ids & set(eligible.values_list("id", flat=True)))
+    skipped_overlapping = len(overlapping_user_ids & set(eligible.values_list("id", flat=True)))
 
     assignments = [
         CustomerCampaignAssignment(customer_id=uid, campaign=campaign)
@@ -104,11 +139,19 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
         assignments, ignore_conflicts=True
     )
 
+    if skipped_overlapping > 0:
+        logger.info(
+            "campaigns.assign INFO campaign_id=%d skipped_overlapping=%d",
+            campaign.id,
+            skipped_overlapping,
+        )
+
     return {
         "campaign_id": campaign.id,
         "segment_id": campaign.segment_id,
         "total_candidates": total_candidates,
         "created_assignments": len(assignments),
         "skipped_existing": skipped_existing,
+        "skipped_overlapping": skipped_overlapping,
         "skipped_opted_out": skipped_opted_out,
     }

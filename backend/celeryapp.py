@@ -41,4 +41,12 @@ app.conf.beat_schedule = {
         'task': 'apps.showcase.tasks.calculate_personal_rankings_task',
         'schedule': crontab(hour=4, minute=30),  # 04:30, после глобального расчёта
     },
+    'recalculate-rfm-profiles': {
+        'task': 'apps.rfm.tasks.recalculate_all_rfm',
+        'schedule': crontab(hour=3, minute=0),  # 03:00 Asia/Yakutsk, ежедневно
+    },
+    'fix-monthly-bonus-tiers': {
+        'task': 'apps.rfm.tasks.fix_monthly_bonus_tiers',
+        'schedule': crontab(hour=0, minute=5, day_of_month=1),  # 00:05 Asia/Yakutsk, 1-го числа
+    },
 }
