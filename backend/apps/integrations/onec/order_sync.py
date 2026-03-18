@@ -13,6 +13,8 @@ import requests
 import uuid
 import logging
 
+from django.utils import timezone as dj_tz
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as dj_tz
@@ -78,7 +80,7 @@ def send_order_to_onec_impl(self, order_id: int):
         payload = {
             "order_id": order.id,
             "status": order.status,
-            "created_at": order.created_at.isoformat(),
+            "created_at": order.created_at.astimezone(dj_tz.get_current_timezone()).isoformat(),
             "customer": {
                 "id": order.customer_id,
                 "telegram_id": order.customer.telegram_id,
