@@ -76,7 +76,7 @@ class ProductUpdateSerializer(serializers.Serializer):
     product_code = serializers.CharField()
     one_c_guid = serializers.CharField(required=False, allow_blank=True)
     name = serializers.CharField()
-    price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    price = serializers.DecimalField(max_digits=12, decimal_places=2, default=0)
     category = serializers.CharField()
     is_promotional = serializers.BooleanField(default=False)
     updated_at = serializers.DateTimeField(required=False, allow_null=True)

@@ -1,6 +1,9 @@
 import json
+import logging
 
 from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
 
 from apps.integrations.onec.category_resolver import resolve_category
 from apps.integrations.onec.serializers import ProductUpdateSerializer
@@ -19,6 +22,7 @@ def onec_product_sync_impl(request):
 
     serializer = ProductUpdateSerializer(data=payload)
     if not serializer.is_valid():
+        logger.warning("Product sync validation failed: %s | payload: %s", serializer.errors, payload)
         return onec_error("validation_error", "Invalid payload.", details=serializer.errors)
     data = serializer.validated_data
 
