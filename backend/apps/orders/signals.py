@@ -42,6 +42,9 @@ def _order_post_save(sender, instance: Order, **kwargs):
         transaction.on_commit(lambda: send_order_push_task.delay(order_id, prev_status, new_status))
         if new_status == "ready" and instance.fulfillment_type != "pickup":
             transaction.on_commit(lambda: assign_courier_task.delay(order_id))
+        if new_status == "completed":
+            from apps.integrations.onec.tasks import notify_onec_order_completed
+            transaction.on_commit(lambda: notify_onec_order_completed.delay(order_id))
 
     instance._previous_status = instance.status
 

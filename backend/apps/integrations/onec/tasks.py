@@ -93,6 +93,66 @@ def notify_onec_order_canceled(self, order_id: int):
         raise self.retry(exc=exc, countdown=countdown)
 
 
+@shared_task(bind=True, max_retries=5)
+def notify_onec_order_completed(self, order_id: int):
+    """Notify 1C that an order has been delivered (completed)."""
+    from apps.orders.models import Order
+
+    url = _get_onec_order_url()
+    if not url:
+        logger.info("notify_onec_order_completed: ONEC_ORDER_URL not configured, skipping.")
+        return {"status": "skipped", "reason": "no_url"}
+
+    try:
+        order = Order.objects.select_related("customer").get(id=order_id)
+    except Order.DoesNotExist:
+        logger.error("notify_onec_order_completed: order %s not found", order_id)
+        return {"status": "failed", "reason": "order_not_found"}
+
+    payload = {
+        "order_id": order.id,
+        "status": "completed",
+        "payment_method": order.payment_method,
+        "payment_id": order.payment_id,
+        "payment_status": order.payment_status,
+        "courier_telegram_id": order.delivered_by,
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Api-Key": os.getenv("INTEGRATION_API_KEY", ""),
+    }
+
+    onec_user = os.getenv("ONEC_BASIC_AUTH_USER", "")
+    if onec_user:
+        import base64
+        onec_pass = os.getenv("ONEC_BASIC_AUTH_PASSWORD", "")
+        credentials = base64.b64encode(f"{onec_user}:{onec_pass}".encode("utf-8")).decode("ascii")
+        headers["Authorization"] = f"Basic {credentials}"
+
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        if resp.status_code not in (200, 201):
+            raise RuntimeError(f"HTTP {resp.status_code}: {resp.text}")
+
+        logger.info("notify_onec_order_completed: order %s notified successfully", order_id)
+        return {"status": "sent", "order_id": order_id}
+
+    except (requests.RequestException, RuntimeError) as exc:
+        logger.exception("notify_onec_order_completed failed: order_id=%s", order_id)
+
+        from django.conf import settings
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+            return {"status": "failed", "reason": str(exc)}
+
+        if self.request.retries >= self.max_retries:
+            return {"status": "failed", "reason": str(exc)}
+
+        base = min(20 + self.request.retries * 10, 70)
+        countdown = base + random.uniform(0, base * 0.3)
+        raise self.retry(exc=exc, countdown=countdown)
+
+
 @shared_task(bind=True, max_retries=0)
 def rollback_stuck_assembly_orders(self):
     """Periodic: rollback orders stuck in 'assembly' without 1C confirmation.
