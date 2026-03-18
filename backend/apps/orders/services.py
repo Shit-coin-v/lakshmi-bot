@@ -120,6 +120,9 @@ def update_order_status(
             db_tx.on_commit(lambda: assign_courier_task.delay(oid))
         if new == "completed" and prev in ("delivery", "arrived"):
             db_tx.on_commit(lambda: redispatch_unassigned_orders.delay())
+        if new == "completed":
+            from apps.integrations.onec.tasks import notify_onec_order_completed
+            db_tx.on_commit(lambda: notify_onec_order_completed.delay(oid))
         if new == "completed" and payment_id and payment_status == "authorized":
             from apps.integrations.payments.tasks import capture_payment_task
             db_tx.on_commit(lambda: capture_payment_task.delay(oid))
