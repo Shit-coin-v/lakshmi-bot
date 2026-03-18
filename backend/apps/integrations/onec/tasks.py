@@ -103,19 +103,13 @@ def notify_onec_order_completed(self, order_id: int):
         logger.info("notify_onec_order_completed: ONEC_ORDER_URL not configured, skipping.")
         return {"status": "skipped", "reason": "no_url"}
 
-    try:
-        order = Order.objects.select_related("customer").get(id=order_id)
-    except Order.DoesNotExist:
+    if not Order.objects.filter(id=order_id).exists():
         logger.error("notify_onec_order_completed: order %s not found", order_id)
         return {"status": "failed", "reason": "order_not_found"}
 
     payload = {
-        "order_id": order.id,
+        "order_id": order_id,
         "status": "completed",
-        "payment_method": order.payment_method,
-        "payment_id": order.payment_id,
-        "payment_status": order.payment_status,
-        "courier_telegram_id": order.delivered_by,
     }
 
     headers = {
