@@ -98,9 +98,10 @@ def notify_onec_order_completed(self, order_id: int):
     """Notify 1C that an order has been delivered (completed)."""
     from apps.orders.models import Order
 
-    url = _get_onec_order_url()
+    from django.conf import settings as django_settings
+    url = getattr(django_settings, "ONEC_ORDER_COMPLETE_URL", "")
     if not url:
-        logger.info("notify_onec_order_completed: ONEC_ORDER_URL not configured, skipping.")
+        logger.info("notify_onec_order_completed: ONEC_ORDER_COMPLETE_URL not configured, skipping.")
         return {"status": "skipped", "reason": "no_url"}
 
     if not Order.objects.filter(id=order_id).exists():
