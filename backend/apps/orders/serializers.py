@@ -7,9 +7,9 @@ from apps.common.models import SiteSettings
 from apps.main.models import Category
 from apps.orders.models import Order, OrderItem, Product
 
-logger = logging.getLogger(__name__)
+from apps.orders.services import get_delivery_price
 
-_DELIVERY_FEE = Decimal("150.00")
+logger = logging.getLogger(__name__)
 
 
 class CategoryListSerializer(serializers.ModelSerializer):
@@ -215,7 +215,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("total_price", None)
 
         fulfillment_type = validated_data.get("fulfillment_type") or "delivery"
-        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else _DELIVERY_FEE
+        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else get_delivery_price()
         is_sbp = validated_data.get("payment_method") == "sbp"
 
         order = Order.objects.create(

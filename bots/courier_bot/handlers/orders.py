@@ -1,5 +1,4 @@
 import logging
-import os
 from functools import partial
 from html import escape
 from types import SimpleNamespace
@@ -33,7 +32,6 @@ async def _check_access(telegram_id: int) -> bool:
 
 # Statuses visible to couriers
 _ACTIVE_STATUSES = ("ready", "delivery", "arrived")
-DELIVERY_RATE = int(os.environ.get("COURIER_DELIVERY_RATE", "150"))
 
 _STATUS_DISPLAY = {
     "ready": "Заказ собран, ждёт курьера",
@@ -61,11 +59,15 @@ async def _fetch_active_orders(courier_tg_id: int):
 
 
 async def _fetch_completed_today(courier_tg_id: int):
-    """Fetch count of completed orders for today by this courier."""
+    """Fetch count and total for completed orders today by this courier."""
+    from decimal import Decimal
+
     result = await backend.get_completed_today(courier_tg_id)
     if result is None:
-        return 0
-    return result.get("count", 0)
+        return 0, Decimal(0)
+    raw = result.get("total", 0)
+    total = Decimal(str(raw)) if raw else Decimal(0)
+    return result.get("count", 0), total
 
 
 async def _fetch_order_with_items(order_id: int):
@@ -138,17 +140,15 @@ async def cmd_completed(message: Message):
         await send_clean(message, "Доступ запрещён.")
         return
 
-    count = await _fetch_completed_today(message.from_user.id)
+    count, total = await _fetch_completed_today(message.from_user.id)
 
     if count == 0:
         await send_clean(message, "📋 Сегодня доставленных заказов пока нет.")
         return
-
-    total = count * DELIVERY_RATE
     text = (
         f"📋 Отчёт за сегодня:\n\n"
         f"📦 Количество: {count}\n"
-        f"💰 Сумма: {total} ₽"
+        f"💰 Сумма: {int(total) if total == int(total) else total} ₽"
     )
     await send_clean(message, text)
 

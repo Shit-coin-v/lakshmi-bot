@@ -40,8 +40,9 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-def _get_courier_rate() -> int:
-    return getattr(django_settings, "COURIER_DELIVERY_RATE", 150)
+def _get_courier_rate():
+    from apps.orders.services import get_delivery_price
+    return get_delivery_price()
 
 
 # --- Customer Bot views ---
@@ -278,7 +279,8 @@ class CompletedTodayView(APIView):
             completed_at__date=today,
         ).count()
 
-        return Response({"count": count, "total": count * _get_courier_rate()})
+        total = count * _get_courier_rate()
+        return Response({"count": count, "total": str(total)})
 
 
 # --- Picker Bot views ---

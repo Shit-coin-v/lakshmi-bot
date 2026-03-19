@@ -1,11 +1,18 @@
 import json
+from decimal import Decimal
 from unittest.mock import patch
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from apps.main.models import CustomUser, Order, OrderItem, Product
 
+_TEST_SETTINGS = {
+    "CACHES": {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+    "ALLOW_TELEGRAM_HEADER_AUTH": True,
+}
 
+
+@override_settings(**_TEST_SETTINGS)
 class ProductListViewTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -38,6 +45,7 @@ class ProductListViewTests(TestCase):
         self.assertEqual(data[0]["product_code"], "S1")
 
 
+@override_settings(**_TEST_SETTINGS)
 class OrderCreateViewTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -46,8 +54,9 @@ class OrderCreateViewTests(TestCase):
             product_code="ORD-1", name="Test Product", price="50.00", store_id=1,
         )
 
+    @patch("apps.orders.serializers.get_delivery_price", return_value=Decimal("200.00"))
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
-    def test_create_order(self, mock_task):
+    def test_create_order(self, mock_task, _mock_price):
         payload = {
             "customer_id": self.customer.id,
             "address": "ул. Тестовая, 1",
@@ -67,7 +76,7 @@ class OrderCreateViewTests(TestCase):
         self.assertIn("id", data)
         order = Order.objects.get(id=data["id"])
         self.assertEqual(order.status, "new")
-        self.assertEqual(float(order.delivery_price), 150.0)
+        self.assertEqual(order.delivery_price, Decimal("200.00"))
         self.assertEqual(float(order.products_price), 100.0)
         mock_task.assert_called_once()
 
@@ -108,6 +117,7 @@ class OrderCreateViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+@override_settings(**_TEST_SETTINGS)
 class OrderListAndDetailTests(TestCase):
     def setUp(self):
         self.client = Client()

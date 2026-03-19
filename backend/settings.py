@@ -1,5 +1,6 @@
 import os
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -205,7 +206,9 @@ CELERY_TASK_SOFT_TIME_LIMIT = 300   # SoftTimeLimitExceeded after 5 min
 CELERY_TIMEZONE = TIME_ZONE         # crontab расписание по Asia/Yakutsk
 CELERY_ENABLE_UTC = True            # внутри хранит UTC, crontab по CELERY_TIMEZONE
 
-COURIER_DELIVERY_RATE = int(os.getenv("COURIER_DELIVERY_RATE", "150"))
+DELIVERY_PRODUCT_CODE = os.getenv("DELIVERY_PRODUCT_CODE", "ЦБ-00073433")
+DELIVERY_PRICE_FALLBACK = Decimal(os.getenv("DELIVERY_PRICE_FALLBACK", "150.00"))
+DELIVERY_PRICE_CACHE_TTL = 600  # 10 минут
 
 SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", not DEBUG)
 SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", not DEBUG)

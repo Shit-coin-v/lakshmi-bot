@@ -10,6 +10,7 @@ import '../../orders/services/order_service.dart';
 import '../../address/providers/address_provider.dart';
 import '../../address/models/address_model.dart';
 import '../../home/providers/profile_provider.dart';
+import '../../../core/config_provider.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -425,8 +426,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
 
-    final double deliveryCost = _isPickup ? 0.0 : 150.0;
-    final finalTotal = productsTotal + deliveryCost;
+    final deliveryPriceAsync = _isPickup ? null : ref.watch(deliveryPriceProvider);
+    final bool deliveryPriceLoading = !_isPickup && deliveryPriceAsync != null && deliveryPriceAsync.isLoading;
+    final bool deliveryPriceError = !_isPickup && deliveryPriceAsync != null && deliveryPriceAsync.hasError;
+    final double? deliveryCostOrNull = _isPickup ? 0.0 : deliveryPriceAsync?.valueOrNull;
+    final double finalTotal = productsTotal + (deliveryCostOrNull ?? 0.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -670,7 +674,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   title: "Доставка",
                                   value: _isPickup
                                       ? "Самовывоз"
-                                      : deliveryCost.formatPrice(),
+                                      : deliveryPriceLoading
+                                          ? "..."
+                                          : deliveryPriceError
+                                              ? "Ошибка"
+                                              : deliveryCostOrNull?.formatPrice() ?? "...",
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
@@ -684,7 +692,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       ),
                                     ),
                                     Text(
-                                      finalTotal.formatPrice(),
+                                      deliveryCostOrNull != null
+                                          ? finalTotal.formatPrice()
+                                          : "...",
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -721,38 +731,57 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => _showPaymentSheet(
-                                  finalTotal,
-                                  cartItems,
-                                ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                "Оформить заказ \u00b7 ${finalTotal.formatPrice()}",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      child: deliveryPriceError
+                          ? ElevatedButton.icon(
+                              onPressed: () => ref.invalidate(deliveryPriceProvider),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text(
+                                "Не удалось загрузить цену доставки. Повторить",
+                                style: TextStyle(fontSize: 14),
                               ),
-                      ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[400],
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
+                              ),
+                            )
+                          : ElevatedButton(
+                              onPressed: _isLoading || deliveryCostOrNull == null
+                                  ? null
+                                  : () => _showPaymentSheet(
+                                        finalTotal,
+                                        cartItems,
+                                      ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4CAF50),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      deliveryCostOrNull != null
+                                          ? "Оформить заказ \u00b7 ${finalTotal.formatPrice()}"
+                                          : "Загрузка...",
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
                     ),
                   ),
                 ),

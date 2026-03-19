@@ -6,9 +6,49 @@ Used by both /onec/order/status (1C) and /api/bot/orders/<id>/update-status/ (bo
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
+from django.conf import settings as django_settings
+from django.core.cache import cache
 from django.db import transaction as db_tx
 from django.utils import timezone as dj_tz
+
+DELIVERY_PRICE_CACHE_KEY = "delivery_price:{code}"
+
+
+def get_delivery_price(product_code: str | None = None) -> Decimal:
+    """Цена услуги доставки из номенклатуры 1С.
+
+    Кэш 10 мин с инвалидацией при sync. Fallback не кэшируется —
+    чтобы новая запись из 1С подхватилась сразу.
+    """
+    code = product_code or django_settings.DELIVERY_PRODUCT_CODE
+    cache_key = DELIVERY_PRICE_CACHE_KEY.format(code=code)
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Decimal(cached)
+
+    from apps.main.models import Product
+
+    price = (
+        Product.objects
+        .filter(product_code=code, is_active=True)
+        .values_list("price", flat=True)
+        .first()
+    )
+
+    if price is None:
+        return Decimal(django_settings.DELIVERY_PRICE_FALLBACK)
+
+    cache.set(cache_key, str(price), django_settings.DELIVERY_PRICE_CACHE_TTL)
+    return Decimal(price)
+
+
+def invalidate_delivery_price_cache(product_code: str | None = None):
+    """Сбросить кэш цены доставки. Вызывается при sync/delete/деактивации."""
+    code = product_code or django_settings.DELIVERY_PRODUCT_CODE
+    cache.delete(DELIVERY_PRICE_CACHE_KEY.format(code=code))
 
 logger = logging.getLogger(__name__)
 

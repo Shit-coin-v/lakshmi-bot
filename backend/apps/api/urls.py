@@ -16,6 +16,7 @@ from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
 from apps.integrations.payments.webhook import yukassa_webhook
 from apps.campaigns.views import CustomerPromoView, MarkCampaignUsedView, UserAssignedCampaignsView
+from apps.api.views_config import AppConfigView
 from apps.orders.views import CatalogChildrenView, CatalogRootView, OrderCancelView, OrderCreateView, OrderDetailView, OrderListUserView, ProductListView
 
 urlpatterns = [
@@ -33,6 +34,7 @@ urlpatterns = [
     path("onec/categories/sync", onec_category_sync, name="onec_category_sync"),
     path("onec/customers/sync", onec_customers_batch_sync, name="onec_customers_batch_sync"),
     # API endpoints
+    path("api/config/", AppConfigView.as_view(), name="app-config"),
     path("api/purchase/", PurchaseAPIView.as_view(), name="purchase"),
     path("api/send-message/", SendMessageAPIView.as_view(), name="send-message"),
     path("api/push/register/", PushRegisterView.as_view(), name="push-register"),
