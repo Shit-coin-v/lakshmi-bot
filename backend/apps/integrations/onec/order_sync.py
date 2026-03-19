@@ -92,6 +92,7 @@ def send_order_to_onec_impl(self, order_id: int):
                 "type": order.fulfillment_type,
                 "address": order.address,
                 "comment": order.comment,
+                "product_code": settings.DELIVERY_PRODUCT_CODE if order.fulfillment_type == "delivery" else None,
             },
             "payment_method": order.payment_method,
             "payment_id": order.payment_id,
