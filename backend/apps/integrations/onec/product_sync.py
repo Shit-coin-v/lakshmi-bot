@@ -1,7 +1,6 @@
 import json
 import logging
 
-from django.conf import settings
 from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
@@ -41,10 +40,6 @@ def onec_product_sync_impl(request):
     product, created = Product.objects.update_or_create(
         product_code=data["product_code"], defaults=defaults
     )
-
-    if product.product_code == getattr(settings, "DELIVERY_PRODUCT_CODE", ""):
-        from apps.orders.services import invalidate_delivery_price_cache
-        invalidate_delivery_price_cache()
 
     resp = {
         "status": "created" if created else "updated",

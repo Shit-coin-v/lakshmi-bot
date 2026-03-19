@@ -25,6 +25,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   bool _isPickup = false;
   bool _phoneInitialized = false;
+  String? _selectedZoneCode;
 
   String _paymentMethod = 'card_courier';
   double? _changeFrom;
@@ -87,7 +88,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   // --- BOTTOM SHEET: payment method only ---
-  void _showPaymentSheet(double finalTotal, List<CartItem> cartItems) {
+  void _showPaymentSheet(double finalTotal, List<CartItem> cartItems, {String? deliveryZoneCode}) {
     // Validate before opening
     if (!_isPickup && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -280,7 +281,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 : null;
                           });
                           Navigator.pop(sheetContext);
-                          _submitOrder(finalTotal, cartItems);
+                          _submitOrder(finalTotal, cartItems, deliveryZoneCode: deliveryZoneCode);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4CAF50),
@@ -309,7 +310,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Future<void> _submitOrder(double totalPrice, List<CartItem> items) async {
+  Future<void> _submitOrder(double totalPrice, List<CartItem> items, {String? deliveryZoneCode}) async {
     if (!_isPickup && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Пожалуйста, выберите адрес доставки')),
@@ -364,6 +365,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             items: items,
             userId: realUserId,
             fulfillmentType: _isPickup ? "pickup" : "delivery",
+            deliveryZoneCode: deliveryZoneCode,
           );
 
       if (orderId != null) {
@@ -426,10 +428,33 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItems = ref.watch(cartProvider);
     final productsTotal = ref.watch(cartTotalProvider);
 
-    final deliveryPriceAsync = _isPickup ? null : ref.watch(deliveryPriceProvider);
-    final bool deliveryPriceLoading = !_isPickup && deliveryPriceAsync != null && deliveryPriceAsync.isLoading;
-    final bool deliveryPriceError = !_isPickup && deliveryPriceAsync != null && deliveryPriceAsync.hasError;
-    final double? deliveryCostOrNull = _isPickup ? 0.0 : deliveryPriceAsync?.valueOrNull;
+    final zonesAsync = _isPickup ? null : ref.watch(deliveryZonesProvider);
+    final bool zonesLoading = !_isPickup && zonesAsync != null && zonesAsync.isLoading;
+    final bool zonesError = !_isPickup && zonesAsync != null && zonesAsync.hasError;
+    final zones = zonesAsync?.valueOrNull ?? [];
+
+    // Compute effective zone code without mutating state in build
+    final String? effectiveZoneCode;
+    if (_isPickup || zones.isEmpty) {
+      effectiveZoneCode = null;
+    } else {
+      final currentValid = _selectedZoneCode != null &&
+          zones.any((z) => z.productCode == _selectedZoneCode);
+      if (currentValid) {
+        effectiveZoneCode = _selectedZoneCode;
+      } else {
+        final defaultZone = zones.where((z) => z.isDefault).firstOrNull ?? zones.first;
+        effectiveZoneCode = defaultZone.productCode;
+        // Schedule state update for next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _selectedZoneCode = effectiveZoneCode);
+        });
+      }
+    }
+
+    final bool zonesEmpty = !_isPickup && !zonesLoading && !zonesError && zones.isEmpty;
+    final selectedZone = zones.where((z) => z.productCode == effectiveZoneCode).firstOrNull;
+    final double? deliveryCostOrNull = _isPickup ? 0.0 : selectedZone?.price;
     final double finalTotal = productsTotal + (deliveryCostOrNull ?? 0.0);
 
     return Scaffold(
@@ -555,6 +580,57 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                                 const SizedBox(height: 12),
 
+                                if (!_isPickup && zones.isNotEmpty) ...[
+                                  InputDecorator(
+                                    decoration: InputDecoration(
+                                      labelText: "Зона доставки",
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: effectiveZoneCode,
+                                        isExpanded: true,
+                                        items: zones.map((z) => DropdownMenuItem(
+                                          value: z.productCode,
+                                          child: Text("${z.name} — ${z.price.formatPrice()}"),
+                                        )).toList(),
+                                        onChanged: (v) {
+                                          setState(() {
+                                            _selectedZoneCode = v;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                if (zonesEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            "Нет доступных зон доставки",
+                                            style: TextStyle(color: Colors.orange, fontSize: 14),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
                                 if (!_isPickup) ...[
                                   InkWell(
                                     onTap: _selectAddress,
@@ -674,11 +750,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   title: "Доставка",
                                   value: _isPickup
                                       ? "Самовывоз"
-                                      : deliveryPriceLoading
+                                      : zonesLoading
                                           ? "..."
-                                          : deliveryPriceError
+                                          : zonesError
                                               ? "Ошибка"
-                                              : deliveryCostOrNull?.formatPrice() ?? "...",
+                                              : zonesEmpty
+                                                  ? "Недоступна"
+                                                  : deliveryCostOrNull?.formatPrice() ?? "...",
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
@@ -731,9 +809,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: deliveryPriceError
+                      child: zonesError
                           ? ElevatedButton.icon(
-                              onPressed: () => ref.invalidate(deliveryPriceProvider),
+                              onPressed: () => ref.invalidate(deliveryZonesProvider),
                               icon: const Icon(Icons.refresh),
                               label: const Text(
                                 "Не удалось загрузить цену доставки. Повторить",
@@ -754,6 +832,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   : () => _showPaymentSheet(
                                         finalTotal,
                                         cartItems,
+                                        deliveryZoneCode: _isPickup ? null : effectiveZoneCode,
                                       ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4CAF50),
@@ -775,7 +854,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   : Text(
                                       deliveryCostOrNull != null
                                           ? "Оформить заказ \u00b7 ${finalTotal.formatPrice()}"
-                                          : "Загрузка...",
+                                          : zonesEmpty
+                                              ? "Доставка недоступна"
+                                              : "Загрузка...",
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,

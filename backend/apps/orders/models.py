@@ -4,6 +4,30 @@ from django.db import models
 from apps.main.models import Product  # noqa: F401
 
 
+class DeliveryZone(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Название зоны")
+    product_code = models.CharField(max_length=50, unique=True, verbose_name="Код номенклатуры 1С")
+    sort_order = models.IntegerField(default=0, verbose_name="Порядок сортировки")
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+    is_default = models.BooleanField(default=False, verbose_name="По умолчанию")
+
+    class Meta:
+        db_table = "delivery_zones"
+        ordering = ["sort_order"]
+        verbose_name = "Зона доставки"
+        verbose_name_plural = "Зоны доставки"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_default"],
+                condition=models.Q(is_default=True, is_active=True),
+                name="delivery_zone_single_default",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('new', 'Новый'),
@@ -100,6 +124,9 @@ class Order(models.Model):
                                      null=True, blank=True, verbose_name="Причина отмены")
     canceled_by = models.CharField(max_length=20, choices=CANCELED_BY_CHOICES,
                                    null=True, blank=True, verbose_name="Кто отменил")
+
+    # --- Delivery zone ---
+    delivery_zone_code = models.CharField(max_length=50, null=True, blank=True, verbose_name="Код зоны доставки")
 
     # --- 1C sync ---
     onec_guid = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name="GUID 1С")

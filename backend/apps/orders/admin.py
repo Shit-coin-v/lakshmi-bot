@@ -1,12 +1,18 @@
 from django.contrib import admin
 
-from .models import CourierProfile, Order, OrderItem, PickerProfile
+from .models import CourierProfile, DeliveryZone, Order, OrderItem, PickerProfile
 
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     readonly_fields = ('price_at_moment',)
+
+
+@admin.register(DeliveryZone)
+class DeliveryZoneAdmin(admin.ModelAdmin):
+    list_display = ('name', 'product_code', 'sort_order', 'is_active', 'is_default')
+    list_editable = ('sort_order', 'is_active', 'is_default')
 
 
 @admin.register(Order)

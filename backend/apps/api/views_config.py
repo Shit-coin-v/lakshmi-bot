@@ -2,7 +2,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.orders.services import get_delivery_price
+from apps.orders.services import get_delivery_zones
 
 
 class AppConfigView(APIView):
@@ -10,5 +10,5 @@ class AppConfigView(APIView):
 
     def get(self, request):
         return Response({
-            "delivery_price": str(get_delivery_price()),
+            "delivery_zones": get_delivery_zones(),
         })

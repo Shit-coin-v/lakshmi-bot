@@ -7,8 +7,6 @@ from apps.common.models import SiteSettings
 from apps.main.models import Category
 from apps.orders.models import Order, OrderItem, Product
 
-from apps.orders.services import get_delivery_price
-
 logger = logging.getLogger(__name__)
 
 
@@ -161,6 +159,7 @@ class OrderItemSerializer(serializers.Serializer):
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
+    delivery_zone_code = serializers.CharField(required=False, allow_blank=True, default="")
 
     class Meta:
         model = Order
@@ -172,6 +171,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "comment",
             "payment_method",
             "fulfillment_type",
+            "delivery_zone_code",
             "total_price",
             "items",
         ]
@@ -208,14 +208,36 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             msg = settings.pickup_disabled_message or "Самовывоз временно недоступен"
             raise serializers.ValidationError({"fulfillment_type": msg})
 
+        zone_code = (attrs.get("delivery_zone_code") or "").strip()
+
+        if ft == "delivery":
+            if not zone_code:
+                raise serializers.ValidationError({"delivery_zone_code": "Выберите зону доставки."})
+
+            from apps.orders.models import DeliveryZone
+            zone = DeliveryZone.objects.filter(product_code=zone_code, is_active=True).first()
+            if not zone:
+                raise serializers.ValidationError({"delivery_zone_code": "Зона доставки недоступна."})
+
+            from apps.main.models import Product as ProductModel
+            product = ProductModel.objects.filter(
+                product_code=zone_code, is_active=True, price__isnull=False,
+            ).first()
+            if not product:
+                raise serializers.ValidationError({"delivery_zone_code": "Стоимость доставки недоступна."})
+
+            attrs["_delivery_price"] = product.price
+            attrs["delivery_zone_code"] = zone_code
+        else:
+            attrs["delivery_zone_code"] = None
+            attrs["_delivery_price"] = Decimal("0.00")
+
         return attrs
 
     def create(self, validated_data):
         items_data = validated_data.pop("items")
         validated_data.pop("total_price", None)
-
-        fulfillment_type = validated_data.get("fulfillment_type") or "delivery"
-        delivery_price = Decimal("0.00") if fulfillment_type == "pickup" else get_delivery_price()
+        delivery_price = validated_data.pop("_delivery_price")
         is_sbp = validated_data.get("payment_method") == "sbp"
 
         order = Order.objects.create(

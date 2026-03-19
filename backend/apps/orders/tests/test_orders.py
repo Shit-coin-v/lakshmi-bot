@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 
 from apps.main.models import CustomUser, Order, OrderItem, Product
+from apps.orders.models import DeliveryZone
 
 _TEST_SETTINGS = {
     "CACHES": {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
@@ -53,16 +54,23 @@ class OrderCreateViewTests(TestCase):
         self.product = Product.objects.create(
             product_code="ORD-1", name="Test Product", price="50.00", store_id=1,
         )
+        DeliveryZone.objects.all().delete()
 
-    @patch("apps.orders.serializers.get_delivery_price", return_value=Decimal("200.00"))
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
-    def test_create_order(self, mock_task, _mock_price):
+    def test_create_order(self, mock_task):
+        delivery_product = Product.objects.create(
+            product_code="DLV-1", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(
+            name="Тест", product_code="DLV-1", is_default=True,
+        )
         payload = {
             "customer_id": self.customer.id,
             "address": "ул. Тестовая, 1",
             "phone": "+79001112233",
             "payment_method": "card_courier",
             "fulfillment_type": "delivery",
+            "delivery_zone_code": "DLV-1",
             "items": [{"product_code": "ORD-1", "quantity": 2}],
         }
         response = self.client.post(
@@ -77,8 +85,36 @@ class OrderCreateViewTests(TestCase):
         order = Order.objects.get(id=data["id"])
         self.assertEqual(order.status, "new")
         self.assertEqual(order.delivery_price, Decimal("200.00"))
+        self.assertEqual(order.delivery_zone_code, "DLV-1")
         self.assertEqual(float(order.products_price), 100.0)
         mock_task.assert_called_once()
+
+    @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
+    def test_create_order_zone_code_trimmed(self, mock_task):
+        Product.objects.create(
+            product_code="DLV-1", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(
+            name="Тест", product_code="DLV-1", is_default=True,
+        )
+        payload = {
+            "customer_id": self.customer.id,
+            "address": "ул. Тестовая, 1",
+            "phone": "+79001112233",
+            "payment_method": "card_courier",
+            "fulfillment_type": "delivery",
+            "delivery_zone_code": "  DLV-1  ",
+            "items": [{"product_code": "ORD-1", "quantity": 2}],
+        }
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+        )
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get(id=response.json()["id"])
+        self.assertEqual(order.delivery_zone_code, "DLV-1")
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_create_order_pickup(self, mock_task):

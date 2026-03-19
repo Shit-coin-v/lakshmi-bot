@@ -40,10 +40,6 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-def _get_courier_rate():
-    from apps.orders.services import get_delivery_price
-    return get_delivery_price()
-
 
 # --- Customer Bot views ---
 
@@ -272,14 +268,17 @@ class CompletedTodayView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        from django.db.models import Sum
+
         today = date.today()
-        count = Order.objects.filter(
+        qs = Order.objects.filter(
             status="completed",
             delivered_by=courier_tg_id,
             completed_at__date=today,
-        ).count()
+        )
+        count = qs.count()
+        total = qs.aggregate(total=Sum("delivery_price"))["total"] or 0
 
-        total = count * _get_courier_rate()
         return Response({"count": count, "total": str(total)})
 
 
