@@ -211,9 +211,16 @@ def update_order_status(
 
 
 def adjust_order_items(order_id: int, items: list[dict]) -> dict:
-    """Decrease quantities or remove items from an order in assembly.
+    """Overwrite order items with the remaining list from 1C.
 
-    Called by 1C when the picker discovers that some products are out of stock.
+    1C sends the full list of items that should stay in the order.
+    Backend compares with current state and computes the diff:
+    - items not in the list → removed
+    - items with lower quantity → decreased
+    - items with same quantity → skipped (no change)
+    - items with higher quantity → rejected (increase not allowed)
+    - new items not in order → rejected (addition not allowed)
+
     Must be called inside ``transaction.atomic()`` by the caller.
 
     Returns dict with updated prices and list of applied changes.
@@ -224,6 +231,7 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
 
     # --- pre-validation: structure + duplicates (before DB access) ---
     seen_codes: set[str] = set()
+    new_items_map: dict[str, int] = {}
     for idx, item in enumerate(items):
         if not isinstance(item, dict):
             raise InvalidItemPayload(idx, "each item must be an object")
@@ -236,9 +244,13 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
         if isinstance(qty, bool) or not isinstance(qty, int):
             raise InvalidItemPayload(idx, "quantity is required and must be an integer")
 
+        if qty < 1:
+            raise InvalidItemPayload(idx, "quantity must be at least 1")
+
         if code in seen_codes:
             raise DuplicateProductCode(code)
         seen_codes.add(code)
+        new_items_map[code] = qty
 
     # --- lock order + items ---
     o = Order.objects.select_for_update().get(id=order_id)
@@ -249,64 +261,80 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
     order_items = o.items.select_for_update().select_related("product")
     item_map = {oi.product.product_code: oi for oi in order_items}
 
-    # --- validate all items before applying any changes ---
-    removals_count = 0
-    for item in items:
-        code = item["product_code"]
-        requested_qty = item["quantity"]
-
+    # --- validate: no new items, no increases ---
+    for code, new_qty in new_items_map.items():
         if code not in item_map:
             raise ItemNotFound(order_id, code)
-
         current_qty = item_map[code].quantity
+        if new_qty > current_qty:
+            raise InvalidItemQuantity(code, current_qty, new_qty)
 
-        if not isinstance(requested_qty, int) or requested_qty < 0:
-            raise InvalidItemQuantity(code, current_qty, requested_qty)
+    # --- compute diff ---
+    # items not in the new list → removed
+    # items with lower quantity → decreased
+    # items with same quantity → no change
+    to_remove = []
+    to_decrease = []
+    for code, oi in item_map.items():
+        if code not in new_items_map:
+            to_remove.append((code, oi))
+        elif new_items_map[code] < oi.quantity:
+            to_decrease.append((code, oi, new_items_map[code]))
+        # else: same quantity, skip
 
-        if requested_qty >= current_qty:
-            raise InvalidItemQuantity(code, current_qty, requested_qty)
-
-        if requested_qty == 0:
-            removals_count += 1
-
-    # items not mentioned in the request stay untouched
-    untouched = len(item_map) - len(items)
-    surviving = untouched + (len(items) - removals_count)
-    if surviving < 1:
-        raise CannotRemoveAllItems(order_id)
+    # nothing changed → return early with current prices (idempotent)
+    if not to_remove and not to_decrease:
+        return {
+            "order_id": o.id,
+            "batch_id": str(uuid.uuid4()),
+            "products_price": str(o.products_price),
+            "delivery_price": str(o.delivery_price),
+            "total_price": str(o.total_price),
+            "changes": [],
+        }
 
     # --- apply changes ---
     batch_id = uuid.uuid4()
     changes = []
 
-    for item in items:
-        code = item["product_code"]
-        new_qty = item["quantity"]
-        oi = item_map[code]
-        old_qty = oi.quantity
-        change_type = "removed" if new_qty == 0 else "decreased"
-
+    for code, oi in to_remove:
         OrderItemChange.objects.create(
             order=o,
             batch_id=batch_id,
-            product_code=oi.product.product_code,
+            product_code=code,
+            product_name=oi.product.name,
+            old_quantity=oi.quantity,
+            new_quantity=0,
+            price_at_moment=oi.price_at_moment,
+            change_type="removed",
+            source="onec",
+        )
+        oi.delete()
+        changes.append({
+            "product_code": code,
+            "action": "removed",
+            "old_quantity": oi.quantity,
+            "new_quantity": 0,
+        })
+
+    for code, oi, new_qty in to_decrease:
+        old_qty = oi.quantity
+        OrderItemChange.objects.create(
+            order=o,
+            batch_id=batch_id,
+            product_code=code,
             product_name=oi.product.name,
             old_quantity=old_qty,
             new_quantity=new_qty,
             price_at_moment=oi.price_at_moment,
-            change_type=change_type,
+            change_type="decreased",
             source="onec",
         )
-
-        if new_qty == 0:
-            oi.delete()
-        else:
-            oi.quantity = new_qty
-            oi.save(update_fields=["quantity"])
-
+        oi.quantity = new_qty
+        oi.save(update_fields=["quantity"])
         changes.append({
             "product_code": code,
-            "action": change_type,
+            "action": "decreased",
             "old_quantity": old_qty,
             "new_quantity": new_qty,
         })
