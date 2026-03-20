@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 # Re-export Product for backward-compat (used by orders/serializers.py)
@@ -172,6 +174,39 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
+
+
+class OrderItemChange(models.Model):
+    """Audit log for order item adjustments (quantity decrease / removal)."""
+
+    CHANGE_TYPE_CHOICES = [
+        ("decreased", "Уменьшено"),
+        ("removed", "Удалено"),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="item_changes")
+    batch_id = models.UUIDField(default=uuid.uuid4, verbose_name="ID пакета изменений")
+    product_code = models.CharField(max_length=50, verbose_name="Код товара")
+    product_name = models.CharField(max_length=255, verbose_name="Название товара")
+    old_quantity = models.PositiveIntegerField(verbose_name="Было")
+    new_quantity = models.IntegerField(verbose_name="Стало")  # 0 = removed
+    price_at_moment = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена на момент заказа")
+    change_type = models.CharField(max_length=20, choices=CHANGE_TYPE_CHOICES, verbose_name="Тип изменения")
+    source = models.CharField(max_length=20, default="onec", verbose_name="Источник")
+    changed_at = models.DateTimeField(auto_now_add=True, verbose_name="Когда")
+
+    class Meta:
+        db_table = "order_item_changes"
+        ordering = ["-changed_at"]
+        verbose_name = "Изменение позиции заказа"
+        verbose_name_plural = "Изменения позиций заказов"
+        indexes = [
+            models.Index(fields=["order", "-changed_at"], name="oic_order_changed_idx"),
+            models.Index(fields=["batch_id"], name="oic_batch_idx"),
+        ]
+
+    def __str__(self):
+        return f"Order #{self.order_id}: {self.product_code} {self.old_quantity}→{self.new_quantity}"
 
 
 class CourierProfile(models.Model):
