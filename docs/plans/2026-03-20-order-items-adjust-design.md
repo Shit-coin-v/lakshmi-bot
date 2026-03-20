@@ -33,7 +33,7 @@
 
 | Поле | Принимаем | Отбиваем |
 |------|-----------|----------|
-| `order_id` | int, numeric string | `null`, `true`, `false`, `""` → `missing_field` |
+| `order_id` | int, numeric string | `null`, `true`, `false`, `""` → `missing_field`; нечисловая строка → `invalid_order_id` |
 | `items` | non-empty list | `null`, `[]`, `{}`, string, int → `missing_field` |
 
 ## Логика сравнения

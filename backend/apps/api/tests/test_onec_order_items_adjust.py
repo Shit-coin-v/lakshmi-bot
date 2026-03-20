@@ -272,14 +272,27 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
     def test_order_id_bool_true_400(self, _mock_ip):
         resp = self._post({"order_id": True, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_bool_false_400(self, _mock_ip):
         resp = self._post({"order_id": False, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_null_400(self, _mock_ip):
         resp = self._post({"order_id": None, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
+
+    def test_order_id_empty_string_400(self, _mock_ip):
+        resp = self._post({"order_id": "", "items": [{"product_code": "P-001", "quantity": 1}]})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
+
+    def test_order_id_non_numeric_string_400(self, _mock_ip):
+        resp = self._post({"order_id": "abc", "items": [{"product_code": "P-001", "quantity": 1}]})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "invalid_order_id")
 
     def test_order_id_string_accepted(self, _mock_ip):
         resp = self._post({
@@ -305,14 +318,22 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
     def test_items_null_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": None})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_items_dict_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": {}})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_items_string_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": "abc"})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
+
+    def test_items_int_400(self, _mock_ip):
+        resp = self._post({"order_id": self.order.id, "items": 123})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_missing_api_key_401(self, _mock_ip):
         resp = self.client.post(
@@ -332,6 +353,12 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
     def test_quantity_bool_false_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": [{"product_code": "P-001", "quantity": False}]})
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "invalid_payload")
+
+    def test_empty_product_code_400(self, _mock_ip):
+        resp = self._post({"order_id": self.order.id, "items": [{"product_code": "", "quantity": 1}]})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
     def test_item_missing_product_code_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": [{"quantity": 1}]})
