@@ -210,11 +210,11 @@ def update_order_status(
     return (o, previous_status)
 
 
-def adjust_order_items(order_id: int, items: list[dict]) -> dict:
+def adjust_order_items(order_id: int, items: list[dict]) -> None:
     """Overwrite order items with the remaining list from 1C.
 
     1C sends the full list of items that should stay in the order.
-    Backend compares with current state and computes the diff:
+    Backend compares with current state and applies the diff:
     - items not in the list → removed
     - items with lower quantity → decreased
     - items with same quantity → skipped (no change)
@@ -222,8 +222,8 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
     - new items not in order → rejected (addition not allowed)
 
     Must be called inside ``transaction.atomic()`` by the caller.
+    Audit log is written to OrderItemChange internally.
 
-    Returns dict with updated prices and list of applied changes.
     Raises domain-specific exceptions on validation failure.
     Raises ``Order.DoesNotExist`` if order not found.
     """
@@ -270,9 +270,6 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
             raise InvalidItemQuantity(code, current_qty, new_qty)
 
     # --- compute diff ---
-    # items not in the new list → removed
-    # items with lower quantity → decreased
-    # items with same quantity → no change
     to_remove = []
     to_decrease = []
     for code, oi in item_map.items():
@@ -280,64 +277,34 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
             to_remove.append((code, oi))
         elif new_items_map[code] < oi.quantity:
             to_decrease.append((code, oi, new_items_map[code]))
-        # else: same quantity, skip
 
-    # nothing changed → return early with current prices (idempotent)
+    # nothing changed → no-op, return silently
     if not to_remove and not to_decrease:
-        return {
-            "order_id": o.id,
-            "batch_id": str(uuid.uuid4()),
-            "products_price": str(o.products_price),
-            "delivery_price": str(o.delivery_price),
-            "total_price": str(o.total_price),
-            "changes": [],
-        }
+        return
 
-    # --- apply changes ---
+    # --- apply changes + audit ---
     batch_id = uuid.uuid4()
-    changes = []
 
     for code, oi in to_remove:
         OrderItemChange.objects.create(
-            order=o,
-            batch_id=batch_id,
-            product_code=code,
-            product_name=oi.product.name,
-            old_quantity=oi.quantity,
-            new_quantity=0,
+            order=o, batch_id=batch_id,
+            product_code=code, product_name=oi.product.name,
+            old_quantity=oi.quantity, new_quantity=0,
             price_at_moment=oi.price_at_moment,
-            change_type="removed",
-            source="onec",
+            change_type="removed", source="onec",
         )
         oi.delete()
-        changes.append({
-            "product_code": code,
-            "action": "removed",
-            "old_quantity": oi.quantity,
-            "new_quantity": 0,
-        })
 
     for code, oi, new_qty in to_decrease:
-        old_qty = oi.quantity
         OrderItemChange.objects.create(
-            order=o,
-            batch_id=batch_id,
-            product_code=code,
-            product_name=oi.product.name,
-            old_quantity=old_qty,
-            new_quantity=new_qty,
+            order=o, batch_id=batch_id,
+            product_code=code, product_name=oi.product.name,
+            old_quantity=oi.quantity, new_quantity=new_qty,
             price_at_moment=oi.price_at_moment,
-            change_type="decreased",
-            source="onec",
+            change_type="decreased", source="onec",
         )
         oi.quantity = new_qty
         oi.save(update_fields=["quantity"])
-        changes.append({
-            "product_code": code,
-            "action": "decreased",
-            "old_quantity": old_qty,
-            "new_quantity": new_qty,
-        })
 
     # --- recalculate prices ---
     remaining = o.items.all()
@@ -350,12 +317,3 @@ def adjust_order_items(order_id: int, items: list[dict]) -> dict:
     o.products_price = products_price
     o.total_price = total_price
     o.save(update_fields=["products_price", "total_price"])
-
-    return {
-        "order_id": o.id,
-        "batch_id": str(batch_id),
-        "products_price": str(o.products_price),
-        "delivery_price": str(o.delivery_price),
-        "total_price": str(o.total_price),
-        "changes": changes,
-    }

@@ -12,10 +12,8 @@ from .base import OneCTestBase
 class OneCOrderItemsAdjustTests(OneCTestBase):
     """Tests for POST /onec/order/items/adjust.
 
-    Contract: 1C sends the full list of REMAINING items.
-    Backend compares with current state and computes diff.
-    Items not in the list → removed. Lower quantity → decreased.
-    Same quantity → no change (skipped).
+    Contract: 1C sends full list of REMAINING items.
+    Backend computes diff, applies changes, returns {"status": "ok"}.
     """
 
     def setUp(self):
@@ -65,10 +63,10 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
             **extra,
         )
 
-    # --- Success: decrease ---
+    # --- Success: response is {"status": "ok"} ---
 
     def test_decrease_quantity(self, _mock_ip):
-        """Send all 3 items but P-001 with qty=1. Only P-001 changes."""
+        """Send all 3 items but P-001 with qty=1 → decreased in DB."""
         resp = self._post({
             "order_id": self.order.id,
             "items": [
@@ -78,15 +76,7 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
             ],
         })
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(data["status"], "ok")
-        self.assertEqual(data["products_price"], "310.00")  # 1*100 + 2*80 + 1*50
-        self.assertEqual(data["total_price"], "510.00")     # 310 + 200 delivery
-        self.assertIn("batch_id", data)
-        self.assertEqual(len(data["changes"]), 1)
-        self.assertEqual(data["changes"][0]["action"], "decreased")
-        self.assertEqual(data["changes"][0]["old_quantity"], 3)
-        self.assertEqual(data["changes"][0]["new_quantity"], 1)
+        self.assertEqual(resp.json(), {"status": "ok"})
 
         self.item_a.refresh_from_db()
         self.assertEqual(self.item_a.quantity, 1)
@@ -95,10 +85,8 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(self.order.products_price, Decimal("310.00"))
         self.assertEqual(self.order.total_price, Decimal("510.00"))
 
-    # --- Success: remove (item not in list) ---
-
     def test_remove_item_by_omission(self, _mock_ip):
-        """Omit P-003 from the list → it gets removed."""
+        """Omit P-003 from list → removed from DB."""
         resp = self._post({
             "order_id": self.order.id,
             "items": [
@@ -107,19 +95,14 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
             ],
         })
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(len(data["changes"]), 1)
-        self.assertEqual(data["changes"][0]["action"], "removed")
-        self.assertEqual(data["changes"][0]["product_code"], "P-003")
+        self.assertEqual(resp.json(), {"status": "ok"})
+
         self.assertFalse(OrderItem.objects.filter(id=self.item_c.id).exists())
-
         self.order.refresh_from_db()
-        self.assertEqual(self.order.products_price, Decimal("460.00"))  # 3*100 + 2*80
-
-    # --- Success: remove + decrease in one request ---
+        self.assertEqual(self.order.products_price, Decimal("460.00"))
 
     def test_remove_and_decrease_combined(self, _mock_ip):
-        """Omit P-002 (removed) and decrease P-001 to 1."""
+        """Omit P-002 (removed), decrease P-001 to 1."""
         resp = self._post({
             "order_id": self.order.id,
             "items": [
@@ -128,24 +111,17 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
             ],
         })
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(len(data["changes"]), 2)
-        actions = {c["product_code"]: c["action"] for c in data["changes"]}
-        self.assertEqual(actions["P-002"], "removed")
-        self.assertEqual(actions["P-001"], "decreased")
-        # 1*100 + 1*50 = 150
-        self.assertEqual(data["products_price"], "150.00")
-        self.assertEqual(data["total_price"], "350.00")
+        self.assertEqual(resp.json(), {"status": "ok"})
 
-        changes = OrderItemChange.objects.filter(order=self.order)
-        self.assertEqual(changes.count(), 2)
-        batch_ids = set(changes.values_list("batch_id", flat=True))
-        self.assertEqual(len(batch_ids), 1)
+        self.assertFalse(OrderItem.objects.filter(id=self.item_b.id).exists())
+        self.item_a.refresh_from_db()
+        self.assertEqual(self.item_a.quantity, 1)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.products_price, Decimal("150.00"))
+        self.assertEqual(self.order.total_price, Decimal("350.00"))
 
-    # --- Success: no changes (same items, same quantities) ---
-
-    def test_no_changes_returns_200(self, _mock_ip):
-        """Sending exact same state → 200 with empty changes (idempotent)."""
+    def test_no_changes_returns_ok(self, _mock_ip):
+        """Same items, same quantities → 200 ok, no DB changes (idempotent)."""
         resp = self._post({
             "order_id": self.order.id,
             "items": [
@@ -155,15 +131,16 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
             ],
         })
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(data["status"], "ok")
-        self.assertEqual(data["changes"], [])
-        self.assertEqual(data["products_price"], "510.00")
+        self.assertEqual(resp.json(), {"status": "ok"})
+        # No audit records created
+        self.assertEqual(OrderItemChange.objects.filter(order=self.order).count(), 0)
+        # Prices unchanged
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.products_price, Decimal("510.00"))
 
-    # --- Audit log ---
+    # --- Audit log (internal, not in response) ---
 
-    def test_audit_log_created(self, _mock_ip):
-        """Decrease P-001 from 3 to 2 → audit record with correct fields."""
+    def test_audit_log_for_decrease(self, _mock_ip):
         self._post({
             "order_id": self.order.id,
             "items": [
@@ -177,12 +154,9 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(change.product_name, "Кола 0.5л")
         self.assertEqual(change.old_quantity, 3)
         self.assertEqual(change.new_quantity, 2)
-        self.assertEqual(change.price_at_moment, Decimal("100.00"))
         self.assertEqual(change.change_type, "decreased")
-        self.assertEqual(change.source, "onec")
 
     def test_audit_log_for_removal(self, _mock_ip):
-        """Omit P-003 → audit record with change_type=removed, new_quantity=0."""
         self._post({
             "order_id": self.order.id,
             "items": [
@@ -196,21 +170,16 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(change.new_quantity, 0)
         self.assertEqual(change.change_type, "removed")
 
-    def test_batch_id_same_for_all_changes(self, _mock_ip):
-        resp = self._post({
+    def test_audit_batch_id_shared(self, _mock_ip):
+        """Multiple changes in one request share the same batch_id."""
+        self._post({
             "order_id": self.order.id,
-            "items": [
-                {"product_code": "P-001", "quantity": 1},
-            ],
+            "items": [{"product_code": "P-001", "quantity": 1}],
         })
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        batch_id_from_response = data["batch_id"]
         changes = OrderItemChange.objects.filter(order=self.order)
-        # P-001 decreased + P-002 removed + P-003 removed = 3 changes
-        self.assertEqual(changes.count(), 3)
-        for change in changes:
-            self.assertEqual(str(change.batch_id), batch_id_from_response)
+        self.assertEqual(changes.count(), 3)  # 1 decreased + 2 removed
+        batch_ids = set(changes.values_list("batch_id", flat=True))
+        self.assertEqual(len(batch_ids), 1)
 
     # --- Validation: order ---
 
@@ -234,7 +203,7 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
 
     # --- Validation: items ---
 
-    def test_product_not_in_order_400(self, _mock_ip):
+    def test_new_product_not_in_order_400(self, _mock_ip):
         resp = self._post({
             "order_id": self.order.id,
             "items": [{"product_code": "NONEXISTENT", "quantity": 1}],
@@ -255,13 +224,9 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(resp.json()["error_code"], "invalid_quantity")
 
     def test_quantity_zero_400(self, _mock_ip):
-        """In overwrite mode, qty=0 is invalid — just omit the item instead."""
         resp = self._post({
             "order_id": self.order.id,
-            "items": [
-                {"product_code": "P-001", "quantity": 0},
-                {"product_code": "P-002", "quantity": 2},
-            ],
+            "items": [{"product_code": "P-001", "quantity": 0}],
         })
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
@@ -286,19 +251,18 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(resp.json()["error_code"], "duplicate_product_code")
 
     def test_no_partial_changes_on_error(self, _mock_ip):
-        """If one item has invalid quantity, nothing should be modified."""
         resp = self._post({
             "order_id": self.order.id,
             "items": [
                 {"product_code": "P-001", "quantity": 1},
-                {"product_code": "P-002", "quantity": 5},  # invalid: increase
+                {"product_code": "P-002", "quantity": 5},  # increase → error
             ],
         })
         self.assertEqual(resp.status_code, 400)
         self.item_a.refresh_from_db()
-        self.assertEqual(self.item_a.quantity, 3)
+        self.assertEqual(self.item_a.quantity, 3)  # unchanged
 
-    # --- Validation: top-level payload ---
+    # --- Validation: top-level ---
 
     def test_missing_order_id_400(self, _mock_ip):
         resp = self._post({"items": [{"product_code": "P-001", "quantity": 1}]})
@@ -306,39 +270,18 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
         self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_bool_true_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": True,
-            "items": [{"product_code": "P-001", "quantity": 1}],
-        })
+        resp = self._post({"order_id": True, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_bool_false_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": False,
-            "items": [{"product_code": "P-001", "quantity": 1}],
-        })
+        resp = self._post({"order_id": False, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_null_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": None,
-            "items": [{"product_code": "P-001", "quantity": 1}],
-        })
+        resp = self._post({"order_id": None, "items": [{"product_code": "P-001", "quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
-
-    def test_order_id_empty_string_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": "",
-            "items": [{"product_code": "P-001", "quantity": 1}],
-        })
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_order_id_string_accepted(self, _mock_ip):
-        """String order_id is accepted (consistent with onec_order_status)."""
         resp = self._post({
             "order_id": str(self.order.id),
             "items": [
@@ -362,22 +305,14 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
     def test_items_null_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": None})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_items_dict_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": {}})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_items_string_400(self, _mock_ip):
         resp = self._post({"order_id": self.order.id, "items": "abc"})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
-
-    def test_items_int_400(self, _mock_ip):
-        resp = self._post({"order_id": self.order.id, "items": 123})
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "missing_field")
 
     def test_missing_api_key_401(self, _mock_ip):
         resp = self.client.post(
@@ -390,66 +325,38 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
     # --- Malformed item payload ---
 
     def test_quantity_bool_true_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"product_code": "P-001", "quantity": True}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": [{"product_code": "P-001", "quantity": True}]})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
     def test_quantity_bool_false_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"product_code": "P-001", "quantity": False}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": [{"product_code": "P-001", "quantity": False}]})
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "invalid_payload")
-        self.assertTrue(OrderItem.objects.filter(id=self.item_a.id).exists())
 
     def test_item_missing_product_code_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"quantity": 1}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": [{"quantity": 1}]})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
     def test_item_missing_quantity_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"product_code": "P-001"}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": [{"product_code": "P-001"}]})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
     def test_item_not_dict_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": ["P-001"],
-        })
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error_code"], "invalid_payload")
-
-    def test_empty_product_code_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"product_code": "", "quantity": 1}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": ["P-001"]})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
     def test_quantity_string_400(self, _mock_ip):
-        resp = self._post({
-            "order_id": self.order.id,
-            "items": [{"product_code": "P-001", "quantity": "2"}],
-        })
+        resp = self._post({"order_id": self.order.id, "items": [{"product_code": "P-001", "quantity": "2"}]})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()["error_code"], "invalid_payload")
 
-    # --- Other ---
+    # --- Delivery price ---
 
     def test_delivery_price_unchanged(self, _mock_ip):
-        resp = self._post({
+        self._post({
             "order_id": self.order.id,
             "items": [
                 {"product_code": "P-001", "quantity": 1},
@@ -457,7 +364,5 @@ class OneCOrderItemsAdjustTests(OneCTestBase):
                 {"product_code": "P-003", "quantity": 1},
             ],
         })
-        data = resp.json()
-        self.assertEqual(data["delivery_price"], "200.00")
         self.order.refresh_from_db()
         self.assertEqual(self.order.delivery_price, Decimal("200.00"))

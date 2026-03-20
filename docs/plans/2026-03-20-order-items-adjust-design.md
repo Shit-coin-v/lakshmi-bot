@@ -1,9 +1,9 @@
-# Order Items Adjust — Backend Design v3
+# Order Items Adjust — Backend Design
 
 ## Назначение
 
-Эндпоинт для 1С: уменьшение количества или удаление позиций заказа в статусе `assembly`.
-Сценарий: сборщик обнаружил, что товара нет в наличии, клиент согласился на изменение.
+Эндпоинт для 1С: корректировка состава заказа в статусе `assembly`.
+1С отправляет полный список оставшихся товаров, backend вычисляет дельту и применяет изменения.
 
 ## Endpoint
 
@@ -15,73 +15,55 @@
 {
   "order_id": 123,
   "items": [
-    {"product_code": "00-001234", "quantity": 0},
-    {"product_code": "00-005678", "quantity": 2}
+    {"product_code": "ЦБ-00012345", "quantity": 1},
+    {"product_code": "ЦБ-00099999", "quantity": 2}
   ]
 }
 ```
 
+`items` — полный список товаров, которые должны остаться в заказе. Товары не в списке — удаляются.
+
 ### Успешный ответ (200)
 
 ```json
-{
-  "status": "ok",
-  "order_id": 123,
-  "batch_id": "uuid",
-  "products_price": "1500.00",
-  "delivery_price": "200.00",
-  "total_price": "1700.00",
-  "changes": [
-    {"product_code": "00-001234", "action": "removed", "old_quantity": 1, "new_quantity": 0},
-    {"product_code": "00-005678", "action": "decreased", "old_quantity": 3, "new_quantity": 2}
-  ]
-}
+{"status": "ok"}
 ```
 
 ## Top-level contract
 
 | Поле | Принимаем | Отбиваем |
 |------|-----------|----------|
-| `order_id` | int, numeric string (`"123"`) | `null`, `true`, `false`, `""` → `missing_field`; нечисловая строка → `invalid_order_id` |
+| `order_id` | int, numeric string | `null`, `true`, `false`, `""` → `missing_field` |
 | `items` | non-empty list | `null`, `[]`, `{}`, string, int → `missing_field` |
 
-Совместимость с `onec_order_status`: `order_id` как string разрешён — 1С может прислать и `123`, и `"123"`.
+## Логика сравнения
+
+| Что прислал 1С | Что делает backend |
+|---|---|
+| Товар есть, quantity меньше текущего | Уменьшает |
+| Товара нет в списке | Удаляет из заказа |
+| Товар есть, quantity такой же | Ничего не делает |
+| Quantity больше текущего | Ошибка 400 `invalid_quantity` |
+| Новый товар, которого не было | Ошибка 400 `item_not_found` |
+| Точно такой же состав | 200 ok, без изменений (идемпотентно) |
 
 ## Ошибки
 
 | error_code | status | Когда |
-|------------|--------|-------|
+|---|---|---|
 | `invalid_json` | 400 | Невалидный JSON |
 | `missing_field` | 400 | Нет `order_id`, нет/пустой `items` |
-| `invalid_payload` | 400 | Элемент items не dict, нет product_code/quantity, quantity не int, quantity bool, пустой product_code |
+| `invalid_payload` | 400 | Элемент items: не dict, нет product_code/quantity, qty не int, qty bool, qty < 1 |
 | `order_not_found` | 404 | Заказ не найден |
 | `invalid_status` | 409 | Статус ≠ assembly |
-| `item_not_found` | 400 | product_code не в заказе |
-| `invalid_quantity` | 400 | quantity ≥ текущего или < 0 |
+| `item_not_found` | 400 | product_code не в заказе (новый товар) |
+| `invalid_quantity` | 400 | quantity > текущего (увеличение) |
 | `duplicate_product_code` | 400 | Дубль product_code в запросе |
-| `cannot_remove_all` | 400 | Удаление всех позиций |
 | `invalid_order_id` | 400 | order_id не число |
 
-Формат: `{"error_code": "...", "message": "...", "details": {...}}` через `onec_error()`.
+## Audit
 
-## Бизнес-правила
-
-- Инициатор: всегда 1С
-- Статус: только `assembly`
-- Только уменьшение / удаление (увеличение и добавление запрещены)
-- Удалить все позиции нельзя (для этого — отмена заказа)
-- batch_id связывает изменения из одного запроса
-- delivery_price не пересчитывается
-- Клиент видит изменения при повторном открытии экрана заказа (без push)
-
-## Исключения (apps/orders/services.py)
-
-- `OrderNotInAssembly` → `invalid_status` (409)
-- `ItemNotFound` → `item_not_found` (400)
-- `InvalidItemQuantity` → `invalid_quantity` (400)
-- `DuplicateProductCode` → `duplicate_product_code` (400)
-- `CannotRemoveAllItems` → `cannot_remove_all` (400)
-- `InvalidItemPayload` → `invalid_payload` (400)
+Внутренний лог `OrderItemChange` — записывает что изменилось (removed/decreased), batch_id, old/new quantity. Не отдаётся в API-ответе.
 
 ## Файлы
 
