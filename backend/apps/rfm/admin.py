@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CustomerBonusTier, CustomerRFMProfile
+from .models import CustomerBonusTier, CustomerRFMHistory, CustomerRFMProfile
 
 
 @admin.register(CustomerBonusTier)
@@ -53,4 +53,31 @@ class CustomerRFMProfileAdmin(admin.ModelAdmin):
         "calculated_at",
         "created_at",
         "updated_at",
+    )
+
+
+@admin.register(CustomerRFMHistory)
+class CustomerRFMHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "segment_code",
+        "previous_segment_code",
+        "transition_type",
+        "calculated_at",
+    )
+    list_filter = ("transition_type", "segment_code")
+    search_fields = ("customer__telegram_id",)
+    readonly_fields = (
+        "customer",
+        "segment_code",
+        "previous_segment_code",
+        "r_score",
+        "f_score",
+        "m_score",
+        "recency_days",
+        "frequency_orders",
+        "monetary_total",
+        "transition_type",
+        "calculated_at",
+        "created_at",
     )

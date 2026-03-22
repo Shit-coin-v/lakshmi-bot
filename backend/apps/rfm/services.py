@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.main.models import CustomUser
 
-from .models import CustomerRFMProfile
+from .models import CustomerRFMHistory, CustomerRFMProfile
 
 # ---------------------------------------------------------------------------
 # Границы квантилей для R, F, M scoring.
@@ -119,6 +119,66 @@ def compute_segment_for_customer_data(
     return rfm_code, segment_label
 
 
+def _maybe_create_history(
+    customer_id: int,
+    old_profile: CustomerRFMProfile | None,
+    new_segment_label: str,
+    r_score: int,
+    f_score: int,
+    m_score: int,
+    recency_days: int | None,
+    frequency_count: int,
+    monetary_value: Decimal,
+    calculated_at,
+) -> CustomerRFMHistory | None:
+    """Создаёт запись CustomerRFMHistory при изменениях. Возвращает None если ничего не изменилось."""
+    if old_profile is None:
+        return CustomerRFMHistory.objects.create(
+            customer_id=customer_id,
+            segment_code=new_segment_label,
+            previous_segment_code=None,
+            r_score=r_score,
+            f_score=f_score,
+            m_score=m_score,
+            recency_days=recency_days,
+            frequency_orders=frequency_count,
+            monetary_total=monetary_value,
+            transition_type="initial",
+            calculated_at=calculated_at,
+        )
+
+    segment_changed = old_profile.segment_label != new_segment_label
+    score_changed = (
+        old_profile.r_score != r_score
+        or old_profile.f_score != f_score
+        or old_profile.m_score != m_score
+        or old_profile.recency_days != recency_days
+        or old_profile.frequency_count != frequency_count
+        or old_profile.monetary_value != monetary_value
+    )
+
+    if segment_changed:
+        transition_type = "segment_changed"
+    elif score_changed:
+        transition_type = "score_changed"
+    else:
+        return None
+
+    return CustomerRFMHistory.objects.create(
+        customer_id=customer_id,
+        segment_code=new_segment_label,
+        previous_segment_code=old_profile.segment_label,
+        r_score=r_score,
+        f_score=f_score,
+        m_score=m_score,
+        recency_days=recency_days,
+        frequency_orders=frequency_count,
+        monetary_total=monetary_value,
+        transition_type=transition_type,
+        calculated_at=calculated_at,
+    )
+
+
 def calculate_customer_rfm(customer_id: int) -> CustomerRFMProfile:
     """
     Рассчитывает RFM-профиль для одного клиента.
@@ -126,6 +186,9 @@ def calculate_customer_rfm(customer_id: int) -> CustomerRFMProfile:
     """
     customer = CustomUser.objects.get(id=customer_id)
     now = timezone.now()
+
+    # --- Сохраняем старый профиль для сравнения ---
+    old_profile = CustomerRFMProfile.objects.filter(customer=customer).first()
 
     # --- Raw metrics ---
     recency_days = None
@@ -158,6 +221,20 @@ def calculate_customer_rfm(customer_id: int) -> CustomerRFMProfile:
             "calculated_at": now,
         },
     )
+
+    _maybe_create_history(
+        customer_id=customer.id,
+        old_profile=old_profile,
+        new_segment_label=segment_label,
+        r_score=r_score,
+        f_score=f_score,
+        m_score=m_score,
+        recency_days=recency_days,
+        frequency_count=frequency_count,
+        monetary_value=monetary_value,
+        calculated_at=now,
+    )
+
     return profile
 
 
@@ -174,6 +251,12 @@ def calculate_all_customers_rfm() -> dict:
     created = 0
     updated = 0
     skipped = 0
+
+    # Предзагрузка существующих профилей для сравнения
+    existing_profiles = {
+        p.customer_id: p
+        for p in CustomerRFMProfile.objects.all()
+    }
 
     for customer in customers.iterator():
         try:
@@ -192,6 +275,8 @@ def calculate_all_customers_rfm() -> dict:
             rfm_code = f"{r_score}{f_score}{m_score}"
             segment_label = _get_segment_label(rfm_code)
 
+            old_profile = existing_profiles.get(customer.id)
+
             _, was_created = CustomerRFMProfile.objects.update_or_create(
                 customer=customer,
                 defaults={
@@ -206,6 +291,20 @@ def calculate_all_customers_rfm() -> dict:
                     "calculated_at": now,
                 },
             )
+
+            _maybe_create_history(
+                customer_id=customer.id,
+                old_profile=old_profile,
+                new_segment_label=segment_label,
+                r_score=r_score,
+                f_score=f_score,
+                m_score=m_score,
+                recency_days=recency_days,
+                frequency_count=frequency_count,
+                monetary_value=monetary_value,
+                calculated_at=now,
+            )
+
             if was_created:
                 created += 1
             else:

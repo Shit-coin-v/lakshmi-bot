@@ -89,3 +89,47 @@ class CustomerRFMProfile(models.Model):
 
     def __str__(self):
         return f"{self.customer} — {self.rfm_code} ({self.segment_label})"
+
+
+class CustomerRFMHistory(models.Model):
+    TRANSITION_CHOICES = (
+        ("initial", "Initial"),
+        ("segment_changed", "Segment Changed"),
+        ("score_changed", "Score Changed"),
+    )
+
+    customer = models.ForeignKey(
+        "main.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="rfm_history",
+    )
+    segment_code = models.CharField("Сегмент", max_length=50)
+    previous_segment_code = models.CharField(
+        "Предыдущий сегмент", max_length=50, null=True, blank=True,
+    )
+    r_score = models.IntegerField("R-score")
+    f_score = models.IntegerField("F-score")
+    m_score = models.IntegerField("M-score")
+    recency_days = models.IntegerField("Recency (дни)", null=True, blank=True)
+    frequency_orders = models.IntegerField("Frequency (заказы)", default=0)
+    monetary_total = models.DecimalField(
+        "Monetary (сумма)", max_digits=12, decimal_places=2, default=0,
+    )
+    transition_type = models.CharField(
+        "Тип перехода", max_length=20, choices=TRANSITION_CHOICES,
+    )
+    calculated_at = models.DateTimeField("Рассчитано")
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        db_table = "rfm_customer_rfm_history"
+        ordering = ["-calculated_at"]
+        indexes = [
+            models.Index(fields=["customer", "calculated_at"], name="rfm_hist_customer_calc_idx"),
+            models.Index(fields=["segment_code"], name="rfm_hist_segment_idx"),
+            models.Index(fields=["previous_segment_code"], name="rfm_hist_prev_segment_idx"),
+            models.Index(fields=["calculated_at"], name="rfm_hist_calc_at_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_id}: {self.previous_segment_code} → {self.segment_code} ({self.transition_type})"
