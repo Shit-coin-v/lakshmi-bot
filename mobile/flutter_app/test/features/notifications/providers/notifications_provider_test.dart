@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:lakshmi_market/core/api_client.dart';
 import 'package:lakshmi_market/features/notifications/models/notification_model.dart';
 import 'package:lakshmi_market/features/notifications/providers/notifications_provider.dart';
 import 'package:lakshmi_market/features/notifications/services/notifications_api_service.dart';
@@ -27,6 +28,13 @@ void main() {
 
   setUp(() {
     mockApi = MockNotificationsApiService();
+    // NotificationsNotifier._initLoad() checks hasAccessToken before loading.
+    // Set a fake token so loadNotifications() is actually called.
+    ApiClient().setBearerToken('test-token');
+  });
+
+  tearDown(() {
+    ApiClient().clearBearerToken();
   });
 
   group('NotificationsNotifier', () {
