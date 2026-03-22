@@ -207,3 +207,43 @@ class RFMHistoryTestCase(TestCase):
 
         calculate_all_customers_rfm()
         self.assertEqual(CustomerRFMHistory.objects.count(), 1)
+
+    def test_related_name_rfm_history(self):
+        """customer.rfm_history.all() возвращает историю клиента."""
+        user = self._create_user(
+            70010,
+            last_purchase_date=timezone.now() - timedelta(days=5),
+            purchase_count=25,
+            total_spent=Decimal("60000"),
+        )
+        calculate_customer_rfm(user.id)
+
+        history = user.rfm_history.all()
+        self.assertEqual(history.count(), 1)
+        self.assertEqual(history.first().segment_code, "champions")
+
+    def test_default_ordering_stable_with_same_calculated_at(self):
+        """При одинаковом calculated_at ordering стабилен по -id."""
+        user = self._create_user(70011)
+        now = timezone.now()
+        # Создаём 3 записи с одинаковым calculated_at
+        h1 = CustomerRFMHistory.objects.create(
+            customer=user, segment_code="lost", r_score=1, f_score=1, m_score=1,
+            transition_type="initial", calculated_at=now,
+        )
+        h2 = CustomerRFMHistory.objects.create(
+            customer=user, segment_code="champions", previous_segment_code="lost",
+            r_score=5, f_score=5, m_score=5,
+            transition_type="segment_changed", calculated_at=now,
+        )
+        h3 = CustomerRFMHistory.objects.create(
+            customer=user, segment_code="loyal", previous_segment_code="champions",
+            r_score=5, f_score=5, m_score=4,
+            transition_type="segment_changed", calculated_at=now,
+        )
+
+        # Дефолтный ordering: -calculated_at, -id → h3, h2, h1
+        entries = list(user.rfm_history.all())
+        self.assertEqual(entries[0].id, h3.id)
+        self.assertEqual(entries[1].id, h2.id)
+        self.assertEqual(entries[2].id, h1.id)

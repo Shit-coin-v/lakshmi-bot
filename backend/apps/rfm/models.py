@@ -123,7 +123,7 @@ class CustomerRFMHistory(models.Model):
 
     class Meta:
         db_table = "rfm_customer_rfm_history"
-        ordering = ["-calculated_at"]
+        ordering = ["-calculated_at", "-id"]
         indexes = [
             models.Index(fields=["customer", "calculated_at"], name="rfm_hist_customer_calc_idx"),
             models.Index(fields=["segment_code"], name="rfm_hist_segment_idx"),
