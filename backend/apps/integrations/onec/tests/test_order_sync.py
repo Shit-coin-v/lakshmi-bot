@@ -1,7 +1,7 @@
 """Tests for order_sync.py — sending orders to 1C."""
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 

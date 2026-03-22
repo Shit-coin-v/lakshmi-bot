@@ -1,7 +1,7 @@
 """Tests for courier_assignment.py — round-robin courier assignment."""
 
 from decimal import Decimal
-from unittest.mock import patch
+
 
 from django.test import TestCase, override_settings
 

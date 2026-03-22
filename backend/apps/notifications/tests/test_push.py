@@ -1,6 +1,6 @@
 """Tests for notifications/push.py — FCM push notification logic."""
 
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
@@ -9,7 +9,6 @@ from apps.notifications.models import CustomerDevice, Notification
 from apps.notifications.push import (
     _send_to_tokens,
     _order_tokens,
-    _STATUS_MESSAGES,
     notify_order_status_change,
     notify_notification_created,
 )
