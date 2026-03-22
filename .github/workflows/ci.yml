@@ -86,7 +86,7 @@ jobs:
         working-directory: mobile/flutter_app
       - name: Flutter analyze
         working-directory: mobile/flutter_app
-        run: flutter analyze --no-fatal-warnings
+        run: flutter analyze
       - name: Flutter tests
         working-directory: mobile/flutter_app
         run: flutter test --dart-define=API_KEY=test-key

@@ -340,7 +340,6 @@ class _StatusStep extends StatelessWidget {
   final bool isLast;
   final IconData icon;
   final String title;
-  final String? subtitle;
   final String? time;
 
   const _StatusStep({
@@ -348,7 +347,6 @@ class _StatusStep extends StatelessWidget {
     required this.isLast,
     required this.icon,
     required this.title,
-    this.subtitle,
     this.time,
     this.isCompleted = false,
   });
@@ -393,10 +391,6 @@ class _StatusStep extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(subtitle!, style: const TextStyle(color: Colors.grey)),
-                ],
                 if (time != null) ...[
                   const SizedBox(height: 4),
                   Text(time!, style: const TextStyle(color: Colors.grey)),
