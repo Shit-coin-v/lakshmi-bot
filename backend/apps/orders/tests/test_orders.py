@@ -184,9 +184,9 @@ class OrderListAndDetailTests(TestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["id"], self.order.id)
 
-    def test_order_list_without_auth_returns_403(self):
+    def test_order_list_without_auth_returns_401(self):
         response = self.client.get("/api/orders/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_order_detail(self):
         response = self.client.get(

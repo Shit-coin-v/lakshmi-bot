@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import HeaderPagination
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
 from .models import CustomerDevice
 from .models import Notification, NotificationOpenEvent
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationViewSet(viewsets.ViewSet):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def list(self, request):
@@ -94,6 +96,7 @@ def _register_device(request):
 
 
 class UpdateFCMTokenView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):
@@ -107,6 +110,7 @@ class UpdateFCMTokenView(APIView):
 
 
 class PushRegisterView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):

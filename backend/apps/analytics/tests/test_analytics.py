@@ -87,13 +87,13 @@ class AnalyticsEventViewTests(TestCase):
         event = AnalyticsEvent.objects.first()
         self.assertEqual(event.payload, {})
 
-    def test_missing_auth_returns_403(self):
+    def test_missing_auth_returns_401(self):
         response = self.client.post(
             "/api/analytics/events/",
             data=json.dumps({"event_type": "screen_view"}),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_user_set_from_header(self):
         response = self._post({

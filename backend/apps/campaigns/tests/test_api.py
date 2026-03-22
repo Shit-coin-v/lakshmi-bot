@@ -207,7 +207,7 @@ class UserAssignedCampaignsAPITestCase(TestCase):
 
     # --- авторизация ---
 
-    def test_unauthenticated_returns_403(self):
+    def test_unauthenticated_returns_401(self):
         resp = self.client.get(URL)
 
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 401)

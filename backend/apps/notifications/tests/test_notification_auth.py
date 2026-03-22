@@ -17,9 +17,9 @@ class NotificationAuthTests(TestCase):
             user=self.user2, title="For user2", body="Body2",
         )
 
-    def test_list_without_header_returns_403(self):
+    def test_list_without_header_returns_401(self):
         response = self.client.get("/api/notifications/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_list_returns_only_own_notifications(self):
         response = self.client.get(

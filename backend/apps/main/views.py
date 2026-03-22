@@ -7,6 +7,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.main.serializers import CustomerProfileSerializer
 from apps.main.models import CustomUser
@@ -18,6 +19,7 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
     """Customer profile: retrieve and update."""
 
     serializer_class = CustomerProfileSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 

@@ -520,13 +520,13 @@ class LinkTelegramByQrTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_link_by_qr_unauthenticated(self):
-        """No auth header — returns 403."""
+        """No auth header — returns 401."""
         response = self.client.post(
             "/api/auth/link-telegram/by-qr/",
             data=json.dumps({"telegram_id": 999888777}),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
 
 class GenerateUserQrTests(TestCase):

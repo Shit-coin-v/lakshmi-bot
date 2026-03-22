@@ -303,23 +303,23 @@ class BonusHistoryIsolationTests(BonusHistoryTestBase):
 class BonusHistoryAuthTests(TestCase):
     """Авторизация."""
 
-    def test_no_auth_returns_403(self):
-        """17. Без токена → 403."""
+    def test_no_auth_returns_401(self):
+        """17. Без токена → 401."""
         client = Client()
         resp = client.get(URL)
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 401)
 
-    def test_invalid_telegram_id_returns_403(self):
-        """18. Невалидный telegram_id (несуществующий) → 403."""
+    def test_invalid_telegram_id_returns_401(self):
+        """18. Невалидный telegram_id (несуществующий) → 401."""
         client = Client()
         resp = client.get(URL, HTTP_X_TELEGRAM_USER_ID="999999999")
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 401)
 
-    def test_invalid_bearer_token_returns_403(self):
-        """21. Невалидный JWT Bearer token → 403."""
+    def test_invalid_bearer_token_returns_401(self):
+        """21. Невалидный JWT Bearer token → 401."""
         client = Client()
         resp = client.get(URL, HTTP_AUTHORIZATION="Bearer invalid.jwt.token")
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 401)
 
 
 class BonusHistoryTimezoneCursorTests(BonusHistoryTestBase):

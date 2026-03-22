@@ -31,13 +31,13 @@ class OrderCreateAuthTests(TestCase):
             "items": [{"product_code": "AUTH-1", "quantity": 1}],
         }
 
-    def test_order_create_without_header_returns_403(self):
+    def test_order_create_without_header_returns_401(self):
         response = self.client.post(
             "/api/orders/create/",
             data=json.dumps(self._payload()),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_order_create_with_valid_header_returns_201(self, mock_task):
@@ -49,14 +49,14 @@ class OrderCreateAuthTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
 
-    def test_order_create_with_unknown_telegram_id_returns_403(self):
+    def test_order_create_with_unknown_telegram_id_returns_401(self):
         response = self.client.post(
             "/api/orders/create/",
             data=json.dumps(self._payload()),
             content_type="application/json",
             HTTP_X_TELEGRAM_USER_ID="999999999",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_order_create_with_other_customer_id_uses_authenticated_user(self, mock_task):
@@ -95,9 +95,9 @@ class OrderDetailAuthTests(TestCase):
             order=self.order, product=self.product, quantity=1, price_at_moment="50.00",
         )
 
-    def test_order_detail_without_header_returns_403(self):
+    def test_order_detail_without_header_returns_401(self):
         response = self.client.get(f"/api/orders/{self.order.pk}/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_order_detail_own_order_returns_200(self):
         response = self.client.get(
@@ -138,9 +138,9 @@ class OrderListAuthTests(TestCase):
             total_price="180.00",
         )
 
-    def test_order_list_without_header_returns_403(self):
+    def test_order_list_without_header_returns_401(self):
         response = self.client.get("/api/orders/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_order_list_returns_only_own_orders(self):
         response = self.client.get(
@@ -179,9 +179,9 @@ class OrderCancelAuthTests(TestCase):
             total_price="200.00",
         )
 
-    def test_order_cancel_without_header_returns_403(self):
+    def test_order_cancel_without_header_returns_401(self):
         response = self.client.post(f"/api/orders/{self.order.pk}/cancel/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     @patch("apps.notifications.tasks.send_order_push_task.delay")
     def test_order_cancel_own_order_returns_200(self, mock_notify):

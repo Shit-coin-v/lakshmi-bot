@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.authentication import decode_token, generate_tokens
+from apps.common.authentication import JWTAuthentication, decode_token, generate_tokens
 from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.common.throttling import AnonAuthThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser
@@ -285,6 +285,7 @@ class ResetPasswordConfirmView(APIView):
 class LinkEmailView(APIView):
     """POST /api/auth/link-email/ — add email+password to existing (Telegram) account."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):
@@ -317,6 +318,7 @@ class LinkEmailView(APIView):
 class LinkTelegramRequestView(APIView):
     """POST /api/auth/link-telegram/request/ — generate code for linking Telegram."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):
@@ -383,6 +385,7 @@ class LinkTelegramConfirmView(APIView):
 class LinkTelegramByQrView(APIView):
     """POST /api/auth/link-telegram/by-qr/ — link Telegram via scanned bot QR."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):
@@ -421,6 +424,7 @@ class LinkTelegramByQrView(APIView):
 class GenerateUserQrView(APIView):
     """POST /api/auth/generate-qr/ — generate QR for email-only user."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):

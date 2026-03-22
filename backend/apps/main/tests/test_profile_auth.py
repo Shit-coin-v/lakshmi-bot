@@ -18,9 +18,9 @@ class CustomerProfileAuthTests(TestCase):
             telegram_id=55002, full_name="Other User",
         )
 
-    def test_profile_get_without_header_returns_403(self):
+    def test_profile_get_without_header_returns_401(self):
         response = self.client.get(f"/api/customer/{self.user.pk}/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_profile_get_own_returns_200(self):
         response = self.client.get(

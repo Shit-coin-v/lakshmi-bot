@@ -88,12 +88,7 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onError: (DioException e, handler) async {
-          final status = e.response?.statusCode;
-          final hadBearer = e.requestOptions.headers['Authorization']
-                  ?.toString()
-                  .startsWith('Bearer ') ??
-              false;
-          if ((status == 401 || (status == 403 && hadBearer)) &&
+          if (e.response?.statusCode == 401 &&
               !e.requestOptions.path.contains('/api/auth/')) {
             final refreshed = await _tryRefreshToken();
             if (refreshed) {

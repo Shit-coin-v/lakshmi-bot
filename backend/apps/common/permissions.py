@@ -91,9 +91,6 @@ class CustomerPermission(BasePermission):
                         return True
                     except CustomUser.DoesNotExist:
                         return False
-                # Token present but invalid/expired — return False.
-                # Frontend interceptor catches 403 when Bearer was sent
-                # and triggers token refresh.
                 return False
 
         # 2. Fallback: X-Telegram-User-Id header (behind feature flag)

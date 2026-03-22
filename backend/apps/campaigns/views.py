@@ -7,6 +7,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.main.models import CustomUser
 from apps.rfm.models import CustomerBonusTier
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 class UserAssignedCampaignsView(generics.ListAPIView):
     """GET /api/campaigns/active/ — активные назначенные кампании текущего пользователя."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
     serializer_class = UserAssignedCampaignSerializer
 

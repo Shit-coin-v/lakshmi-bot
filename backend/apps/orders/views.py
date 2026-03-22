@@ -4,10 +4,12 @@ from django.db import transaction
 from django.db.models import Count
 
 from rest_framework import filters, generics, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
 from apps.main.models import Category
 from apps.orders.serializers import (
@@ -79,6 +81,7 @@ class ProductListView(generics.ListAPIView):
 class OrderCreateView(generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderCreateSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def perform_create(self, serializer):
@@ -104,17 +107,19 @@ class OrderCreateView(generics.CreateAPIView):
 class OrderDetailView(generics.RetrieveAPIView):
     queryset = Order.objects.all().prefetch_related("items__product")
     serializer_class = OrderDetailSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def get_object(self):
         obj = super().get_object()
         if obj.customer_id != self.request.telegram_user.pk:
-            self.permission_denied(self.request, message="Нет доступа к чужому заказу")
+            raise PermissionDenied("Нет доступа к чужому заказу")
         return obj
 
 
 class OrderListUserView(generics.ListAPIView):
     serializer_class = OrderListSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def get_queryset(self):
@@ -126,6 +131,7 @@ class OrderListUserView(generics.ListAPIView):
 
 
 class OrderCancelView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     CANCELLABLE_STATUSES = ("new", "accepted", "assembly", "ready")

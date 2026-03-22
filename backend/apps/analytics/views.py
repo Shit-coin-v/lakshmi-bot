@@ -2,12 +2,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
 
 from .serializers import AnalyticsEventSerializer
 
 
 class AnalyticsEventView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
 
     def post(self, request):

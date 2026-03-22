@@ -59,7 +59,7 @@ class CustomerPermissionIntegrationTests(TestCase):
             f"/api/customer/{self.user.pk}/",
             HTTP_X_TELEGRAM_USER_ID="90002",
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 401)
 
     @override_settings(ALLOW_TELEGRAM_HEADER_AUTH=True)
     def test_api_allows_header_fallback_when_enabled(self):

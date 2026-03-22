@@ -17,6 +17,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
 from apps.loyalty.models import CustomUser, Product, Transaction
 
@@ -53,6 +54,7 @@ def _decode_cursor(cursor: str) -> tuple[datetime, str]:
 class BonusHistoryView(GenericAPIView):
     """Customer bonus/purchase history with cursor-based pagination."""
 
+    authentication_classes = [JWTAuthentication]
     permission_classes = [CustomerPermission]
     serializer_class = BonusHistorySerializer
 

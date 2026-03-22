@@ -106,9 +106,9 @@ class NotificationViewSetTests(TestCase):
         self.assertIsNotNone(event.time_to_open)
         self.assertGreaterEqual(event.time_to_open.total_seconds(), 0)
 
-    def test_missing_header_returns_403(self):
+    def test_missing_header_returns_401(self):
         response = self.client.get("/api/notifications/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
 
 class PushRegisterViewTests(TestCase):
@@ -144,7 +144,7 @@ class PushRegisterViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_push_register_missing_header_returns_403(self):
+    def test_push_register_missing_header_returns_401(self):
         response = self.client.post(
             "/api/push/register/",
             data=json.dumps({
@@ -152,7 +152,7 @@ class PushRegisterViewTests(TestCase):
             }),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
 
 class UpdateFCMTokenViewTests(TestCase):
@@ -192,7 +192,7 @@ class UpdateFCMTokenViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_fcm_token_missing_header_returns_403(self):
+    def test_fcm_token_missing_header_returns_401(self):
         response = self.client.post(
             "/api/fcm/token/",
             data=json.dumps({
@@ -200,4 +200,4 @@ class UpdateFCMTokenViewTests(TestCase):
             }),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
