@@ -2,7 +2,7 @@ import math
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from apps.loyalty.models import Transaction
@@ -279,7 +279,7 @@ class PersonalRankingCalculationTests(TestCase):
         self.assertGreater(score_b, score_a)
 
         # Verify exact values
-        cat = 1000.0  # only category in both cases (all qty is dairy)
+        # category score is 1000.0 for both (all qty is dairy)
         rep_a = (1 - math.exp(-REPEAT_DECAY * 1)) * 1000   # 1 event
         rep_b = (1 - math.exp(-REPEAT_DECAY * 5)) * 1000   # 5 events
         self.assertAlmostEqual(rep_a, 393.5, places=0)
