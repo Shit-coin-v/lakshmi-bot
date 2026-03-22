@@ -74,9 +74,26 @@ jobs:
           POSTGRES_PORT: "5432"
         run: python -m pytest bots/customer_bot/tests/ -v
 
+  test-flutter:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+        working-directory: mobile/flutter_app
+      - name: Flutter analyze
+        working-directory: mobile/flutter_app
+        run: flutter analyze --no-fatal-warnings
+      - name: Flutter tests
+        working-directory: mobile/flutter_app
+        run: flutter test --dart-define=API_KEY=test-key
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: [test-backend, test-bot]
+    needs: [test-backend, test-bot, test-flutter]
     steps:
       - uses: actions/checkout@v4
       - name: Verify Docker images build
