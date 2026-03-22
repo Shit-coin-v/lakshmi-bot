@@ -2,81 +2,71 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lakshmi_market/core/jwt_refresh_interceptor.dart';
 
-/// Tests for the JWT refresh interceptor pattern used in ApiClient.
+/// Tests for the production [JwtRefreshInterceptor] class.
 ///
-/// We recreate the exact interceptor logic from api_client.dart and test
-/// it with a fake HTTP adapter, verifying:
-/// 1. 401 on non-auth path → refresh → retry → success
-/// 2. 403 does NOT trigger refresh
-/// 3. 401 on /api/auth/ path does NOT trigger refresh
+/// This tests the real interceptor code used by ApiClient, not a copy.
 void main() {
-  group('JWT refresh interceptor logic', () {
-    test('401 on non-auth path triggers refresh and retries request', () async {
-      var refreshCalled = false;
-      var retryCalled = false;
+  group('JwtRefreshInterceptor (production class)', () {
+    late Dio dio;
+    late _SequenceAdapter adapter;
+    late bool refreshCalled;
+    late bool forceLogoutCalled;
+    late String? tokenAfterRefresh;
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://fake'));
+    setUp(() {
+      refreshCalled = false;
+      forceLogoutCalled = false;
+      tokenAfterRefresh = null;
 
-      // Replace adapter: first call → 401, refresh → 200, retry → 200
-      dio.httpClientAdapter = _SequenceAdapter([
-        // 1st: POST /api/orders/create/ → 401
-        (options) => _error(options, 401, {'detail': 'expired'}),
-        // 2nd: POST /api/auth/refresh/ → 200 with tokens
-        (options) => _success(options, 200, {
-              'tokens': {'access': 'new-access', 'refresh': 'new-refresh'}
-            }),
-        // 3rd: retry POST /api/orders/create/ → 201
-        (options) => _success(options, 201, {'id': 42}),
-      ]);
+      dio = Dio(BaseOptions(baseUrl: 'http://fake'));
 
-      // Add interceptor matching ApiClient pattern
-      dio.interceptors.add(InterceptorsWrapper(
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401 &&
-              !e.requestOptions.path.contains('/api/auth/')) {
+      dio.interceptors.add(
+        JwtRefreshInterceptor(
+          dio: dio,
+          refreshToken: () async {
             refreshCalled = true;
-            try {
-              final refreshResp =
-                  await dio.post('/api/auth/refresh/', data: {});
-              if (refreshResp.statusCode == 200) {
-                retryCalled = true;
-                final opts = e.requestOptions;
-                opts.headers['Authorization'] = 'Bearer new-access';
-                final retryResp = await dio.fetch(opts);
-                return handler.resolve(retryResp);
-              }
-            } catch (_) {}
-          }
-          return handler.next(e);
-        },
-      ));
+            // Simulate successful refresh: set new token on dio
+            tokenAfterRefresh = 'refreshed-access-token';
+            dio.options.headers['Authorization'] =
+                'Bearer $tokenAfterRefresh';
+            return true;
+          },
+          onForceLogout: () {
+            forceLogoutCalled = true;
+          },
+        ),
+      );
+    });
+
+    test('401 on customer endpoint → refresh → retry with new token', () async {
+      adapter = _SequenceAdapter([
+        // 1st: POST /api/orders/create/ → 401
+        (opts) => _throw(opts, 401),
+        // 2nd: retry after refresh → 201
+        (opts) => _ok(opts, 201, {'id': 42}),
+      ]);
+      dio.httpClientAdapter = adapter;
 
       final response = await dio.post('/api/orders/create/', data: {});
 
-      expect(refreshCalled, isTrue, reason: '401 should trigger refresh');
-      expect(retryCalled, isTrue, reason: 'After refresh, should retry');
+      expect(refreshCalled, isTrue);
+      expect(forceLogoutCalled, isFalse);
       expect(response.statusCode, 201);
+      expect(response.data['id'], 42);
+
+      // Verify new token was set on retried request
+      final retryOpts = adapter.capturedOptions[1];
+      expect(retryOpts.headers['Authorization'],
+          'Bearer refreshed-access-token');
     });
 
-    test('403 does NOT trigger refresh flow', () async {
-      var refreshCalled = false;
-
-      final dio = Dio(BaseOptions(baseUrl: 'http://fake'));
-
-      dio.httpClientAdapter = _SequenceAdapter([
-        (options) => _error(options, 403, {'detail': 'forbidden'}),
+    test('403 does NOT trigger refresh', () async {
+      adapter = _SequenceAdapter([
+        (opts) => _throw(opts, 403),
       ]);
-
-      dio.interceptors.add(InterceptorsWrapper(
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401 &&
-              !e.requestOptions.path.contains('/api/auth/')) {
-            refreshCalled = true;
-          }
-          return handler.next(e);
-        },
-      ));
+      dio.httpClientAdapter = adapter;
 
       try {
         await dio.post('/api/orders/create/', data: {});
@@ -85,28 +75,15 @@ void main() {
         expect(e.response?.statusCode, 403);
       }
 
-      expect(refreshCalled, isFalse,
-          reason: '403 should NOT trigger refresh');
+      expect(refreshCalled, isFalse);
+      expect(forceLogoutCalled, isFalse);
     });
 
     test('401 on /api/auth/ path does NOT trigger refresh', () async {
-      var refreshCalled = false;
-
-      final dio = Dio(BaseOptions(baseUrl: 'http://fake'));
-
-      dio.httpClientAdapter = _SequenceAdapter([
-        (options) => _error(options, 401, {'detail': 'bad credentials'}),
+      adapter = _SequenceAdapter([
+        (opts) => _throw(opts, 401),
       ]);
-
-      dio.interceptors.add(InterceptorsWrapper(
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401 &&
-              !e.requestOptions.path.contains('/api/auth/')) {
-            refreshCalled = true;
-          }
-          return handler.next(e);
-        },
-      ));
+      dio.httpClientAdapter = adapter;
 
       try {
         await dio.post('/api/auth/login/', data: {});
@@ -115,30 +92,61 @@ void main() {
         expect(e.response?.statusCode, 401);
       }
 
-      expect(refreshCalled, isFalse,
-          reason: '401 on auth path should NOT trigger refresh');
+      expect(refreshCalled, isFalse);
+      expect(forceLogoutCalled, isFalse);
+    });
+
+    test('401 + failed refresh → force logout', () async {
+      // Override interceptor with failing refresh
+      dio.interceptors.clear();
+      dio.interceptors.add(
+        JwtRefreshInterceptor(
+          dio: dio,
+          refreshToken: () async {
+            refreshCalled = true;
+            return false; // refresh failed
+          },
+          onForceLogout: () {
+            forceLogoutCalled = true;
+          },
+        ),
+      );
+
+      adapter = _SequenceAdapter([
+        (opts) => _throw(opts, 401),
+      ]);
+      dio.httpClientAdapter = adapter;
+
+      try {
+        await dio.get('/api/customer/me/bonus-history/');
+        fail('Should have thrown');
+      } on DioException catch (e) {
+        expect(e.response?.statusCode, 401);
+      }
+
+      expect(refreshCalled, isTrue);
+      expect(forceLogoutCalled, isTrue);
     });
   });
 }
 
-// --- Helpers ---
+// --- Test helpers ---
 
 typedef _ResponseFactory = Future<ResponseBody> Function(RequestOptions);
 
-/// Adapter that returns responses in sequence.
 class _SequenceAdapter implements HttpClientAdapter {
   final List<_ResponseFactory> _factories;
   int _index = 0;
+  final List<RequestOptions> capturedOptions = [];
 
   _SequenceAdapter(this._factories);
 
   @override
   Future<ResponseBody> fetch(RequestOptions options,
       Stream<List<int>>? requestStream, Future<void>? cancelFuture) async {
+    capturedOptions.add(options);
     if (_index >= _factories.length) {
-      throw StateError(
-          'No more fake responses (call #${_index + 1}, '
-          'path=${options.path})');
+      throw StateError('No more fake responses (call #${_index + 1})');
     }
     return _factories[_index++](options);
   }
@@ -147,26 +155,21 @@ class _SequenceAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-Future<ResponseBody> _success(
-    RequestOptions options, int statusCode, Map<String, dynamic> data) async {
+Future<ResponseBody> _ok(
+    RequestOptions opts, int code, Map<String, dynamic> data) async {
   return ResponseBody.fromString(
     jsonEncode(data),
-    statusCode,
+    code,
     headers: {
       'content-type': ['application/json; charset=utf-8'],
     },
   );
 }
 
-Future<ResponseBody> _error(
-    RequestOptions options, int statusCode, Map<String, dynamic> data) async {
+Future<ResponseBody> _throw(RequestOptions opts, int code) async {
   throw DioException(
-    requestOptions: options,
-    response: Response(
-      requestOptions: options,
-      statusCode: statusCode,
-      data: data,
-    ),
+    requestOptions: opts,
+    response: Response(requestOptions: opts, statusCode: code, data: {}),
     type: DioExceptionType.badResponse,
   );
 }

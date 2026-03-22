@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'jwt_refresh_interceptor.dart';
+
 class ApiClient {
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -86,28 +88,10 @@ class ApiClient {
 
     // JWT refresh interceptor
     _dio.interceptors.add(
-      InterceptorsWrapper(
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401 &&
-              !e.requestOptions.path.contains('/api/auth/')) {
-            final refreshed = await _tryRefreshToken();
-            if (refreshed) {
-              // Retry the original request with new token
-              final opts = e.requestOptions;
-              opts.headers['Authorization'] =
-                  _dio.options.headers['Authorization'];
-              try {
-                final response = await _dio.fetch(opts);
-                return handler.resolve(response);
-              } on DioException catch (retryError) {
-                return handler.next(retryError);
-              }
-            } else {
-              _onForceLogout.add(null);
-            }
-          }
-          return handler.next(e);
-        },
+      JwtRefreshInterceptor(
+        dio: _dio,
+        refreshToken: _tryRefreshToken,
+        onForceLogout: () => _onForceLogout.add(null),
       ),
     );
   }
