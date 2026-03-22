@@ -1,10 +1,9 @@
 """Тесты monthly bonus tier фиксации, Celery-задач и backfill."""
 
 import calendar
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from io import StringIO
-from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
