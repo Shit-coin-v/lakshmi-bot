@@ -5,6 +5,7 @@ from django.test import Client, TestCase
 
 from apps.common.models import SiteSettings
 from apps.main.models import CustomUser, Product
+from apps.orders.models import DeliveryZone
 
 
 class SiteSettingsSingletonTests(TestCase):
@@ -34,16 +35,24 @@ class FulfillmentDisabledTests(TestCase):
         self.product = Product.objects.create(
             product_code="SET-1", name="Test", price="10.00", store_id=1,
         )
+        DeliveryZone.objects.all().delete()
+        Product.objects.create(
+            product_code="DLV-SET", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(name="Тест", product_code="DLV-SET", is_default=True)
         self.headers = {"HTTP_X_TELEGRAM_USER_ID": str(self.customer.telegram_id)}
 
     def _order_payload(self, fulfillment_type="delivery"):
-        return {
+        payload = {
             "address": "ул. Тестовая, 1",
             "phone": "+79001112233",
             "payment_method": "cash",
             "fulfillment_type": fulfillment_type,
             "items": [{"product_code": "SET-1", "quantity": 1}],
         }
+        if fulfillment_type == "delivery":
+            payload["delivery_zone_code"] = "DLV-SET"
+        return payload
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_delivery_disabled_returns_400(self, _mock):

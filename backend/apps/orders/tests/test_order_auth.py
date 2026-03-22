@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.test import Client, TestCase
 
 from apps.main.models import CustomUser, Order, OrderItem, Product
+from apps.orders.models import DeliveryZone
 
 
 class OrderCreateAuthTests(TestCase):
@@ -13,6 +14,11 @@ class OrderCreateAuthTests(TestCase):
         self.product = Product.objects.create(
             product_code="AUTH-1", name="Auth Product", price="50.00", store_id=1,
         )
+        DeliveryZone.objects.all().delete()
+        Product.objects.create(
+            product_code="DLV-AUTH", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(name="Тест", product_code="DLV-AUTH", is_default=True)
 
     def _payload(self):
         return {
@@ -21,6 +27,7 @@ class OrderCreateAuthTests(TestCase):
             "phone": "+79001112233",
             "payment_method": "card_courier",
             "fulfillment_type": "delivery",
+            "delivery_zone_code": "DLV-AUTH",
             "items": [{"product_code": "AUTH-1", "quantity": 1}],
         }
 

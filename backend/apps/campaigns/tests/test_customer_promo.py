@@ -1,6 +1,6 @@
 """Тесты GET /api/campaigns/customer-promo/ endpoint."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.test import TestCase, override_settings
@@ -24,7 +24,7 @@ class CustomerPromoViewTests(TestCase):
 
     def setUp(self):
         self.now = timezone.now()
-        self.today = timezone.localdate()
+        self.today = date.today()
         self.user = CustomUser.objects.create(telegram_id=300001)
         self.segment = CustomerSegment.objects.create(
             name="Test Seg", slug="test-seg",
@@ -151,7 +151,7 @@ class CustomerPromoViewTests(TestCase):
         data = resp.json()
         self.assertIsNotNone(data["campaign"])
         self.assertEqual(data["campaign"]["reward_type"], "fixed_bonus")
-        self.assertEqual(data["campaign"]["reward_value"], "150.00")
+        self.assertEqual(float(data["campaign"]["reward_value"]), 150.00)
 
     def test_active_assignment_bonus_percent(self):
         self._create_tier()
@@ -164,7 +164,7 @@ class CustomerPromoViewTests(TestCase):
 
         resp = self.client.get(URL, {"telegram_id": "300001"}, **self._headers())
         data = resp.json()["campaign"]
-        self.assertEqual(data["reward_percent"], "10.00")
+        self.assertEqual(float(data["reward_percent"]), 10.00)
 
     # --- Campaign: one_time_use ---
 
@@ -253,7 +253,7 @@ class CustomerPromoViewTests(TestCase):
 
     def test_product_without_one_c_guid_fail_closed(self):
         self._create_tier()
-        product = Product.objects.create(name="No GUID", one_c_guid=None)
+        product = Product.objects.create(name="No GUID", one_c_guid=None, price="10.00", store_id=1)
         camp = self._create_campaign()
         rule = CampaignRule(
             campaign=camp,
@@ -288,8 +288,8 @@ class CustomerPromoViewTests(TestCase):
     def test_legacy_product_plus_products_m2m_fail_closed(self):
         """legacy product + products M2M одновременно → fail-closed, campaign: null + WARNING."""
         self._create_tier()
-        p1 = Product.objects.create(name="P1", one_c_guid="g-fc1")
-        p2 = Product.objects.create(name="P2", one_c_guid="g-fc2")
+        p1 = Product.objects.create(name="P1", one_c_guid="g-fc1", price="10.00", store_id=1)
+        p2 = Product.objects.create(name="P2", one_c_guid="g-fc2", price="10.00", store_id=1)
         camp = self._create_campaign()
         # Обходим валидацию: bulk_create + ручное добавление M2M
         rule = CampaignRule(
@@ -325,12 +325,12 @@ class CustomerPromoViewTests(TestCase):
 
         resp = self.client.get(URL, {"telegram_id": "300001"}, **self._headers())
         conds = resp.json()["campaign"]["conditions"]
-        self.assertEqual(conds["min_purchase_amount"], "1000.00")
+        self.assertEqual(float(conds["min_purchase_amount"]), 1000.00)
 
     def test_conditions_product(self):
         self._create_tier()
         product = Product.objects.create(
-            name="Молоко", one_c_guid="guid-milk",
+            name="Молоко", one_c_guid="guid-milk", price="10.00", store_id=1,
         )
         camp = self._create_campaign()
         self._create_rule(camp, product=product, reward_type="product_discount")

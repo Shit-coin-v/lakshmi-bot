@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -276,9 +277,9 @@ class CompletedTodayView(APIView):
             completed_at__date=today,
         )
         count = qs.count()
-        total = qs.aggregate(total=Sum("delivery_price"))["total"] or 0
+        total = qs.aggregate(total=Sum("delivery_price"))["total"] or Decimal("0")
 
-        return Response({"count": count, "total": str(total)})
+        return Response({"count": count, "total": f"{total:.2f}"})
 
 
 # --- Picker Bot views ---

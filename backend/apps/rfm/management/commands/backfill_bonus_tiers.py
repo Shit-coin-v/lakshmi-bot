@@ -8,6 +8,7 @@
 """
 
 import calendar
+from datetime import date
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -23,7 +24,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         now = timezone.now()
-        today = timezone.localdate()
+        today = date.today()
         effective_from = today.replace(day=1)
         last_day = calendar.monthrange(today.year, today.month)[1]
         effective_to = today.replace(day=last_day)

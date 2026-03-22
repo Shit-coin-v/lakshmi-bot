@@ -6,7 +6,7 @@ from unittest.mock import patch
 from django.test import Client, TestCase
 
 from apps.main.models import CustomUser, Product
-from apps.orders.models import Order
+from apps.orders.models import DeliveryZone, Order
 
 _YUKASSA = "apps.integrations.payments.yukassa_client"
 
@@ -18,6 +18,11 @@ class OrderCreateSBPTests(TestCase):
         self.product = Product.objects.create(
             product_code="SBP-1", name="Test SBP", price="100.00", store_id=1,
         )
+        DeliveryZone.objects.all().delete()
+        Product.objects.create(
+            product_code="DLV-SBP", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(name="Тест", product_code="DLV-SBP", is_default=True)
 
     def _auth(self):
         return {"HTTP_X_TELEGRAM_USER_ID": str(self.customer.telegram_id)}
@@ -35,6 +40,7 @@ class OrderCreateSBPTests(TestCase):
             "phone": "+79001112233",
             "payment_method": "sbp",
             "fulfillment_type": "delivery",
+            "delivery_zone_code": "DLV-SBP",
             "items": [{"product_code": "SBP-1", "quantity": 2}],
         }
         response = self.client.post(
@@ -68,6 +74,7 @@ class OrderCreateSBPTests(TestCase):
                 "address": "Test",
                 "phone": "+79001112233",
                 "payment_method": "sbp",
+                "delivery_zone_code": "DLV-SBP",
                 "items": [{"product_code": "SBP-1", "quantity": 1}],
             }
             self.client.post(
@@ -85,6 +92,7 @@ class OrderCreateSBPTests(TestCase):
             "address": "Test",
             "phone": "+79001112233",
             "payment_method": "cash",
+            "delivery_zone_code": "DLV-SBP",
             "items": [{"product_code": "SBP-1", "quantity": 1}],
         }
         self.client.post(
@@ -103,6 +111,7 @@ class OrderCreateSBPTests(TestCase):
             "address": "Test",
             "phone": "+79001112233",
             "payment_method": "sbp",
+            "delivery_zone_code": "DLV-SBP",
             "items": [{"product_code": "SBP-1", "quantity": 1}],
         }
         response = self.client.post(

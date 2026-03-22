@@ -45,7 +45,7 @@ class CampaignRuleCleanTests(TestCase):
         self.assertIn("category", ctx.exception.message_dict)
 
     def test_legacy_product_without_guid_rejected(self):
-        product = Product.objects.create(name="No GUID", one_c_guid=None)
+        product = Product.objects.create(name="No GUID", one_c_guid=None, price="10.00", store_id=1)
         rule = CampaignRule(
             campaign=self.campaign,
             reward_type="product_discount",
@@ -57,7 +57,7 @@ class CampaignRuleCleanTests(TestCase):
         self.assertIn("product", ctx.exception.message_dict)
 
     def test_legacy_product_and_category_rejected(self):
-        product = Product.objects.create(name="P", one_c_guid="guid-1")
+        product = Product.objects.create(name="P", one_c_guid="guid-1", price="10.00", store_id=1)
         cat = Category.objects.create(name="C", external_id="ext-1")
         rule = CampaignRule(
             campaign=self.campaign,
@@ -108,7 +108,7 @@ class CampaignRuleCleanTests(TestCase):
 
     def test_legacy_product_as_fallback_valid(self):
         """Legacy product (deprecated FK) продолжает работать."""
-        product = Product.objects.create(name="Milk", one_c_guid="guid-milk")
+        product = Product.objects.create(name="Milk", one_c_guid="guid-milk", price="10.00", store_id=1)
         rule = CampaignRule(
             campaign=self.campaign,
             reward_type="product_discount",
@@ -147,8 +147,8 @@ class CampaignRuleAdminFormTests(TestCase):
 
     def test_form_legacy_product_plus_products_rejected(self):
         """legacy product + products M2M одновременно → ошибка."""
-        p1 = Product.objects.create(name="P1", one_c_guid="g1")
-        p2 = Product.objects.create(name="P2", one_c_guid="g2")
+        p1 = Product.objects.create(name="P1", one_c_guid="g1", price="10.00", store_id=1)
+        p2 = Product.objects.create(name="P2", one_c_guid="g2", price="10.00", store_id=1)
         form = CampaignRuleAdminForm(data={
             "campaign": self.campaign.id,
             "reward_type": "product_discount",
@@ -163,7 +163,7 @@ class CampaignRuleAdminFormTests(TestCase):
 
     def test_form_products_plus_category_rejected(self):
         """products M2M + category → ошибка."""
-        p = Product.objects.create(name="P", one_c_guid="g")
+        p = Product.objects.create(name="P", one_c_guid="g", price="10.00", store_id=1)
         cat = Category.objects.create(name="C", external_id="e")
         form = CampaignRuleAdminForm(data={
             "campaign": self.campaign.id,
@@ -191,7 +191,7 @@ class CampaignRuleAdminFormTests(TestCase):
 
     def test_form_product_discount_with_products_valid(self):
         """product_discount с products M2M — валидно."""
-        p = Product.objects.create(name="P", one_c_guid="g-pd")
+        p = Product.objects.create(name="P", one_c_guid="g-pd", price="10.00", store_id=1)
         form = CampaignRuleAdminForm(data={
             "campaign": self.campaign.id,
             "reward_type": "product_discount",
@@ -217,7 +217,7 @@ class CampaignRuleAdminFormTests(TestCase):
 
     def test_form_product_discount_with_legacy_product_valid(self):
         """product_discount с legacy product — валидно."""
-        p = Product.objects.create(name="Milk", one_c_guid="g-lp")
+        p = Product.objects.create(name="Milk", one_c_guid="g-lp", price="10.00", store_id=1)
         form = CampaignRuleAdminForm(data={
             "campaign": self.campaign.id,
             "reward_type": "product_discount",

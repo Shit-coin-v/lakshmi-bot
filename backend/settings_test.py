@@ -1,11 +1,17 @@
-from settings import *  # noqa: F401, F403
 import os
+
+# Set ONEC_ALLOW_IPS before importing settings (module-level constant in security.py)
+os.environ['ONEC_ALLOW_IPS'] = '127.0.0.1,::1'
+
+from settings import *  # noqa: F401, F403
 
 # Override Celery env vars so the broker/backend don't try to connect to Redis
 os.environ['CELERY_BROKER_URL'] = 'memory://'
 os.environ.pop('CELERY_RESULT_BACKEND', None)
 
 SECRET_KEY = 'test'
+ONEC_API_KEY = "test-key"
+INTEGRATION_API_KEY = "test-key"
 
 DATABASES = {
     'default': {

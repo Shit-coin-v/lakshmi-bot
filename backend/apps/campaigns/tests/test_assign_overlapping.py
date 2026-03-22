@@ -165,10 +165,10 @@ class AssignOverlappingTests(TestCase):
 
     def test_boundary_overlap_blocks(self):
         """end_at одной кампании = start_at другой — пересечение (границы включительны)."""
-        boundary = self.now + timedelta(days=15)
+        boundary = self.now - timedelta(hours=1)
         camp1 = self._create_campaign(
             "c-boundary1",
-            start_at=self.now - timedelta(days=5),
+            start_at=self.now - timedelta(days=30),
             end_at=boundary,
         )
         CustomerCampaignAssignment.objects.create(

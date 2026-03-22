@@ -1,5 +1,6 @@
 import calendar
 import logging
+from datetime import date
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
@@ -46,7 +47,7 @@ def fix_monthly_bonus_tiers():
     from .services import compute_segment_for_customer_data
 
     start = timezone.now()
-    today = timezone.localdate()
+    today = date.today()
 
     effective_from = today.replace(day=1)
     last_day = calendar.monthrange(today.year, today.month)[1]

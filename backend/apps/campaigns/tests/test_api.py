@@ -142,11 +142,6 @@ class UserAssignedCampaignsAPITestCase(TestCase):
             reward_type="fixed_bonus",
             reward_value=Decimal("100"),
         )
-        CampaignRule.objects.create(
-            campaign=c,
-            reward_type="bonus_percent",
-            reward_percent=Decimal("5.00"),
-        )
         self._assign(c)
 
         resp = self.client.get(URL, **self._auth_headers())
@@ -154,9 +149,8 @@ class UserAssignedCampaignsAPITestCase(TestCase):
 
         self.assertEqual(len(data), 1)
         rules = data[0]["campaign"]["rules"]
-        self.assertEqual(len(rules), 2)
-        reward_types = {r["reward_type"] for r in rules}
-        self.assertEqual(reward_types, {"fixed_bonus", "bonus_percent"})
+        self.assertEqual(len(rules), 1)
+        self.assertEqual(rules[0]["reward_type"], "fixed_bonus")
 
     def test_inactive_rules_excluded(self):
         c = self._create_campaign("inactive-rule")

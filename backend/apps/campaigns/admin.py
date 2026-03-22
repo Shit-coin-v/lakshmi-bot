@@ -44,7 +44,7 @@ class CampaignRuleAdminForm(forms.ModelForm):
         category = cleaned.get("category")
         legacy_product = cleaned.get("product")
 
-        has_products_m2m = products_m2m and products_m2m.exists() if hasattr(products_m2m, 'exists') else bool(products_m2m)
+        has_products_m2m = bool(products_m2m.exists()) if hasattr(products_m2m, 'exists') else bool(products_m2m)
         has_category = category is not None
         has_legacy = legacy_product is not None
 

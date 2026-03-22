@@ -393,17 +393,20 @@ class CompletedTodayTests(TestCase):
             customer=self.customer, status="completed",
             delivered_by=self.courier_tg_id, completed_at=now,
             address="A", phone="1",
+            delivery_price="150.00",
         )
         Order.objects.create(
             customer=self.customer, status="completed",
             delivered_by=self.courier_tg_id, completed_at=now,
             address="B", phone="2",
+            delivery_price="150.00",
         )
         # Different courier
         Order.objects.create(
             customer=self.customer, status="completed",
             delivered_by=999, completed_at=now,
             address="C", phone="3",
+            delivery_price="100.00",
         )
 
         resp = self.client.get(
@@ -413,7 +416,7 @@ class CompletedTodayTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["count"], 2)
-        self.assertEqual(data["total"], 300)
+        self.assertEqual(data["total"], "300.00")
 
     def test_missing_param_returns_400(self):
         resp = self.client.get("/api/bot/orders/completed-today/", **_api_key_header())

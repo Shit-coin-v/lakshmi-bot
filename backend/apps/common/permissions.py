@@ -12,8 +12,16 @@ class ApiKeyPermission(BasePermission):
 
     message = "Missing or invalid API key"
 
+    def _get_api_key(self):
+        """Return the configured API key, checking settings first for testability."""
+        from django.conf import settings as django_settings
+
+        key = getattr(django_settings, "INTEGRATION_API_KEY", "") or ""
+        return key.strip() or API_KEY
+
     def has_permission(self, request, view):
-        if not API_KEY:
+        api_key = self._get_api_key()
+        if not api_key:
             return False
 
         provided = (
@@ -22,7 +30,7 @@ class ApiKeyPermission(BasePermission):
             or request.META.get("HTTP_X_ONEC_AUTH")
             or ""
         ).strip()
-        return provided and compare_digest(provided, API_KEY)
+        return provided and compare_digest(provided, api_key)
 
 
 class TelegramUserPermission(BasePermission):

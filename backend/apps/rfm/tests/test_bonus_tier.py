@@ -1,7 +1,7 @@
 """Тесты monthly bonus tier фиксации, Celery-задач и backfill."""
 
 import calendar
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from io import StringIO
 
@@ -90,7 +90,7 @@ class FixMonthlyBonusTiersTests(TestCase):
     def test_effective_dates_cover_current_month(self):
         fix_monthly_bonus_tiers()
         tier = CustomerBonusTier.objects.get(customer=self.user_champion)
-        today = timezone.localdate()
+        today = date.today()
         self.assertEqual(tier.effective_from, today.replace(day=1))
         last_day = calendar.monthrange(today.year, today.month)[1]
         self.assertEqual(tier.effective_to, today.replace(day=last_day))
@@ -144,7 +144,7 @@ class RecalculateRFMTests(TestCase):
         self.assertEqual(profile.segment_label, "champions")
 
     def test_does_not_touch_bonus_tier(self):
-        today = timezone.localdate()
+        today = date.today()
         CustomerBonusTier.objects.create(
             customer=self.user,
             tier="standard",
@@ -200,7 +200,7 @@ class BackfillBonusTiersCommandTests(TestCase):
         tier = CustomerBonusTier.objects.get(customer=self.user_champion)
         self.assertEqual(tier.tier, "champions")
 
-        today = timezone.localdate()
+        today = date.today()
         self.assertEqual(tier.effective_from, today.replace(day=1))
         last_day = calendar.monthrange(today.year, today.month)[1]
         self.assertEqual(tier.effective_to, today.replace(day=last_day))

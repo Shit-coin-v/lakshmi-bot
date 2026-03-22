@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -185,7 +186,7 @@ class CustomerPromoView(APIView):
             return Response(_build_not_found_response())
 
         now = timezone.now()
-        today = timezone.localdate()
+        today = date.today()
 
         # --- bonus tier ---
         bonus_tier = "standard"
