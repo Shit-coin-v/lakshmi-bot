@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase
 
+from apps.common.authentication import generate_tokens
 from apps.main.models import CustomUser, Order, OrderItem, Product
 from apps.orders.models import DeliveryZone
 
@@ -72,6 +73,80 @@ class OrderCreateAuthTests(TestCase):
         self.assertEqual(response.status_code, 201)
         order = Order.objects.latest("id")
         self.assertEqual(order.customer, self.user)
+
+
+class OrderCreateJWTTests(TestCase):
+    """JWT auth flow for order creation — the main scenario for token refresh."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = CustomUser.objects.create(telegram_id=12345)
+        Product.objects.create(
+            product_code="JWT-1", name="JWT Product", price="50.00", store_id=1,
+        )
+        DeliveryZone.objects.all().delete()
+        Product.objects.create(
+            product_code="DLV-JWT", name="Доставка", price="200.00", store_id=0, is_active=True,
+        )
+        DeliveryZone.objects.create(name="Тест", product_code="DLV-JWT", is_default=True)
+
+    def _payload(self):
+        return {
+            "customer_id": self.user.id,
+            "address": "ул. Тестовая, 1",
+            "phone": "+79001112233",
+            "payment_method": "card_courier",
+            "fulfillment_type": "delivery",
+            "delivery_zone_code": "DLV-JWT",
+            "items": [{"product_code": "JWT-1", "quantity": 1}],
+        }
+
+    def test_expired_bearer_token_returns_401(self):
+        """Expired JWT on order create → 401 (interceptor can refresh)."""
+        import jwt
+        import datetime
+        from django.conf import settings
+
+        expired_payload = {
+            "user_id": self.user.pk,
+            "type": "access",
+            "iat": datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+            "exp": datetime.datetime(2020, 1, 1, 0, 30, tzinfo=datetime.timezone.utc),
+        }
+        expired_token = jwt.encode(expired_payload, settings.SECRET_KEY, algorithm="HS256")
+
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {expired_token}",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
+    def test_valid_bearer_token_creates_order(self, mock_task):
+        """Valid JWT on order create → 201."""
+        tokens = generate_tokens(self.user)
+
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}",
+        )
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.latest("id")
+        self.assertEqual(order.customer, self.user)
+
+    def test_invalid_bearer_token_returns_401(self):
+        """Malformed JWT on order create → 401."""
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer not.a.valid.jwt",
+        )
+        self.assertEqual(response.status_code, 401)
 
 
 class OrderDetailAuthTests(TestCase):
