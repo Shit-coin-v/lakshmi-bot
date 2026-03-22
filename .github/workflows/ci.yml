@@ -35,7 +35,7 @@ jobs:
           PYTHONPATH: backend:${{ github.workspace }}
           INTEGRATION_API_KEY: test-key
           BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        run: python backend/manage.py test --verbosity=2
+        run: python backend/manage.py test --top-level-directory backend --verbosity=2
 
   test-bot:
     runs-on: ubuntu-latest
