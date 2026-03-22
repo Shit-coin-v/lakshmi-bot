@@ -1,14 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../providers/loyalty_provider.dart';
+import '../models/bonus_history_item.dart';
+import '../providers/bonus_history_provider.dart';
 
-class LoyaltyScreen extends ConsumerWidget {
+class LoyaltyScreen extends ConsumerStatefulWidget {
   const LoyaltyScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoyaltyScreen> createState() => _LoyaltyScreenState();
+}
+
+class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(bonusHistoryProvider.notifier).loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(loyaltyProfileProvider);
+    final historyState = ref.watch(bonusHistoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -21,7 +52,10 @@ class LoyaltyScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.refresh(loyaltyProfileProvider),
+            onPressed: () {
+              ref.invalidate(loyaltyProfileProvider);
+              ref.read(bonusHistoryProvider.notifier).loadInitial();
+            },
             tooltip: 'Обновить баланс',
           ),
         ],
@@ -54,6 +88,7 @@ class LoyaltyScreen extends ConsumerWidget {
           }
 
           return SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
@@ -67,7 +102,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       colors: [
                         Color(0xFF4CAF50),
                         Color(0xFF2E7D32),
-                      ], // Brand gradient
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -122,8 +157,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       const SizedBox(height: 20),
 
                       Text(
-                        user.fullName ??
-                            "Уважаемый клиент", // Use data from model
+                        user.fullName ?? "Уважаемый клиент",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -157,7 +191,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       Text(
                         "${user.bonusBalance.toStringAsFixed(0)} Б",
                         style: const TextStyle(
-                          color: Colors.green, // kPrimaryGreen
+                          color: Colors.green,
                           fontSize: 42,
                           fontWeight: FontWeight.bold,
                         ),
@@ -174,7 +208,7 @@ class LoyaltyScreen extends ConsumerWidget {
 
                 const SizedBox(height: 30),
 
-                // --- RECENT TRANSACTIONS ---
+                // --- BONUS HISTORY ---
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -184,25 +218,7 @@ class LoyaltyScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Placeholder transactions (not yet in API)
-                _TransactionTile(
-                  title: "Покупка продуктов",
-                  date: "Сегодня, 14:30",
-                  amount: "+ 125 Б",
-                  isPositive: true,
-                ),
-                _TransactionTile(
-                  title: "Списание бонусов",
-                  date: "Вчера, 18:15",
-                  amount: "- 50 Б",
-                  isPositive: false,
-                ),
-                _TransactionTile(
-                  title: "Приветственный бонус",
-                  date: "01 дек, 09:00",
-                  amount: "+ 500 Б",
-                  isPositive: true,
-                ),
+                _buildBonusHistory(historyState),
 
                 const SizedBox(height: 20),
               ],
@@ -212,24 +228,74 @@ class LoyaltyScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildBonusHistory(BonusHistoryState historyState) {
+    // Initial loading
+    if (historyState.isLoading && historyState.items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Error on initial load
+    if (historyState.error != null && historyState.items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Center(
+          child: Text(
+            'Не удалось загрузить историю',
+            style: TextStyle(color: Colors.grey[500], fontSize: 15),
+          ),
+        ),
+      );
+    }
+
+    // Empty state
+    if (historyState.items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Center(
+          child: Text(
+            'История покупок пока пуста',
+            style: TextStyle(color: Colors.grey[500], fontSize: 15),
+          ),
+        ),
+      );
+    }
+
+    // List of items + optional loading indicator at the bottom
+    return Column(
+      children: [
+        for (final item in historyState.items)
+          _BonusHistoryTile(item: item),
+        if (historyState.isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
 }
 
-// Widget for a single transaction row
-class _TransactionTile extends StatelessWidget {
-  final String title;
-  final String date;
-  final String amount;
-  final bool isPositive;
+// Widget for a single bonus history row
+class _BonusHistoryTile extends StatelessWidget {
+  final BonusHistoryItem item;
 
-  const _TransactionTile({
-    required this.title,
-    required this.date,
-    required this.amount,
-    required this.isPositive,
-  });
+  const _BonusHistoryTile({required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final dateStr = DateFormat('dd.MM.yyyy, HH:mm').format(item.date);
+    final totalStr = '${item.purchaseTotal.toStringAsFixed(0)} \u20BD';
+
+    final hasEarned = item.bonusEarned > 0;
+    final hasSpent = item.bonusSpent > 0;
+
+    // Determine icon style based on primary operation
+    final isPositive = hasEarned && !hasSpent;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -267,7 +333,7 @@ class _TransactionTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  totalStr,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -275,19 +341,46 @@ class _TransactionTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  date,
+                  dateStr,
                   style: TextStyle(color: Colors.grey[500], fontSize: 13),
                 ),
               ],
             ),
           ),
-          Text(
-            amount,
-            style: TextStyle(
-              color: isPositive ? Colors.green : Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasEarned)
+                Text(
+                  '+${item.bonusEarned.toStringAsFixed(0)} Б',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              if (hasEarned && hasSpent)
+                const SizedBox(height: 2),
+              if (hasSpent)
+                Text(
+                  '\u2212${item.bonusSpent.toStringAsFixed(0)} Б',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              if (!hasEarned && !hasSpent)
+                Text(
+                  '0 Б',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+            ],
           ),
         ],
       ),

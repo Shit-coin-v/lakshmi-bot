@@ -3,6 +3,14 @@ from decimal import Decimal
 from rest_framework import serializers
 
 
+class BonusHistorySerializer(serializers.Serializer):
+    receipt_guid = serializers.CharField()
+    date = serializers.DateTimeField(source="sort_date")
+    purchase_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    bonus_earned = serializers.DecimalField(max_digits=12, decimal_places=2)
+    bonus_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class PurchaseSerializer(serializers.Serializer):
     telegram_id = serializers.IntegerField()
     product_code = serializers.CharField(max_length=50)
