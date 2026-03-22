@@ -58,7 +58,7 @@ class OrderCreateViewTests(TestCase):
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_create_order(self, mock_task):
-        delivery_product = Product.objects.create(
+        Product.objects.create(
             product_code="DLV-1", name="Доставка", price="200.00", store_id=0, is_active=True,
         )
         DeliveryZone.objects.create(

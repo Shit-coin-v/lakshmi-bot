@@ -12,7 +12,6 @@ from apps.rfm.models import CustomerBonusTier
 
 from .models import CampaignRule, CustomerCampaignAssignment
 from .serializers import (
-    CustomerPromoResponseSerializer,
     UserAssignedCampaignSerializer,
 )
 

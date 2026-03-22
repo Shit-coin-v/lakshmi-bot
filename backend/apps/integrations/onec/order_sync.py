@@ -13,8 +13,6 @@ import requests
 import uuid
 import logging
 
-from django.utils import timezone as dj_tz
-
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as dj_tz
