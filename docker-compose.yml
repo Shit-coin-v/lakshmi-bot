@@ -264,8 +264,8 @@ services:
   nginx:
     build: ./infra/nginx/
     depends_on:
-      - db
-      - app
+      app:
+        condition: service_healthy
     restart: always
     ports:
       - "8000:80"
