@@ -294,3 +294,13 @@ class DBConstraintTests(TransactionTestCase):
 
     def test_db_accepts_valid_rfm_campaign(self):
         self._insert_raw("rfm_segment", None, CHAMPIONS)
+
+    # --- enum value constraints ---
+
+    def test_db_rejects_invalid_audience_type(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("foo", self.segment.id, None)
+
+    def test_db_rejects_invalid_rfm_segment_value(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("rfm_segment", None, "nonexistent_segment")

@@ -82,6 +82,11 @@ class Campaign(models.Model):
         verbose_name_plural = "Кампании"
         ordering = ["-priority", "-created_at"]
         constraints = [
+            # audience_type допускает только известные значения
+            models.CheckConstraint(
+                check=models.Q(audience_type__in=["customer_segment", "rfm_segment"]),
+                name="campaign_valid_audience_type",
+            ),
             # customer_segment → segment обязателен, rfm_segment пустой
             models.CheckConstraint(
                 check=(
@@ -93,16 +98,16 @@ class Campaign(models.Model):
                 ),
                 name="campaign_cs_requires_segment",
             ),
-            # rfm_segment → rfm_segment заполнен, segment пустой
+            # rfm_segment → rfm_segment заполнен из допустимых значений, segment пустой
             models.CheckConstraint(
                 check=(
                     ~models.Q(audience_type="rfm_segment")
                     | (
                         models.Q(segment__isnull=True)
-                        & ~(models.Q(rfm_segment__isnull=True) | models.Q(rfm_segment=""))
+                        & models.Q(rfm_segment__in=[c[0] for c in RFM_SEGMENT_CHOICES])
                     )
                 ),
-                name="campaign_rfm_requires_rfm_segment",
+                name="campaign_rfm_requires_valid_rfm_segment",
             ),
         ]
 
