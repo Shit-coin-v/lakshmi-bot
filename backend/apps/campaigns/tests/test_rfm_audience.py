@@ -290,6 +290,7 @@ class DBConstraintTests(TransactionTestCase):
             self._insert_raw(AudienceType.RFM_SEGMENT, self.segment.id, CHAMPIONS)
 
     def test_db_accepts_valid_cs_campaign(self):
+        """customer_segment + segment + rfm_segment=NULL is valid."""
         self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, None)
 
     def test_db_accepts_valid_rfm_campaign(self):
@@ -317,6 +318,3 @@ class DBConstraintTests(TransactionTestCase):
         with self.assertRaises(IntegrityError):
             self._insert_raw(AudienceType.RFM_SEGMENT, None, "")
 
-    def test_db_accepts_cs_with_null_rfm_segment(self):
-        """customer_segment with rfm_segment=NULL is valid."""
-        self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, None)
