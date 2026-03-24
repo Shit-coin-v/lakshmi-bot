@@ -11,7 +11,7 @@ from apps.main.models import CustomUser
 from apps.rfm.constants import AT_RISK, CHAMPIONS, LOYAL
 from apps.rfm.models import CustomerRFMProfile
 
-from ..models import Campaign, CustomerCampaignAssignment, CustomerSegment
+from ..models import AudienceType, Campaign, CustomerCampaignAssignment, CustomerSegment
 from ..services import assign_campaign_to_customers
 
 
@@ -37,7 +37,7 @@ class RFMAudienceTests(TestCase):
         defaults = {
             "name": f"RFM {rfm_segment}",
             "slug": f"rfm-{rfm_segment}",
-            "audience_type": "rfm_segment",
+            "audience_type": AudienceType.RFM_SEGMENT,
             "rfm_segment": rfm_segment,
             "push_title": "Title",
             "push_body": "Body",
@@ -119,7 +119,7 @@ class RFMAudienceTests(TestCase):
         )
         campaign = Campaign.objects.create(
             name="CS Campaign", slug="cs-campaign",
-            audience_type="customer_segment",
+            audience_type=AudienceType.CUSTOMER_SEGMENT,
             segment=segment,
             push_title="T", push_body="B",
             start_at=self.now - timedelta(days=1),
@@ -135,7 +135,7 @@ class RFMAudienceTests(TestCase):
         with self.assertRaises(ValidationError):
             Campaign(
                 name="Bad", slug="bad-rfm",
-                audience_type="rfm_segment",
+                audience_type=AudienceType.RFM_SEGMENT,
                 rfm_segment="",
                 push_title="T", push_body="B",
                 start_at=self.now, end_at=self.now + timedelta(days=1),
@@ -145,7 +145,7 @@ class RFMAudienceTests(TestCase):
         with self.assertRaises(ValidationError):
             Campaign(
                 name="Bad", slug="bad-cs",
-                audience_type="customer_segment",
+                audience_type=AudienceType.CUSTOMER_SEGMENT,
                 segment=None,
                 push_title="T", push_body="B",
                 start_at=self.now, end_at=self.now + timedelta(days=1),
@@ -158,7 +158,7 @@ class RFMAudienceTests(TestCase):
         with self.assertRaises(ValidationError):
             Campaign(
                 name="Bad", slug="bad-conflict",
-                audience_type="rfm_segment",
+                audience_type=AudienceType.RFM_SEGMENT,
                 rfm_segment=CHAMPIONS,
                 segment=segment,
                 push_title="T", push_body="B",
@@ -172,7 +172,7 @@ class RFMAudienceTests(TestCase):
         with self.assertRaises(ValidationError):
             Campaign(
                 name="Bad", slug="bad-conflict2",
-                audience_type="customer_segment",
+                audience_type=AudienceType.CUSTOMER_SEGMENT,
                 rfm_segment=CHAMPIONS,
                 segment=segment,
                 push_title="T", push_body="B",
@@ -231,7 +231,7 @@ class RFMAudienceTests(TestCase):
             end_at=self.now + timedelta(days=1),
             is_active=True,
         )
-        self.assertEqual(campaign.audience_type, "customer_segment")
+        self.assertEqual(campaign.audience_type, AudienceType.CUSTOMER_SEGMENT)
         self.assertIsNone(campaign.rfm_segment)
 
         result = assign_campaign_to_customers(campaign.id)
@@ -248,7 +248,7 @@ class DBConstraintTests(TransactionTestCase):
 
     def setUp(self):
         self.now = timezone.now()
-        self.table = Campaign._meta.db_table
+        self.table = connection.ops.quote_name(Campaign._meta.db_table)
         self.segment = CustomerSegment.objects.create(
             name="DBTest", slug="dbtest", segment_type="manual", rules={"user_ids": []},
         )
@@ -275,25 +275,25 @@ class DBConstraintTests(TransactionTestCase):
 
     def test_db_rejects_cs_without_segment(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("customer_segment", None, None)
+            self._insert_raw(AudienceType.CUSTOMER_SEGMENT, None, None)
 
     def test_db_rejects_cs_with_rfm_set(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("customer_segment", self.segment.id, CHAMPIONS)
+            self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, CHAMPIONS)
 
     def test_db_rejects_rfm_without_rfm_segment(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("rfm_segment", None, None)
+            self._insert_raw(AudienceType.RFM_SEGMENT, None, None)
 
     def test_db_rejects_rfm_with_segment_set(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("rfm_segment", self.segment.id, CHAMPIONS)
+            self._insert_raw(AudienceType.RFM_SEGMENT, self.segment.id, CHAMPIONS)
 
     def test_db_accepts_valid_cs_campaign(self):
-        self._insert_raw("customer_segment", self.segment.id, None)
+        self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, None)
 
     def test_db_accepts_valid_rfm_campaign(self):
-        self._insert_raw("rfm_segment", None, CHAMPIONS)
+        self._insert_raw(AudienceType.RFM_SEGMENT, None, CHAMPIONS)
 
     # --- enum value constraints ---
 
@@ -303,4 +303,4 @@ class DBConstraintTests(TransactionTestCase):
 
     def test_db_rejects_invalid_rfm_segment_value(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("rfm_segment", None, "nonexistent_segment")
+            self._insert_raw(AudienceType.RFM_SEGMENT, None, "nonexistent_segment")

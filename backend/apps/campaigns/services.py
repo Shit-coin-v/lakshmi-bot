@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.main.models import CustomUser
 
-from .models import Campaign, CustomerCampaignAssignment, CustomerSegment
+from .models import AudienceType, Campaign, CustomerCampaignAssignment, CustomerSegment
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,14 @@ def get_rfm_segment_customers(segment_label: str) -> QuerySet[CustomUser]:
 
 def get_campaign_customers(campaign: Campaign) -> QuerySet[CustomUser]:
     """Return candidate customers for a campaign based on its audience_type."""
-    if campaign.audience_type == "rfm_segment":
+    if campaign.audience_type == AudienceType.RFM_SEGMENT:
         if not campaign.rfm_segment:
             raise CampaignError(
                 f"Кампания '{campaign.name}': rfm_segment не указан."
             )
         return get_rfm_segment_customers(campaign.rfm_segment)
 
-    if campaign.audience_type == "customer_segment":
+    if campaign.audience_type == AudienceType.CUSTOMER_SEGMENT:
         if not campaign.segment:
             raise CampaignError(
                 f"Кампания '{campaign.name}': CustomerSegment не указан."

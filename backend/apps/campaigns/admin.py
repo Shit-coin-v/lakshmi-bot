@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 
 from .models import (
+    AudienceType,
     Campaign,
     CampaignRule,
     CustomerCampaignAssignment,
@@ -111,12 +112,12 @@ class CampaignAdminForm(forms.ModelForm):
         rfm_segment = cleaned.get("rfm_segment")
         errors = {}
 
-        if audience_type == "customer_segment":
+        if audience_type == AudienceType.CUSTOMER_SEGMENT:
             if not segment:
                 errors["segment"] = "Обязательно при источнике аудитории «Сегмент клиентов»."
             if rfm_segment:
                 errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «Сегмент клиентов»."
-        elif audience_type == "rfm_segment":
+        elif audience_type == AudienceType.RFM_SEGMENT:
             if not rfm_segment:
                 errors["rfm_segment"] = "Обязательно при источнике аудитории «RFM-сегмент»."
             if segment:
@@ -167,7 +168,7 @@ class CampaignAdmin(admin.ModelAdmin):
 
     @admin.display(description="Аудитория")
     def get_audience_display(self, obj):
-        if obj.audience_type == "rfm_segment":
+        if obj.audience_type == AudienceType.RFM_SEGMENT:
             return f"RFM: {obj.get_rfm_segment_display()}" if obj.rfm_segment else "RFM: —"
         return str(obj.segment) if obj.segment else "—"
 
