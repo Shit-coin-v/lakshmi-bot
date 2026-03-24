@@ -4,10 +4,11 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
 from apps.main.models import CustomUser
+from apps.rfm.constants import AT_RISK, CHAMPIONS, LOYAL
 from apps.rfm.models import CustomerRFMProfile
 
 from ..models import Campaign, CustomerCampaignAssignment, CustomerSegment
@@ -53,11 +54,11 @@ class RFMAudienceTests(TestCase):
         u1 = self._create_user(11001)
         u2 = self._create_user(11002)
         u3 = self._create_user(11003)
-        self._create_rfm_profile(u1, "champions")
-        self._create_rfm_profile(u2, "champions")
-        self._create_rfm_profile(u3, "loyal", rfm_code="553")
+        self._create_rfm_profile(u1, CHAMPIONS)
+        self._create_rfm_profile(u2, CHAMPIONS)
+        self._create_rfm_profile(u3, LOYAL, rfm_code="553")
 
-        campaign = self._create_rfm_campaign("champions")
+        campaign = self._create_rfm_campaign(CHAMPIONS)
         result = assign_campaign_to_customers(campaign.id)
 
         self.assertEqual(result["created_assignments"], 2)
@@ -70,10 +71,10 @@ class RFMAudienceTests(TestCase):
     def test_rfm_campaign_skips_promo_disabled(self):
         u1 = self._create_user(12001)
         u2 = self._create_user(12002, promo_enabled=False)
-        self._create_rfm_profile(u1, "at_risk", rfm_code="355")
-        self._create_rfm_profile(u2, "at_risk", rfm_code="355")
+        self._create_rfm_profile(u1, AT_RISK, rfm_code="355")
+        self._create_rfm_profile(u2, AT_RISK, rfm_code="355")
 
-        campaign = self._create_rfm_campaign("at_risk")
+        campaign = self._create_rfm_campaign(AT_RISK)
         result = assign_campaign_to_customers(campaign.id)
 
         self.assertEqual(result["created_assignments"], 1)
@@ -84,9 +85,9 @@ class RFMAudienceTests(TestCase):
     def test_audience_snapshot_not_affected_by_rfm_update(self):
         """After assignment, changing RFM profile does not affect existing assignments."""
         u1 = self._create_user(13001)
-        profile = self._create_rfm_profile(u1, "champions")
+        profile = self._create_rfm_profile(u1, CHAMPIONS)
 
-        campaign = self._create_rfm_campaign("champions")
+        campaign = self._create_rfm_campaign(CHAMPIONS)
         result = assign_campaign_to_customers(campaign.id)
         self.assertEqual(result["created_assignments"], 1)
 
@@ -158,7 +159,7 @@ class RFMAudienceTests(TestCase):
             Campaign(
                 name="Bad", slug="bad-conflict",
                 audience_type="rfm_segment",
-                rfm_segment="champions",
+                rfm_segment=CHAMPIONS,
                 segment=segment,
                 push_title="T", push_body="B",
                 start_at=self.now, end_at=self.now + timedelta(days=1),
@@ -172,7 +173,7 @@ class RFMAudienceTests(TestCase):
             Campaign(
                 name="Bad", slug="bad-conflict2",
                 audience_type="customer_segment",
-                rfm_segment="champions",
+                rfm_segment=CHAMPIONS,
                 segment=segment,
                 push_title="T", push_body="B",
                 start_at=self.now, end_at=self.now + timedelta(days=1),
@@ -182,12 +183,12 @@ class RFMAudienceTests(TestCase):
 
     def test_overlapping_protection_for_rfm_campaigns(self):
         u1 = self._create_user(15001)
-        self._create_rfm_profile(u1, "champions")
+        self._create_rfm_profile(u1, CHAMPIONS)
 
-        campaign1 = self._create_rfm_campaign("champions", slug="rfm-champ-1")
+        campaign1 = self._create_rfm_campaign(CHAMPIONS, slug="rfm-champ-1")
         assign_campaign_to_customers(campaign1.id)
 
-        campaign2 = self._create_rfm_campaign("champions", slug="rfm-champ-2")
+        campaign2 = self._create_rfm_campaign(CHAMPIONS, slug="rfm-champ-2")
         result = assign_campaign_to_customers(campaign2.id)
 
         self.assertEqual(result["created_assignments"], 0)
@@ -198,22 +199,17 @@ class RFMAudienceTests(TestCase):
     def test_active_campaign_blocks_rfm_customer_from_new_campaign(self):
         """Client with active RFM campaign must not be assigned to another."""
         u1 = self._create_user(16001)
-        self._create_rfm_profile(u1, "champions")
-        self._create_rfm_profile(
-            self._create_user(16002), "loyal", rfm_code="553",
-        )
+        self._create_rfm_profile(u1, CHAMPIONS)
 
-        # First campaign: champions
-        c1 = self._create_rfm_campaign("champions", slug="rfm-active-1")
+        c1 = self._create_rfm_campaign(CHAMPIONS, slug="rfm-active-1")
         assign_campaign_to_customers(c1.id)
         self.assertTrue(
             CustomerCampaignAssignment.objects.filter(campaign=c1, customer=u1).exists()
         )
 
         # Second campaign: champions again — same period
-        c3 = self._create_rfm_campaign("champions", slug="rfm-active-3")
-        result = assign_campaign_to_customers(c3.id)
-        # u1 blocked because already has active overlapping assignment
+        c2 = self._create_rfm_campaign(CHAMPIONS, slug="rfm-active-3")
+        result = assign_campaign_to_customers(c2.id)
         self.assertEqual(result["created_assignments"], 0)
         self.assertEqual(result["skipped_overlapping"], 1)
 
@@ -227,7 +223,6 @@ class RFMAudienceTests(TestCase):
             segment_type="manual",
             rules={"user_ids": [u1.id]},
         )
-        # Simulate old-style creation: audience_type defaults to customer_segment
         campaign = Campaign.objects.create(
             name="Legacy Campaign", slug="legacy-campaign",
             segment=segment,
@@ -248,11 +243,12 @@ class RFMAudienceTests(TestCase):
         )
 
 
-class DBConstraintTests(TestCase):
+class DBConstraintTests(TransactionTestCase):
     """Verify CheckConstraints at the database level, bypassing model clean()."""
 
     def setUp(self):
         self.now = timezone.now()
+        self.table = Campaign._meta.db_table
         self.segment = CustomerSegment.objects.create(
             name="DBTest", slug="dbtest", segment_type="manual", rules={"user_ids": []},
         )
@@ -261,8 +257,8 @@ class DBConstraintTests(TestCase):
         """Insert directly via SQL, bypassing model save()/clean()."""
         with connection.cursor() as cursor:
             cursor.execute(
-                """
-                INSERT INTO campaigns
+                f"""
+                INSERT INTO {self.table}
                     (name, slug, audience_type, segment_id, rfm_segment,
                      push_title, push_body, start_at, end_at,
                      one_time_use, priority, is_active, created_at, updated_at)
@@ -283,7 +279,7 @@ class DBConstraintTests(TestCase):
 
     def test_db_rejects_cs_with_rfm_set(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("customer_segment", self.segment.id, "champions")
+            self._insert_raw("customer_segment", self.segment.id, CHAMPIONS)
 
     def test_db_rejects_rfm_without_rfm_segment(self):
         with self.assertRaises(IntegrityError):
@@ -291,12 +287,10 @@ class DBConstraintTests(TestCase):
 
     def test_db_rejects_rfm_with_segment_set(self):
         with self.assertRaises(IntegrityError):
-            self._insert_raw("rfm_segment", self.segment.id, "champions")
+            self._insert_raw("rfm_segment", self.segment.id, CHAMPIONS)
 
     def test_db_accepts_valid_cs_campaign(self):
         self._insert_raw("customer_segment", self.segment.id, None)
-        # No exception = constraint passed
 
     def test_db_accepts_valid_rfm_campaign(self):
-        self._insert_raw("rfm_segment", None, "champions")
-        # No exception = constraint passed
+        self._insert_raw("rfm_segment", None, CHAMPIONS)
