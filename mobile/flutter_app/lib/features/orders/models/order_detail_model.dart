@@ -37,6 +37,8 @@ class OrderDetailModel {
   final double productsPrice;
   final double deliveryPrice;
   final double totalPrice;
+  final double bonusUsed;
+  final double paymentAmount;
 
   final List<OrderItemDetailModel> items;
 
@@ -53,6 +55,8 @@ class OrderDetailModel {
     required this.productsPrice,
     required this.deliveryPrice,
     required this.totalPrice,
+    required this.bonusUsed,
+    required this.paymentAmount,
     required this.items,
   });
 
@@ -74,6 +78,8 @@ class OrderDetailModel {
       productsPrice: double.tryParse(json['products_price'].toString()) ?? 0.0,
       deliveryPrice: double.tryParse(json['delivery_price'].toString()) ?? 0.0,
       totalPrice: double.tryParse(json['total_price'].toString()) ?? 0.0,
+      bonusUsed: double.tryParse(json['bonus_used']?.toString() ?? '0') ?? 0.0,
+      paymentAmount: double.tryParse(json['payment_amount']?.toString() ?? '0') ?? 0.0,
       items: itemsRaw
           .whereType<Map>()
           .map(

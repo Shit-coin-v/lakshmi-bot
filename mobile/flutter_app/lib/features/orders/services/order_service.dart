@@ -163,6 +163,7 @@ class OrderService {
     required int userId,
     String fulfillmentType = "delivery",
     String? deliveryZoneCode,
+    double bonusUsed = 0,
   }) async {
     try {
       final ft = (fulfillmentType.trim().isEmpty)
@@ -183,6 +184,7 @@ class OrderService {
         "fulfillment_type": ft,
         if (deliveryZoneCode != null) "delivery_zone_code": deliveryZoneCode,
         "total_price": double.parse(totalPrice.toStringAsFixed(2)),
+        if (bonusUsed > 0) "bonus_used": bonusUsed.toStringAsFixed(2),
         "items": items
             .map(
               (item) => {

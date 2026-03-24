@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.db import models
 
@@ -82,6 +83,7 @@ class Order(models.Model):
     products_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма товаров")
     delivery_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Стоимость доставки")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Итого к оплате")
+    bonus_used = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name="Списано бонусов")
 
     # Payment method
     payment_method = models.CharField(
@@ -151,6 +153,7 @@ class Order(models.Model):
             models.CheckConstraint(check=models.Q(products_price__gte=0), name="order_products_price_non_negative"),
             models.CheckConstraint(check=models.Q(delivery_price__gte=0), name="order_delivery_price_non_negative"),
             models.CheckConstraint(check=models.Q(total_price__gte=0), name="order_total_price_non_negative"),
+            models.CheckConstraint(check=models.Q(bonus_used__gte=0), name="order_bonus_used_non_negative"),
         ]
 
     def __str__(self):

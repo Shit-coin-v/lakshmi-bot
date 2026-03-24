@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/extensions/price_extension.dart';
@@ -29,21 +30,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   String _paymentMethod = 'card_courier';
   double? _changeFrom;
+  double _bonusUsed = 0;
 
   late TextEditingController _phoneController;
   late TextEditingController _commentController;
+  late TextEditingController _bonusController;
 
   @override
   void initState() {
     super.initState();
     _phoneController = TextEditingController();
     _commentController = TextEditingController();
+    _bonusController = TextEditingController(text: "0");
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
     _commentController.dispose();
+    _bonusController.dispose();
     super.dispose();
   }
 
@@ -109,6 +114,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       changeSelection = _changeFrom!.toInt();
     }
     String? changeError;
+
+    final profile = ref.read(profileProvider).valueOrNull;
+    final double availableBonuses = profile?.bonusBalance ?? 0;
+    final double maxBonus = double.parse(
+      [availableBonuses, finalTotal / 2].reduce((a, b) => a < b ? a : b).toStringAsFixed(2),
+    );
+    double sheetBonusUsed = _bonusUsed;
+    _bonusController.text = sheetBonusUsed > 0 ? sheetBonusUsed.toStringAsFixed(2) : "";
+    String? bonusError;
 
     showModalBottomSheet(
       context: context,
@@ -256,6 +270,92 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           : const SizedBox.shrink(),
                     ),
 
+                    // --- Bonus usage ---
+                    if (availableBonuses > 0) ...[
+                      const SizedBox(height: 20),
+                      const Text(
+                        "Списание бонусов",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Доступно: ${availableBonuses.toStringAsFixed(2)} бонусов "
+                        "(макс. ${maxBonus.toStringAsFixed(2)})",
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _bonusController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          TextInputFormatter.withFunction((oldValue, newValue) {
+                            if (newValue.text.isEmpty) return newValue;
+                            // Normalize comma to dot
+                            final normalized = newValue.text.replaceAll(',', '.');
+                            // Allow only digits, one dot, up to 2 decimal places
+                            if (!RegExp(r'^\d*\.?\d{0,2}$').hasMatch(normalized)) {
+                              return oldValue;
+                            }
+                            if (normalized != newValue.text) {
+                              return newValue.copyWith(
+                                text: normalized,
+                                selection: TextSelection.collapsed(
+                                  offset: normalized.length,
+                                ),
+                              );
+                            }
+                            return newValue;
+                          }),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: "Сумма списания",
+                          suffixText: "макс. ${maxBonus.toStringAsFixed(2)}",
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          errorText: bonusError,
+                        ),
+                        onChanged: (val) {
+                          final normalized = val.replaceAll(',', '.');
+                          final parsed = double.tryParse(normalized) ?? 0;
+                          setSheetState(() {
+                            if (parsed < 0) {
+                              bonusError = null;
+                              sheetBonusUsed = 0;
+                              _bonusController.text = "";
+                              _bonusController.selection = const TextSelection.collapsed(offset: 0);
+                            } else if (parsed > maxBonus) {
+                              bonusError = null;
+                              sheetBonusUsed = maxBonus;
+                              _bonusController.text = maxBonus.toStringAsFixed(2);
+                              _bonusController.selection = TextSelection.collapsed(
+                                offset: _bonusController.text.length,
+                              );
+                            } else {
+                              bonusError = null;
+                              sheetBonusUsed = parsed;
+                            }
+                          });
+                        },
+                      ),
+                      if (sheetBonusUsed > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            "К оплате: ${(finalTotal - sheetBonusUsed).toStringAsFixed(2)} \u20bd",
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4CAF50),
+                            ),
+                          ),
+                        ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // Confirm button
@@ -279,6 +379,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     changeSelection != 0)
                                 ? changeSelection!.toDouble()
                                 : null;
+                            _bonusUsed = sheetBonusUsed;
                           });
                           Navigator.pop(sheetContext);
                           _submitOrder(finalTotal, cartItems, deliveryZoneCode: deliveryZoneCode);
@@ -366,10 +467,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             userId: realUserId,
             fulfillmentType: _isPickup ? "pickup" : "delivery",
             deliveryZoneCode: deliveryZoneCode,
+            bonusUsed: _bonusUsed,
           );
 
       if (orderId != null) {
         ref.read(cartProvider.notifier).clear();
+        setState(() {
+          _bonusUsed = 0;
+          _bonusController.text = "";
+        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -758,12 +864,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                                   ? "Недоступна"
                                                   : deliveryCostOrNull?.formatPrice() ?? "...",
                                 ),
+                                if (_bonusUsed > 0) ...[
+                                  const SizedBox(height: 8),
+                                  _SummaryRow(
+                                    title: "Бонусы",
+                                    value: "-${_bonusUsed.toStringAsFixed(2)} \u20bd",
+                                  ),
+                                ],
                                 const SizedBox(height: 12),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
-                                      "Итого",
+                                      "К оплате",
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -771,7 +884,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     ),
                                     Text(
                                       deliveryCostOrNull != null
-                                          ? finalTotal.formatPrice()
+                                          ? (finalTotal - _bonusUsed).formatPrice()
                                           : "...",
                                       style: const TextStyle(
                                         fontSize: 20,

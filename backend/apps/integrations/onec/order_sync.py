@@ -18,6 +18,7 @@ from django.db import transaction
 from django.utils import timezone as dj_tz
 
 from apps.orders.models import Order
+from apps.orders.pricing import compute_payment_amount, format_money
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,13 @@ def send_order_to_onec_impl(self, order_id: int):
             "payment_status": order.payment_status,
             "fulfillment_type": order.fulfillment_type,
             "prices": {
-                "products_price": str(order.products_price),
-                "delivery_price": str(order.delivery_price),
-                "total_price": str(order.total_price),
+                "products_price": format_money(order.products_price),
+                "delivery_price": format_money(order.delivery_price),
+                "total_price": format_money(order.total_price),
+                "bonus_used": format_money(order.bonus_used),
+                "payment_amount": format_money(
+                    compute_payment_amount(order.total_price, order.bonus_used)
+                ),
             },
             "store_id": store_id,
             "items": items,
