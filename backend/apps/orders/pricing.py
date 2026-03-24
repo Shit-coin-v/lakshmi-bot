@@ -18,8 +18,8 @@ def compute_products_and_total(items_data, delivery_price):
         (products_price, total_price) — both Decimal, quantized to 0.01.
     """
     products_price = sum(
-        it["product"].price * int(it["quantity"])
-        for it in items_data
+        (it["product"].price * int(it["quantity"]) for it in items_data),
+        Decimal("0.00"),
     ).quantize(Decimal("0.01"))
     total_price = (products_price + delivery_price).quantize(Decimal("0.01"))
     return products_price, total_price

@@ -328,3 +328,15 @@ class BonusUsedTests(TestCase):
         # OrderItem also stores server price
         item = order.items.first()
         self.assertEqual(item.price_at_moment, Decimal("500.00"))
+
+    def test_empty_items_rejected_400(self):
+        """Order with empty items list should return 400, not 500."""
+        payload = self._base_payload()
+        payload["items"] = []
+        response = self.client.post(
+            "/api/orders/create/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(response.status_code, 400)

@@ -165,7 +165,7 @@ class OrderItemSerializer(serializers.Serializer):
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)
+    items = OrderItemSerializer(many=True, min_length=1)
     delivery_zone_code = serializers.CharField(required=False, allow_blank=True, default="")
     bonus_used = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, default=Decimal("0.00"),
