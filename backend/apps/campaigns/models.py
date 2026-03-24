@@ -101,6 +101,7 @@ class Campaign(models.Model):
                     ~models.Q(audience_type=AudienceType.RFM_SEGMENT)
                     | (
                         models.Q(segment__isnull=True)
+                        & models.Q(rfm_segment__isnull=False)
                         & models.Q(rfm_segment__in=[c[0] for c in RFM_SEGMENT_CHOICES])
                     )
                 ),

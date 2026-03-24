@@ -254,7 +254,11 @@ class DBConstraintTests(TransactionTestCase):
         )
 
     def _insert_raw(self, audience_type, segment_id, rfm_segment):
-        """Insert directly via SQL, bypassing model save()/clean()."""
+        """Insert directly via SQL, bypassing model save()/clean().
+
+        None values are passed as SQL NULL (not coerced to empty string).
+        """
+        slug = f"raw-{audience_type}-{rfm_segment or 'null'}-{segment_id or 'null'}"
         with connection.cursor() as cursor:
             cursor.execute(
                 f"""
@@ -266,8 +270,8 @@ class DBConstraintTests(TransactionTestCase):
                     (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 [
-                    "raw", f"raw-{audience_type}-{rfm_segment or 'none'}-{segment_id or 'none'}",
-                    audience_type, segment_id, rfm_segment or "",
+                    "raw", slug,
+                    audience_type, segment_id, rfm_segment,
                     "T", "B", self.now, self.now + timedelta(days=1),
                     False, 100, True, self.now, self.now,
                 ],
@@ -280,10 +284,6 @@ class DBConstraintTests(TransactionTestCase):
     def test_db_rejects_cs_with_rfm_set(self):
         with self.assertRaises(IntegrityError):
             self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, CHAMPIONS)
-
-    def test_db_rejects_rfm_without_rfm_segment(self):
-        with self.assertRaises(IntegrityError):
-            self._insert_raw(AudienceType.RFM_SEGMENT, None, None)
 
     def test_db_rejects_rfm_with_segment_set(self):
         with self.assertRaises(IntegrityError):
@@ -304,3 +304,19 @@ class DBConstraintTests(TransactionTestCase):
     def test_db_rejects_invalid_rfm_segment_value(self):
         with self.assertRaises(IntegrityError):
             self._insert_raw(AudienceType.RFM_SEGMENT, None, "nonexistent_segment")
+
+    # --- NULL vs empty string ---
+
+    def test_db_rejects_rfm_with_null_rfm_segment(self):
+        """rfm_segment=NULL must be rejected for audience_type=rfm_segment."""
+        with self.assertRaises(IntegrityError):
+            self._insert_raw(AudienceType.RFM_SEGMENT, None, None)
+
+    def test_db_rejects_rfm_with_empty_rfm_segment(self):
+        """rfm_segment='' must be rejected for audience_type=rfm_segment."""
+        with self.assertRaises(IntegrityError):
+            self._insert_raw(AudienceType.RFM_SEGMENT, None, "")
+
+    def test_db_accepts_cs_with_null_rfm_segment(self):
+        """customer_segment with rfm_segment=NULL is valid."""
+        self._insert_raw(AudienceType.CUSTOMER_SEGMENT, self.segment.id, None)
