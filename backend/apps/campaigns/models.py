@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from apps.rfm.constants import RFM_SEGMENT_CHOICES
+
 
 class CustomerSegment(models.Model):
     SEGMENT_TYPE_CHOICES = (
@@ -34,13 +36,35 @@ class CustomerSegment(models.Model):
 
 
 class Campaign(models.Model):
+    AUDIENCE_TYPE_CHOICES = [
+        ("customer_segment", "CustomerSegment"),
+        ("rfm_segment", "RFM-сегмент"),
+    ]
+
     name = models.CharField("Название", max_length=255)
     slug = models.SlugField("Код", max_length=255, unique=True)
+    audience_type = models.CharField(
+        "Источник аудитории",
+        max_length=20,
+        choices=AUDIENCE_TYPE_CHOICES,
+        default="customer_segment",
+    )
     segment = models.ForeignKey(
         CustomerSegment,
         on_delete=models.PROTECT,
         related_name="campaigns",
-        verbose_name="Сегмент",
+        verbose_name="CustomerSegment",
+        null=True,
+        blank=True,
+        help_text="Обязательно при audience_type = CustomerSegment",
+    )
+    rfm_segment = models.CharField(
+        "RFM-сегмент",
+        max_length=50,
+        choices=RFM_SEGMENT_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Обязательно при audience_type = RFM-сегмент",
     )
     push_title = models.CharField("Заголовок push", max_length=200)
     push_body = models.TextField("Текст push")
@@ -57,6 +81,49 @@ class Campaign(models.Model):
         verbose_name = "Кампания"
         verbose_name_plural = "Кампании"
         ordering = ["-priority", "-created_at"]
+        constraints = [
+            # customer_segment → segment обязателен, rfm_segment пустой
+            models.CheckConstraint(
+                check=(
+                    ~models.Q(audience_type="customer_segment")
+                    | (
+                        models.Q(segment__isnull=False)
+                        & (models.Q(rfm_segment__isnull=True) | models.Q(rfm_segment=""))
+                    )
+                ),
+                name="campaign_cs_requires_segment",
+            ),
+            # rfm_segment → rfm_segment заполнен, segment пустой
+            models.CheckConstraint(
+                check=(
+                    ~models.Q(audience_type="rfm_segment")
+                    | (
+                        models.Q(segment__isnull=True)
+                        & ~(models.Q(rfm_segment__isnull=True) | models.Q(rfm_segment=""))
+                    )
+                ),
+                name="campaign_rfm_requires_rfm_segment",
+            ),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.audience_type == "customer_segment":
+            if not self.segment_id:
+                errors["segment"] = "Обязательно при источнике аудитории «CustomerSegment»."
+            if self.rfm_segment:
+                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «CustomerSegment»."
+        elif self.audience_type == "rfm_segment":
+            if not self.rfm_segment:
+                errors["rfm_segment"] = "Обязательно при источнике аудитории «RFM-сегмент»."
+            if self.segment_id:
+                errors["segment"] = "Должно быть пустым при источнике аудитории «RFM-сегмент»."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

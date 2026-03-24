@@ -99,22 +99,77 @@ class CampaignRuleInline(admin.TabularInline):
     extra = 1
 
 
+class CampaignAdminForm(forms.ModelForm):
+    class Meta:
+        model = Campaign
+        fields = "__all__"
+
+    def clean(self):
+        cleaned = super().clean()
+        audience_type = cleaned.get("audience_type")
+        segment = cleaned.get("segment")
+        rfm_segment = cleaned.get("rfm_segment")
+        errors = {}
+
+        if audience_type == "customer_segment":
+            if not segment:
+                errors["segment"] = "Обязательно при источнике аудитории «CustomerSegment»."
+            if rfm_segment:
+                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «CustomerSegment»."
+        elif audience_type == "rfm_segment":
+            if not rfm_segment:
+                errors["rfm_segment"] = "Обязательно при источнике аудитории «RFM-сегмент»."
+            if segment:
+                errors["segment"] = "Должно быть пустым при источнике аудитории «RFM-сегмент»."
+
+        if errors:
+            raise ValidationError(errors)
+        return cleaned
+
+
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
+    form = CampaignAdminForm
     list_display = (
         "id",
         "name",
         "slug",
-        "segment",
+        "audience_type",
+        "get_audience_display",
         "start_at",
         "end_at",
         "priority",
         "is_active",
     )
     search_fields = ("name", "slug")
-    list_filter = ("is_active", "one_time_use", "segment")
+    list_filter = ("is_active", "one_time_use", "audience_type")
     inlines = [CampaignRuleInline]
     actions = ["assign_audience"]
+    fieldsets = (
+        (None, {
+            "fields": ("name", "slug"),
+        }),
+        ("Аудитория", {
+            "fields": ("audience_type", "segment", "rfm_segment"),
+            "description": (
+                "Выберите источник аудитории. "
+                "Для «CustomerSegment» заполните поле segment. "
+                "Для «RFM-сегмент» выберите rfm_segment."
+            ),
+        }),
+        ("Push-уведомление", {
+            "fields": ("push_title", "push_body"),
+        }),
+        ("Период и настройки", {
+            "fields": ("start_at", "end_at", "one_time_use", "priority", "is_active"),
+        }),
+    )
+
+    @admin.display(description="Аудитория")
+    def get_audience_display(self, obj):
+        if obj.audience_type == "rfm_segment":
+            return f"RFM: {obj.get_rfm_segment_display()}" if obj.rfm_segment else "RFM: —"
+        return str(obj.segment) if obj.segment else "—"
 
     @admin.action(description="Назначить аудиторию кампании")
     def assign_audience(self, request, queryset):

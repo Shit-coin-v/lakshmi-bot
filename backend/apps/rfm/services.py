@@ -33,6 +33,8 @@ MONETARY_THRESHOLDS = [
 # Ключи — множества rfm_code, значения — имя сегмента.
 # Порядок проверки имеет значение: первое совпадение побеждает.
 # ---------------------------------------------------------------------------
+from apps.rfm.constants import RFM_SEGMENT_CHOICES  # noqa: F401 — re-export
+
 SEGMENT_MAP: list[tuple[set[str], str]] = [
     # Champions: высокие R, F, M
     ({"555", "554", "545", "544", "455", "454", "445"}, "champions"),

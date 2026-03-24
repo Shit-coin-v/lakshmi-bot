@@ -16,6 +16,39 @@ class CampaignError(Exception):
     pass
 
 
+def get_rfm_segment_customers(segment_label: str) -> QuerySet[CustomUser]:
+    """Return customers whose current RFM profile matches segment_label."""
+    from apps.rfm.models import CustomerRFMProfile
+
+    customer_ids = (
+        CustomerRFMProfile.objects
+        .filter(segment_label=segment_label)
+        .values_list("customer_id", flat=True)
+    )
+    return CustomUser.objects.filter(id__in=customer_ids)
+
+
+def get_campaign_customers(campaign: Campaign) -> QuerySet[CustomUser]:
+    """Return candidate customers for a campaign based on its audience_type."""
+    if campaign.audience_type == "rfm_segment":
+        if not campaign.rfm_segment:
+            raise CampaignError(
+                f"Кампания '{campaign.name}': rfm_segment не указан."
+            )
+        return get_rfm_segment_customers(campaign.rfm_segment)
+
+    if campaign.audience_type == "customer_segment":
+        if not campaign.segment:
+            raise CampaignError(
+                f"Кампания '{campaign.name}': CustomerSegment не указан."
+            )
+        return get_segment_customers(campaign.segment)
+
+    raise CampaignError(
+        f"Кампания '{campaign.name}': неизвестный audience_type '{campaign.audience_type}'."
+    )
+
+
 def get_segment_customers(segment: CustomerSegment) -> QuerySet[CustomUser]:
     rules = segment.rules or {}
 
@@ -106,7 +139,7 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
             f"Кампания '{campaign.name}' уже завершилась (end_at={campaign.end_at})."
         )
 
-    candidates = get_segment_customers(campaign.segment)
+    candidates = get_campaign_customers(campaign)
 
     opted_out = candidates.filter(promo_enabled=False)
     skipped_opted_out = opted_out.count()
@@ -148,7 +181,9 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
 
     return {
         "campaign_id": campaign.id,
+        "audience_type": campaign.audience_type,
         "segment_id": campaign.segment_id,
+        "rfm_segment": campaign.rfm_segment,
         "total_candidates": total_candidates,
         "created_assignments": len(assignments),
         "skipped_existing": skipped_existing,
