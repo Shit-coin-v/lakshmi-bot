@@ -33,22 +33,30 @@ MONETARY_THRESHOLDS = [
 # Ключи — множества rfm_code, значения — имя сегмента.
 # Порядок проверки имеет значение: первое совпадение побеждает.
 # ---------------------------------------------------------------------------
-from apps.rfm.constants import RFM_SEGMENT_CHOICES  # noqa: F401 — re-export
+from apps.rfm.constants import (
+    AT_RISK,
+    CHAMPIONS,
+    HIBERNATING,
+    LOST,
+    LOYAL,
+    NEW_CUSTOMERS,
+    POTENTIAL_LOYALISTS,
+)
 
 SEGMENT_MAP: list[tuple[set[str], str]] = [
     # Champions: высокие R, F, M
-    ({"555", "554", "545", "544", "455", "454", "445"}, "champions"),
+    ({"555", "554", "545", "544", "455", "454", "445"}, CHAMPIONS),
     # Loyal: высокие F и M, средний-высокий R
-    ({"553", "552", "543", "542", "535", "534", "525", "524", "453", "452", "443"}, "loyal"),
+    ({"553", "552", "543", "542", "535", "534", "525", "524", "453", "452", "443"}, LOYAL),
     # Potential loyalists: высокий R, средний F
-    ({"551", "541", "531", "521", "444", "434", "443", "433"}, "potential_loyalists"),
+    ({"551", "541", "531", "521", "444", "434", "443", "433"}, POTENTIAL_LOYALISTS),
     # New customers: высокий R, низкий F и M
-    ({"512", "511", "412", "411", "513", "413"}, "new_customers"),
+    ({"512", "511", "412", "411", "513", "413"}, NEW_CUSTOMERS),
     # At risk: средний R, высокий F и M
-    ({"355", "354", "345", "344", "335", "334", "255", "254", "245", "244"}, "at_risk"),
+    ({"355", "354", "345", "344", "335", "334", "255", "254", "245", "244"}, AT_RISK),
     # Hibernating: низкий R, средний F
     ({"253", "252", "243", "242", "235", "234", "225", "224",
-      "155", "154", "145", "144", "135", "134", "125", "124"}, "hibernating"),
+      "155", "154", "145", "144", "135", "134", "125", "124"}, HIBERNATING),
     # Lost: низкий R, низкий F и M — всё остальное
 ]
 
@@ -84,7 +92,7 @@ def _get_segment_label(rfm_code: str) -> str:
     for codes, label in SEGMENT_MAP:
         if rfm_code in codes:
             return label
-    return "lost"
+    return LOST
 
 
 def compute_segment_for_customer_data(

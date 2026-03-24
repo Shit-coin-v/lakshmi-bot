@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, connection
 from django.test import TestCase
 from django.utils import timezone
 
@@ -191,3 +192,111 @@ class RFMAudienceTests(TestCase):
 
         self.assertEqual(result["created_assignments"], 0)
         self.assertEqual(result["skipped_overlapping"], 1)
+
+    # --- Active campaign rule for RFM ---
+
+    def test_active_campaign_blocks_rfm_customer_from_new_campaign(self):
+        """Client with active RFM campaign must not be assigned to another."""
+        u1 = self._create_user(16001)
+        self._create_rfm_profile(u1, "champions")
+        self._create_rfm_profile(
+            self._create_user(16002), "loyal", rfm_code="553",
+        )
+
+        # First campaign: champions
+        c1 = self._create_rfm_campaign("champions", slug="rfm-active-1")
+        assign_campaign_to_customers(c1.id)
+        self.assertTrue(
+            CustomerCampaignAssignment.objects.filter(campaign=c1, customer=u1).exists()
+        )
+
+        # Second campaign: champions again — same period
+        c3 = self._create_rfm_campaign("champions", slug="rfm-active-3")
+        result = assign_campaign_to_customers(c3.id)
+        # u1 blocked because already has active overlapping assignment
+        self.assertEqual(result["created_assignments"], 0)
+        self.assertEqual(result["skipped_overlapping"], 1)
+
+    # --- Backward compatibility: old campaigns with segment ---
+
+    def test_old_campaign_with_segment_works_after_migration(self):
+        """Campaign created with segment (old style) should still work."""
+        u1 = self._create_user(17001)
+        segment = CustomerSegment.objects.create(
+            name="Legacy Seg", slug="legacy-seg",
+            segment_type="manual",
+            rules={"user_ids": [u1.id]},
+        )
+        # Simulate old-style creation: audience_type defaults to customer_segment
+        campaign = Campaign.objects.create(
+            name="Legacy Campaign", slug="legacy-campaign",
+            segment=segment,
+            push_title="T", push_body="B",
+            start_at=self.now - timedelta(days=1),
+            end_at=self.now + timedelta(days=1),
+            is_active=True,
+        )
+        self.assertEqual(campaign.audience_type, "customer_segment")
+        self.assertIsNone(campaign.rfm_segment)
+
+        result = assign_campaign_to_customers(campaign.id)
+        self.assertEqual(result["created_assignments"], 1)
+        self.assertTrue(
+            CustomerCampaignAssignment.objects.filter(
+                campaign=campaign, customer=u1,
+            ).exists()
+        )
+
+
+class DBConstraintTests(TestCase):
+    """Verify CheckConstraints at the database level, bypassing model clean()."""
+
+    def setUp(self):
+        self.now = timezone.now()
+        self.segment = CustomerSegment.objects.create(
+            name="DBTest", slug="dbtest", segment_type="manual", rules={"user_ids": []},
+        )
+
+    def _insert_raw(self, audience_type, segment_id, rfm_segment):
+        """Insert directly via SQL, bypassing model save()/clean()."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO campaigns
+                    (name, slug, audience_type, segment_id, rfm_segment,
+                     push_title, push_body, start_at, end_at,
+                     one_time_use, priority, is_active, created_at, updated_at)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                [
+                    "raw", f"raw-{audience_type}-{rfm_segment or 'none'}-{segment_id or 'none'}",
+                    audience_type, segment_id, rfm_segment or "",
+                    "T", "B", self.now, self.now + timedelta(days=1),
+                    False, 100, True, self.now, self.now,
+                ],
+            )
+
+    def test_db_rejects_cs_without_segment(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("customer_segment", None, None)
+
+    def test_db_rejects_cs_with_rfm_set(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("customer_segment", self.segment.id, "champions")
+
+    def test_db_rejects_rfm_without_rfm_segment(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("rfm_segment", None, None)
+
+    def test_db_rejects_rfm_with_segment_set(self):
+        with self.assertRaises(IntegrityError):
+            self._insert_raw("rfm_segment", self.segment.id, "champions")
+
+    def test_db_accepts_valid_cs_campaign(self):
+        self._insert_raw("customer_segment", self.segment.id, None)
+        # No exception = constraint passed
+
+    def test_db_accepts_valid_rfm_campaign(self):
+        self._insert_raw("rfm_segment", None, "champions")
+        # No exception = constraint passed

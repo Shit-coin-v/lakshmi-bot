@@ -37,7 +37,7 @@ class CustomerSegment(models.Model):
 
 class Campaign(models.Model):
     AUDIENCE_TYPE_CHOICES = [
-        ("customer_segment", "CustomerSegment"),
+        ("customer_segment", "Сегмент клиентов"),
         ("rfm_segment", "RFM-сегмент"),
     ]
 
@@ -53,10 +53,10 @@ class Campaign(models.Model):
         CustomerSegment,
         on_delete=models.PROTECT,
         related_name="campaigns",
-        verbose_name="CustomerSegment",
+        verbose_name="Сегмент клиентов",
         null=True,
         blank=True,
-        help_text="Обязательно при audience_type = CustomerSegment",
+        help_text="Заполните при источнике аудитории «Сегмент клиентов».",
     )
     rfm_segment = models.CharField(
         "RFM-сегмент",
@@ -64,7 +64,7 @@ class Campaign(models.Model):
         choices=RFM_SEGMENT_CHOICES,
         null=True,
         blank=True,
-        help_text="Обязательно при audience_type = RFM-сегмент",
+        help_text="Заполните при источнике аудитории «RFM-сегмент».",
     )
     push_title = models.CharField("Заголовок push", max_length=200)
     push_body = models.TextField("Текст push")
@@ -110,9 +110,9 @@ class Campaign(models.Model):
         errors = {}
         if self.audience_type == "customer_segment":
             if not self.segment_id:
-                errors["segment"] = "Обязательно при источнике аудитории «CustomerSegment»."
+                errors["segment"] = "Обязательно при источнике аудитории «Сегмент клиентов»."
             if self.rfm_segment:
-                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «CustomerSegment»."
+                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «Сегмент клиентов»."
         elif self.audience_type == "rfm_segment":
             if not self.rfm_segment:
                 errors["rfm_segment"] = "Обязательно при источнике аудитории «RFM-сегмент»."

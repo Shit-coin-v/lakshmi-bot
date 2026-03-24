@@ -113,9 +113,9 @@ class CampaignAdminForm(forms.ModelForm):
 
         if audience_type == "customer_segment":
             if not segment:
-                errors["segment"] = "Обязательно при источнике аудитории «CustomerSegment»."
+                errors["segment"] = "Обязательно при источнике аудитории «Сегмент клиентов»."
             if rfm_segment:
-                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «CustomerSegment»."
+                errors["rfm_segment"] = "Должно быть пустым при источнике аудитории «Сегмент клиентов»."
         elif audience_type == "rfm_segment":
             if not rfm_segment:
                 errors["rfm_segment"] = "Обязательно при источнике аудитории «RFM-сегмент»."
@@ -153,8 +153,8 @@ class CampaignAdmin(admin.ModelAdmin):
             "fields": ("audience_type", "segment", "rfm_segment"),
             "description": (
                 "Выберите источник аудитории. "
-                "Для «CustomerSegment» заполните поле segment. "
-                "Для «RFM-сегмент» выберите rfm_segment."
+                "Для «Сегмент клиентов» заполните сегмент клиентов. "
+                "Для «RFM-сегмент» выберите RFM-сегмент."
             ),
         }),
         ("Push-уведомление", {
