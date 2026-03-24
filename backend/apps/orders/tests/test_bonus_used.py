@@ -248,7 +248,7 @@ class BonusUsedTests(TestCase):
         """Anti-cheat: if client sends low price and high bonus_used that exceeds
         50% of real server total, it must be rejected."""
         # Cheap product: server price = 50
-        cheap = Product.objects.create(
+        Product.objects.create(
             product_code="CHEAP-1", name="Cheap", price="50.00", store_id=1,
         )
         self.customer.bonuses = Decimal("200.00")
