@@ -55,6 +55,11 @@ class ReceiptSerializer(serializers.Serializer):
     customer = ReceiptCustomerSerializer(required=False, allow_null=True)
     positions = ReceiptPositionSerializer(many=True, min_length=1)
     totals = ReceiptTotalsSerializer()
+    purchase_type = serializers.ChoiceField(
+        choices=["delivery", "pickup", "in_store"],
+        required=False,
+        default="in_store",
+    )
 
     def validate_customer(self, value: dict[str, Any] | None) -> dict[str, Any]:
         return value or {}

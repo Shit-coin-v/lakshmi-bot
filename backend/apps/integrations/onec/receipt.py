@@ -326,6 +326,8 @@ def onec_receipt(request):
                     transaction_defaults["receipt_guid"] = data["receipt_guid"]
                 if hasattr(Transaction, "receipt_line"):
                     transaction_defaults["receipt_line"] = line_number
+                if hasattr(Transaction, "purchase_type"):
+                    transaction_defaults["purchase_type"] = data.get("purchase_type", "in_store")
                 if hasattr(Transaction, "purchased_at"):
                     transaction_defaults.setdefault("purchased_at", purchased_at_value)
                 if hasattr(Transaction, "receipt_bonus_earned"):

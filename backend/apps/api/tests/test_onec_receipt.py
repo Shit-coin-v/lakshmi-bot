@@ -445,3 +445,75 @@ class OneCReceiptTests(OneCTestBase):
             idem="00000000-0000-0000-0000-000000000006",
         )
         self.assertEqual(response_wrong.status_code, 401)
+
+    def test_purchase_type_delivery_saved(self):
+        payload = self._base_payload()
+        payload["purchase_type"] = "delivery"
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-100000000001",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.purchase_type, "delivery")
+
+    def test_purchase_type_pickup_saved(self):
+        payload = self._base_payload()
+        payload["purchase_type"] = "pickup"
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-100000000002",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.purchase_type, "pickup")
+
+    def test_purchase_type_in_store_saved(self):
+        payload = self._base_payload()
+        payload["purchase_type"] = "in_store"
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-100000000003",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.purchase_type, "in_store")
+
+    def test_purchase_type_missing_defaults_to_in_store(self):
+        payload = self._base_payload()
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-100000000004",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        tx = Transaction.objects.get()
+        self.assertEqual(tx.purchase_type, "in_store")
+
+    def test_purchase_type_invalid_returns_400(self):
+        payload = self._base_payload()
+        payload["purchase_type"] = "express"
+        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-100000000005",
+        )
+
+        self.assertEqual(response.status_code, 400)

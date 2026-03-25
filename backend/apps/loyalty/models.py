@@ -3,7 +3,13 @@ from django.db import models
 # Backward-compat re-exports for code that imports from apps.loyalty.models
 from apps.main.models import CustomUser, Product  # noqa: F401,E402
 
-__all__ = ["CustomUser", "Product", "Transaction"]
+__all__ = ["CustomUser", "Product", "PurchaseType", "Transaction"]
+
+
+class PurchaseType(models.TextChoices):
+    DELIVERY = "delivery", "Доставка"
+    PICKUP = "pickup", "Самовывоз"
+    IN_STORE = "in_store", "Покупка в магазине"
 
 
 class Transaction(models.Model):
@@ -25,6 +31,12 @@ class Transaction(models.Model):
     receipt_bonus_earned = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     receipt_guid = models.CharField(max_length=64, null=True, blank=True)
     receipt_line = models.IntegerField(null=True, blank=True)
+    purchase_type = models.CharField(
+        "Тип покупки",
+        max_length=20,
+        choices=PurchaseType.choices,
+        default=PurchaseType.IN_STORE,
+    )
 
     class Meta:
         db_table = "transactions"
