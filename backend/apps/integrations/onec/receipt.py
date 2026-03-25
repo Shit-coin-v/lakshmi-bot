@@ -60,6 +60,7 @@ class DuplicateReceiptLineError(Exception):
 @require_POST
 @require_onec_auth
 def onec_receipt(request):
+    from apps.api.models import OneCClientMap
     from apps.integrations.onec.serializers import ReceiptSerializer
     from apps.loyalty.models import CustomUser, Product, Transaction
 
@@ -365,6 +366,9 @@ def onec_receipt(request):
         CustomUser.objects.filter(id=user.id).update(**update_kwargs)
         user.refresh_from_db(fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"])
 
+    mapping = OneCClientMap.objects.filter(user=user).first()
+    guid_for_resp = getattr(mapping, "one_c_guid", None)
+
     response = {
         "status": "ok" if created_count > 0 else "already exists",
         "receipt_guid": data["receipt_guid"],
@@ -374,6 +378,7 @@ def onec_receipt(request):
             "telegram_id": user.telegram_id,
             "id": user.id,
             "card_id": user.card_id,
+            "one_c_guid": guid_for_resp,
             "qr_code": user.qr_code,
             "bonus_balance": float(user.bonuses or D("0")),
             "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
