@@ -66,7 +66,6 @@ class OneCCustomerSyncTests(OneCTestBase):
         self.assertEqual(response.status_code, 200)
         customer = response.json()["customer"]
         self.assertEqual(customer["card_id"], user.card_id)
-        self.assertEqual(customer["email"], "test@example.com")
 
 
 class OneCClientMapCascadeTests(TestCase):

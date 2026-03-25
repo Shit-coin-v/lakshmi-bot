@@ -109,7 +109,6 @@ def onec_customer_sync(request):
                 "id": user.id,
                 "one_c_guid": guid_for_resp,
                 "qr_code": user.qr_code,
-                "email": user.email,
                 "bonus_balance": float(user.bonuses or 0),
                 "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
             },
