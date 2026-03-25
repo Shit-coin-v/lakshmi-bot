@@ -47,6 +47,7 @@ class CustomUserAdmin(admin.ModelAdmin):
         'full_name',
         'telegram_id',
         'card_id',
+        'email',
         'bonuses',
         'qr_code',
         'referrer',
@@ -61,7 +62,7 @@ class CustomUserAdmin(admin.ModelAdmin):
         'general_enabled',
         'order_status_enabled',
     )
-    search_fields = ('full_name', 'telegram_id', 'card_id')
+    search_fields = ('full_name', 'telegram_id', 'card_id', 'email')
     list_filter = ('newsletter_enabled', 'promo_enabled', 'news_enabled', 'general_enabled', 'order_status_enabled')
     readonly_fields = ('registration_date',)
     inlines = [ReferralInline]
