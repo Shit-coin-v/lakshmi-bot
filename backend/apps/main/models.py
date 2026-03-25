@@ -92,6 +92,14 @@ class CustomUser(models.Model):
     auth_method = models.CharField(
         max_length=10, choices=AUTH_METHOD_CHOICES, default="telegram",
     )
+    card_id = models.CharField(
+        "Номер карты лояльности",
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
 
     class Meta:
         db_table = "customers"
@@ -108,6 +116,16 @@ class CustomUser(models.Model):
         return self.full_name or (
             f"User {self.telegram_id}" if self.telegram_id else f"User #{self.pk}"
         )
+
+    @staticmethod
+    def generate_card_id(pk: int) -> str:
+        return f"LC-{pk:06d}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.card_id and self.pk:
+            self.card_id = self.generate_card_id(self.pk)
+            type(self).objects.filter(pk=self.pk).update(card_id=self.card_id)
 
     @property
     def is_authenticated(self):

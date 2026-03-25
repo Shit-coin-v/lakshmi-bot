@@ -36,7 +36,7 @@ class OneCReceiptTests(OneCTestBase):
             "receipt_guid": "R-123",
             "datetime": "2025-03-10T12:30:00+00:00",
             "store_id": "77",
-            "customer": {"telegram_id": 9001},
+            "customer": {"card_id": "LC-000099"},  # placeholder, override in each test
             "positions": [
                 {
                     "product_code": "SKU-1",
@@ -56,7 +56,8 @@ class OneCReceiptTests(OneCTestBase):
 
     def test_valid_receipt_returns_201(self):
         payload = self._base_payload()
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -75,9 +76,8 @@ class OneCReceiptTests(OneCTestBase):
         payload["positions"][0].pop("bonus_earned")
         payload["totals"]["bonus_earned"] = "6.00"
 
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -110,9 +110,8 @@ class OneCReceiptTests(OneCTestBase):
         payload["positions"][0]["bonus_earned"] = "1.00"
         payload["totals"]["bonus_earned"] = "3.00"
 
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -160,9 +159,8 @@ class OneCReceiptTests(OneCTestBase):
             "bonus_earned": "10.00",
         }
 
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -185,9 +183,8 @@ class OneCReceiptTests(OneCTestBase):
 
     def test_bonus_accrual_happens_once(self):
         payload = self._base_payload()
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         first_response = self._post_receipt(
             payload,
@@ -246,9 +243,8 @@ class OneCReceiptTests(OneCTestBase):
         ]
         payload["totals"]["bonus_earned"] = "10.00"
 
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         with self.assertLogs("apps.integrations.onec.receipt", level="WARNING") as cm:
             response = self._post_receipt(
@@ -289,9 +285,8 @@ class OneCReceiptTests(OneCTestBase):
         base_payload["totals"]["total_amount"] = "150.00"
         base_payload["totals"]["bonus_earned"] = "2.00"
 
-        user = CustomUser.objects.create(
-            telegram_id=base_payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        base_payload["customer"] = {"card_id": user.card_id}
 
         first_resp = self._post_receipt(
             base_payload,
@@ -343,9 +338,8 @@ class OneCReceiptTests(OneCTestBase):
         payload["totals"]["bonus_earned"] = "0.00"
         payload["positions"][0]["bonus_earned"] = "1.00"
 
-        user = CustomUser.objects.create(
-            telegram_id=payload["customer"]["telegram_id"], bonuses=Decimal("0")
-        )
+        user = CustomUser.objects.create(telegram_id=9001, bonuses=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -363,7 +357,8 @@ class OneCReceiptTests(OneCTestBase):
         position.pop("line_number")
         position["receipt_line"] = 1
 
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -378,7 +373,7 @@ class OneCReceiptTests(OneCTestBase):
     def test_guest_receipt_returns_201(self):
         payload = self._base_payload()
         payload["receipt_guid"] = "R-guest"
-        payload["customer"] = {}
+        payload["customer"] = None
 
         response = self._post_receipt(
             payload,
@@ -408,7 +403,8 @@ class OneCReceiptTests(OneCTestBase):
 
     def test_duplicate_line_returns_duplicate_receipt_line_error(self):
         payload = self._base_payload()
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
         payload["positions"].append(
             {
                 "product_code": "SKU-2",
@@ -449,7 +445,8 @@ class OneCReceiptTests(OneCTestBase):
     def test_purchase_type_delivery_saved(self):
         payload = self._base_payload()
         payload["purchase_type"] = "delivery"
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -464,7 +461,8 @@ class OneCReceiptTests(OneCTestBase):
     def test_purchase_type_pickup_saved(self):
         payload = self._base_payload()
         payload["purchase_type"] = "pickup"
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -479,7 +477,8 @@ class OneCReceiptTests(OneCTestBase):
     def test_purchase_type_in_store_saved(self):
         payload = self._base_payload()
         payload["purchase_type"] = "in_store"
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -493,7 +492,8 @@ class OneCReceiptTests(OneCTestBase):
 
     def test_purchase_type_missing_defaults_to_in_store(self):
         payload = self._base_payload()
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -508,7 +508,8 @@ class OneCReceiptTests(OneCTestBase):
     def test_purchase_type_invalid_returns_400(self):
         payload = self._base_payload()
         payload["purchase_type"] = "express"
-        CustomUser.objects.create(telegram_id=payload["customer"]["telegram_id"])
+        user = CustomUser.objects.create(telegram_id=9001)
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
@@ -518,108 +519,52 @@ class OneCReceiptTests(OneCTestBase):
 
         self.assertEqual(response.status_code, 400)
 
-    def test_receipt_with_email_finds_customer(self):
-        """Чек с email без telegram_id — клиент находится."""
+    def test_receipt_with_card_id_finds_customer(self):
+        user = CustomUser.objects.create(telegram_id=9001)
         payload = self._base_payload()
-        payload["customer"] = {"email": "test@example.com"}
-        CustomUser.objects.create(telegram_id=None, email="test@example.com", auth_method="email")
+        payload["customer"] = {"card_id": user.card_id}
 
         response = self._post_receipt(
             payload,
             api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000001",
+            idem="00000000-0000-0000-0000-300000000001",
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["status"], "ok")
+        self.assertEqual(response.json()["customer"]["card_id"], user.card_id)
 
-    def test_receipt_email_and_telegram_same_user(self):
-        """email + telegram_id одного клиента — OK."""
+    def test_receipt_unknown_card_id_returns_error(self):
         payload = self._base_payload()
-        payload["customer"] = {"telegram_id": 9001, "email": "same@example.com"}
-        CustomUser.objects.create(telegram_id=9001, email="same@example.com")
+        payload["customer"] = {"card_id": "LC-999999"}
 
         response = self._post_receipt(
             payload,
             api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000002",
-        )
-
-        self.assertEqual(response.status_code, 201)
-
-    def test_receipt_email_and_telegram_different_users(self):
-        """email + telegram_id разных клиентов — конфликт."""
-        payload = self._base_payload()
-        payload["customer"] = {"telegram_id": 9001, "email": "other@example.com"}
-        CustomUser.objects.create(telegram_id=9001)
-        CustomUser.objects.create(telegram_id=None, email="other@example.com", auth_method="email")
-
-        response = self._post_receipt(
-            payload,
-            api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000003",
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error_code"], "conflicting_customer")
-
-    def test_receipt_unknown_email_returns_error(self):
-        """Неизвестный email — ошибка unknown_customer."""
-        payload = self._base_payload()
-        payload["customer"] = {"email": "nobody@example.com"}
-
-        response = self._post_receipt(
-            payload,
-            api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000004",
+            idem="00000000-0000-0000-0000-300000000002",
         )
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error_code"], "unknown_customer")
 
-    def test_receipt_blank_email_ignored(self):
-        """Пустой email не считается идентификатором — guest."""
+    def test_receipt_without_customer_goes_to_guest(self):
         payload = self._base_payload()
-        payload["customer"] = {"email": "  "}
+        payload["customer"] = None
 
         response = self._post_receipt(
             payload,
             api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000005",
+            idem="00000000-0000-0000-0000-300000000003",
         )
 
         self.assertEqual(response.status_code, 201)
-        data = response.json()
         from django.conf import settings as _s
-        self.assertEqual(data["customer"]["telegram_id"], _s.GUEST_TELEGRAM_ID)
+        self.assertEqual(response.json()["customer"]["telegram_id"], _s.GUEST_TELEGRAM_ID)
 
-    def test_receipt_email_case_insensitive(self):
-        """Email нормализуется: разный регистр — один клиент."""
-        payload = self._base_payload()
-        payload["customer"] = {"email": "Test@EXAMPLE.com"}
-        CustomUser.objects.create(telegram_id=None, email="test@example.com", auth_method="email")
+    def test_card_id_format(self):
+        user = CustomUser.objects.create(telegram_id=9001)
+        self.assertRegex(user.card_id, r'^LC-\d{6}$')
 
-        response = self._post_receipt(
-            payload,
-            api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000006",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["status"], "ok")
-
-    def test_receipt_ambiguous_email_returns_error(self):
-        """Несколько клиентов с одним email — ошибка ambiguous."""
-        payload = self._base_payload()
-        payload["customer"] = {"email": "dup@example.com"}
-        CustomUser.objects.create(telegram_id=1111, email="dup@example.com")
-        CustomUser.objects.create(telegram_id=2222, email="dup@example.com")
-
-        response = self._post_receipt(
-            payload,
-            api_key=security.API_KEY,
-            idem="00000000-0000-0000-0000-200000000007",
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error_code"], "ambiguous_customer")
+    def test_card_id_auto_generated(self):
+        user = CustomUser.objects.create(telegram_id=9002)
+        self.assertIsNotNone(user.card_id)
+        self.assertEqual(user.card_id, f"LC-{user.pk:06d}")

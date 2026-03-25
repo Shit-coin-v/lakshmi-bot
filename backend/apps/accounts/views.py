@@ -207,6 +207,7 @@ class VerifyEmailView(APIView):
                 "detail": "Email подтверждён",
                 "user_id": user.pk,
                 "email": user.email,
+                "card_id": user.card_id,
                 "tokens": tokens,
             })
 

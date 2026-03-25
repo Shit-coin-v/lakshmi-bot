@@ -40,6 +40,7 @@ class BotUserSerializer(serializers.ModelSerializer):
             "created_at",
             "email_verified",
             "auth_method",
+            "card_id",
         ]
         read_only_fields = fields
 

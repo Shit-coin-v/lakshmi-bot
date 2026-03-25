@@ -41,12 +41,7 @@ class ReceiptTotalsSerializer(serializers.Serializer):
 
 
 class ReceiptCustomerSerializer(serializers.Serializer):
-    telegram_id = serializers.IntegerField(required=False, min_value=1)
-    one_c_guid = serializers.CharField(required=False, allow_blank=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
-
-    def validate(self, data):
-        return data
+    card_id = serializers.CharField()
 
 
 class ReceiptSerializer(serializers.Serializer):

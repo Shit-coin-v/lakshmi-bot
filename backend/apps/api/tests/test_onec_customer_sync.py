@@ -22,120 +22,51 @@ class OneCCustomerSyncTests(OneCTestBase):
             **headers,
         )
 
-    def test_lookup_by_qr_code(self):
-        user = CustomUser.objects.create(telegram_id=9001, qr_code="QR-123")
+    def test_lookup_by_card_id(self):
+        user = CustomUser.objects.create(telegram_id=9001)
 
-        response = self._post({"qr_code": "QR-123"})
+        response = self._post({"card_id": user.card_id})
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["status"], "lookup")
+        self.assertEqual(payload["customer"]["card_id"], user.card_id)
         self.assertEqual(payload["customer"]["telegram_id"], user.telegram_id)
-        self.assertEqual(payload["customer"]["qr_code"], user.qr_code)
 
-    def test_assign_guid_via_qr_code(self):
-        user = CustomUser.objects.create(telegram_id=42, qr_code="QR-42")
+    def test_assign_guid_via_card_id(self):
+        user = CustomUser.objects.create(telegram_id=42)
 
-        response = self._post({"qr_code": "QR-42", "one_c_guid": "GUID-42"})
+        response = self._post({"card_id": user.card_id, "one_c_guid": "GUID-42"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+        from apps.api.models import OneCClientMap
         mapping = OneCClientMap.objects.get(one_c_guid="GUID-42")
         self.assertEqual(mapping.user_id, user.id)
 
-    def test_missing_user_returns_404(self):
-        response = self._post({"qr_code": "NOPE"})
-        self.assertEqual(response.status_code, 404)
-        self.assertIn("qr_code", response.json()["detail"])
-
-    def test_mismatched_qr_and_telegram(self):
-        CustomUser.objects.create(telegram_id=111, qr_code="QR-111")
-        CustomUser.objects.create(telegram_id=999)  # different user
-
-        response = self._post({"qr_code": "QR-111", "telegram_id": 999})
-
+    def test_missing_card_id_returns_400(self):
+        response = self._post({})
         self.assertEqual(response.status_code, 400)
-        self.assertIn("telegram_id", response.json()["detail"])
+        self.assertIn("card_id", response.json()["detail"])
 
-    def test_lookup_by_telegram_id_requires_existing_user(self):
-        response = self._post({"telegram_id": 777})
-
+    def test_unknown_card_id_returns_404(self):
+        response = self._post({"card_id": "LC-999999"})
         self.assertEqual(response.status_code, 404)
-        self.assertFalse(CustomUser.objects.filter(telegram_id=777).exists())
+        self.assertIn("card_id", response.json()["detail"])
 
-    def test_lookup_by_telegram_id(self):
-        user = CustomUser.objects.create(telegram_id=333)
-
-        response = self._post({"telegram_id": 333})
-
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-        self.assertEqual(payload["status"], "lookup")
-        self.assertEqual(payload["customer"]["telegram_id"], user.telegram_id)
-
-    def test_lookup_by_email(self):
-        user = CustomUser.objects.create(
-            telegram_id=None, email="lookup@example.com", auth_method="email",
-        )
-
-        response = self._post({"email": "lookup@example.com"})
-
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-        self.assertEqual(payload["status"], "lookup")
-        self.assertEqual(payload["customer"]["id"], user.id)
-        self.assertEqual(payload["customer"]["email"], "lookup@example.com")
-
-    def test_lookup_email_and_telegram_same_user(self):
-        user = CustomUser.objects.create(
-            telegram_id=555, email="same@example.com",
-        )
-
-        response = self._post({"telegram_id": 555, "email": "same@example.com"})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["customer"]["id"], user.id)
-
-    def test_lookup_email_and_telegram_conflict(self):
-        CustomUser.objects.create(telegram_id=555, email="a@example.com")
-        CustomUser.objects.create(
-            telegram_id=None, email="b@example.com", auth_method="email",
-        )
-
-        response = self._post({"telegram_id": 555, "email": "b@example.com"})
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("email", response.json()["detail"])
-
-    def test_lookup_blank_email_not_identifier(self):
-        response = self._post({"email": "  "})
-
+    def test_blank_card_id_returns_400(self):
+        response = self._post({"card_id": "  "})
         self.assertEqual(response.status_code, 400)
 
-    def test_lookup_unknown_email(self):
-        response = self._post({"email": "nobody@example.com"})
+    def test_card_id_in_response(self):
+        user = CustomUser.objects.create(telegram_id=555, email="test@example.com")
 
-        self.assertEqual(response.status_code, 404)
-        self.assertIn("email", response.json()["detail"])
-
-    def test_lookup_ambiguous_email(self):
-        CustomUser.objects.create(telegram_id=1111, email="dup@example.com")
-        CustomUser.objects.create(telegram_id=2222, email="dup@example.com")
-
-        response = self._post({"email": "dup@example.com"})
-
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("email", response.json()["detail"])
-
-    def test_lookup_email_case_insensitive(self):
-        user = CustomUser.objects.create(
-            telegram_id=None, email="Case@Example.COM", auth_method="email",
-        )
-
-        response = self._post({"email": "case@example.com"})
+        response = self._post({"card_id": user.card_id})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["customer"]["id"], user.id)
+        customer = response.json()["customer"]
+        self.assertEqual(customer["card_id"], user.card_id)
+        self.assertEqual(customer["email"], "test@example.com")
 
 
 class OneCClientMapCascadeTests(TestCase):

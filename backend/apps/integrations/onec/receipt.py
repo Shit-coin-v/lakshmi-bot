@@ -60,7 +60,6 @@ class DuplicateReceiptLineError(Exception):
 @require_POST
 @require_onec_auth
 def onec_receipt(request):
-    from apps.api.models import OneCClientMap
     from apps.integrations.onec.serializers import ReceiptSerializer
     from apps.loyalty.models import CustomUser, Product, Transaction
 
@@ -129,80 +128,20 @@ def onec_receipt(request):
     purchase_date, purchase_time = dt_naive.date(), dt_naive.time()
 
     customer_block = data.get("customer") or {}
-    telegram_id = customer_block.get("telegram_id")
-    one_c_guid_raw = customer_block.get("one_c_guid")
-    one_c_guid = (one_c_guid_raw or "").strip() or None
-    email_raw = customer_block.get("email")
-    email = (email_raw or "").strip().lower() or None
+    card_id = (customer_block.get("card_id") or "").strip() or None
 
     user = None
     is_guest = False
 
-    if one_c_guid:
-        mapping = (
-            OneCClientMap.objects.select_related("user")
-            .filter(one_c_guid=one_c_guid)
-            .first()
-        )
-        if not mapping:
+    if card_id:
+        user = CustomUser.objects.filter(card_id=card_id).first()
+        if not user:
             return onec_error(
                 "unknown_customer",
-                "Customer GUID is not registered.",
-                details={"one_c_guid": one_c_guid},
+                "Customer card_id is not registered.",
+                details={"card_id": card_id},
             )
-        user = mapping.user
-
-    if telegram_id is not None:
-        user_by_tid = CustomUser.objects.filter(telegram_id=telegram_id).first()
-        if not user_by_tid:
-            return onec_error(
-                "unknown_customer",
-                "Customer telegram_id is not registered.",
-                details={"telegram_id": telegram_id},
-            )
-        if user and user_by_tid.id != user.id:
-            return onec_error(
-                "conflicting_customer",
-                "Customer identifiers refer to different users.",
-                details={"telegram_id": telegram_id, "one_c_guid": one_c_guid},
-            )
-        user = user or user_by_tid
-
-    if email:
-        email_qs = CustomUser.objects.filter(email__iexact=email)
-        email_count = email_qs.count()
-        if email_count == 0:
-            if not user:
-                return onec_error(
-                    "unknown_customer",
-                    "Customer email is not registered.",
-                    details={"email": email},
-                )
-            # email не найден, но клиент уже определён по другому идентификатору — OK
-        elif email_count > 1:
-            return onec_error(
-                "ambiguous_customer",
-                "Multiple customers found with this email.",
-                details={"email": email},
-            )
-        else:
-            user_by_email = email_qs.first()
-            if user and user_by_email.id != user.id:
-                return onec_error(
-                    "conflicting_customer",
-                    "Customer identifiers refer to different users.",
-                    details={"email": email, "telegram_id": telegram_id, "one_c_guid": one_c_guid},
-                )
-            user = user or user_by_email
-
-    if not user:
-        if one_c_guid or telegram_id is not None or email:
-            return onec_error(
-                "unknown_customer",
-                "Customer identifiers are not registered.",
-                details={"telegram_id": telegram_id, "one_c_guid": one_c_guid},
-            )
-
+    else:
         guest_tid = getattr(settings, "GUEST_TELEGRAM_ID", None)
         try:
             guest_tid_int = int(guest_tid)
@@ -224,9 +163,6 @@ def onec_receipt(request):
                 details={"telegram_id": guest_tid_int},
             )
         is_guest = True
-
-    if one_c_guid:
-        OneCClientMap.objects.update_or_create(one_c_guid=one_c_guid, defaults={"user": user})
 
     totals = data["totals"]
     total_amount = _as_decimal(totals["total_amount"])
@@ -429,11 +365,6 @@ def onec_receipt(request):
         CustomUser.objects.filter(id=user.id).update(**update_kwargs)
         user.refresh_from_db(fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"])
 
-    guid_for_resp = one_c_guid
-    if not guid_for_resp:
-        mapping = OneCClientMap.objects.filter(user=user).first()
-        guid_for_resp = getattr(mapping, "one_c_guid", None)
-
     response = {
         "status": "ok" if created_count > 0 else "already exists",
         "receipt_guid": data["receipt_guid"],
@@ -442,7 +373,7 @@ def onec_receipt(request):
         "customer": {
             "telegram_id": user.telegram_id,
             "id": user.id,
-            "one_c_guid": guid_for_resp,
+            "card_id": user.card_id,
             "qr_code": user.qr_code,
             "bonus_balance": float(user.bonuses or D("0")),
             "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
