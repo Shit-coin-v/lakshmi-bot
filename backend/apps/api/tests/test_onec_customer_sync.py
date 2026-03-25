@@ -73,6 +73,70 @@ class OneCCustomerSyncTests(OneCTestBase):
         self.assertEqual(payload["status"], "lookup")
         self.assertEqual(payload["customer"]["telegram_id"], user.telegram_id)
 
+    def test_lookup_by_email(self):
+        user = CustomUser.objects.create(
+            telegram_id=None, email="lookup@example.com", auth_method="email",
+        )
+
+        response = self._post({"email": "lookup@example.com"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "lookup")
+        self.assertEqual(payload["customer"]["id"], user.id)
+        self.assertEqual(payload["customer"]["email"], "lookup@example.com")
+
+    def test_lookup_email_and_telegram_same_user(self):
+        user = CustomUser.objects.create(
+            telegram_id=555, email="same@example.com",
+        )
+
+        response = self._post({"telegram_id": 555, "email": "same@example.com"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["customer"]["id"], user.id)
+
+    def test_lookup_email_and_telegram_conflict(self):
+        CustomUser.objects.create(telegram_id=555, email="a@example.com")
+        CustomUser.objects.create(
+            telegram_id=None, email="b@example.com", auth_method="email",
+        )
+
+        response = self._post({"telegram_id": 555, "email": "b@example.com"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.json()["detail"])
+
+    def test_lookup_blank_email_not_identifier(self):
+        response = self._post({"email": "  "})
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_lookup_unknown_email(self):
+        response = self._post({"email": "nobody@example.com"})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("email", response.json()["detail"])
+
+    def test_lookup_ambiguous_email(self):
+        CustomUser.objects.create(telegram_id=1111, email="dup@example.com")
+        CustomUser.objects.create(telegram_id=2222, email="dup@example.com")
+
+        response = self._post({"email": "dup@example.com"})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("email", response.json()["detail"])
+
+    def test_lookup_email_case_insensitive(self):
+        user = CustomUser.objects.create(
+            telegram_id=None, email="Case@Example.COM", auth_method="email",
+        )
+
+        response = self._post({"email": "case@example.com"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["customer"]["id"], user.id)
+
 
 class OneCClientMapCascadeTests(TestCase):
     def test_deleting_user_cascades_map(self):

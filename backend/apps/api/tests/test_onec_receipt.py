@@ -517,3 +517,109 @@ class OneCReceiptTests(OneCTestBase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_receipt_with_email_finds_customer(self):
+        """Чек с email без telegram_id — клиент находится."""
+        payload = self._base_payload()
+        payload["customer"] = {"email": "test@example.com"}
+        CustomUser.objects.create(telegram_id=None, email="test@example.com", auth_method="email")
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000001",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "ok")
+
+    def test_receipt_email_and_telegram_same_user(self):
+        """email + telegram_id одного клиента — OK."""
+        payload = self._base_payload()
+        payload["customer"] = {"telegram_id": 9001, "email": "same@example.com"}
+        CustomUser.objects.create(telegram_id=9001, email="same@example.com")
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000002",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_receipt_email_and_telegram_different_users(self):
+        """email + telegram_id разных клиентов — конфликт."""
+        payload = self._base_payload()
+        payload["customer"] = {"telegram_id": 9001, "email": "other@example.com"}
+        CustomUser.objects.create(telegram_id=9001)
+        CustomUser.objects.create(telegram_id=None, email="other@example.com", auth_method="email")
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000003",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "conflicting_customer")
+
+    def test_receipt_unknown_email_returns_error(self):
+        """Неизвестный email — ошибка unknown_customer."""
+        payload = self._base_payload()
+        payload["customer"] = {"email": "nobody@example.com"}
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000004",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "unknown_customer")
+
+    def test_receipt_blank_email_ignored(self):
+        """Пустой email не считается идентификатором — guest."""
+        payload = self._base_payload()
+        payload["customer"] = {"email": "  "}
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000005",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        from django.conf import settings as _s
+        self.assertEqual(data["customer"]["telegram_id"], _s.GUEST_TELEGRAM_ID)
+
+    def test_receipt_email_case_insensitive(self):
+        """Email нормализуется: разный регистр — один клиент."""
+        payload = self._base_payload()
+        payload["customer"] = {"email": "Test@EXAMPLE.com"}
+        CustomUser.objects.create(telegram_id=None, email="test@example.com", auth_method="email")
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000006",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "ok")
+
+    def test_receipt_ambiguous_email_returns_error(self):
+        """Несколько клиентов с одним email — ошибка ambiguous."""
+        payload = self._base_payload()
+        payload["customer"] = {"email": "dup@example.com"}
+        CustomUser.objects.create(telegram_id=1111, email="dup@example.com")
+        CustomUser.objects.create(telegram_id=2222, email="dup@example.com")
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-200000000007",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "ambiguous_customer")

@@ -132,6 +132,8 @@ def onec_receipt(request):
     telegram_id = customer_block.get("telegram_id")
     one_c_guid_raw = customer_block.get("one_c_guid")
     one_c_guid = (one_c_guid_raw or "").strip() or None
+    email_raw = customer_block.get("email")
+    email = (email_raw or "").strip().lower() or None
 
     user = None
     is_guest = False
@@ -166,8 +168,35 @@ def onec_receipt(request):
             )
         user = user or user_by_tid
 
+    if email:
+        email_qs = CustomUser.objects.filter(email__iexact=email)
+        email_count = email_qs.count()
+        if email_count == 0:
+            if not user:
+                return onec_error(
+                    "unknown_customer",
+                    "Customer email is not registered.",
+                    details={"email": email},
+                )
+            # email не найден, но клиент уже определён по другому идентификатору — OK
+        elif email_count > 1:
+            return onec_error(
+                "ambiguous_customer",
+                "Multiple customers found with this email.",
+                details={"email": email},
+            )
+        else:
+            user_by_email = email_qs.first()
+            if user and user_by_email.id != user.id:
+                return onec_error(
+                    "conflicting_customer",
+                    "Customer identifiers refer to different users.",
+                    details={"email": email, "telegram_id": telegram_id, "one_c_guid": one_c_guid},
+                )
+            user = user or user_by_email
+
     if not user:
-        if one_c_guid or telegram_id is not None:
+        if one_c_guid or telegram_id is not None or email:
             return onec_error(
                 "unknown_customer",
                 "Customer identifiers are not registered.",

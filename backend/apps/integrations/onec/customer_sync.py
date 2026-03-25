@@ -39,6 +39,8 @@ def onec_customer_sync(request):
 
     telegram_raw = data.get("telegram_id")
     qr_code = str(data.get("qr_code") or "").strip()
+    email_raw = data.get("email")
+    email = (email_raw or "").strip().lower() or None
 
     telegram_id: int | None
     if telegram_raw in (None, "", False):
@@ -49,8 +51,8 @@ def onec_customer_sync(request):
         except (TypeError, ValueError):
             return JsonResponse({"detail": {"telegram_id": ["Неверное значение"]}}, status=400)
 
-    if telegram_id is None and not qr_code:
-        return JsonResponse({"detail": {"telegram_id": ["Нужно указать telegram_id или qr_code."]}}, status=400)
+    if telegram_id is None and not qr_code and not email:
+        return JsonResponse({"detail": {"identifier": ["Нужно указать telegram_id, qr_code или email."]}}, status=400)
 
     user: CustomUser | None = None
     if qr_code:
@@ -84,6 +86,20 @@ def onec_customer_sync(request):
         if user and user_by_tid.id != user.id:
             return JsonResponse({"detail": {"telegram_id": ["Не совпадает с QR-кодом"]}}, status=400)
         user = user or user_by_tid
+
+    if email:
+        email_qs = CustomUser.objects.filter(email__iexact=email)
+        email_count = email_qs.count()
+        if email_count == 0:
+            if not user:
+                return JsonResponse({"detail": {"email": ["Пользователь не найден"]}}, status=404)
+        elif email_count > 1:
+            return JsonResponse({"detail": {"email": ["Найдено несколько пользователей с таким email"]}}, status=409)
+        else:
+            user_by_email = email_qs.first()
+            if user and user_by_email.id != user.id:
+                return JsonResponse({"detail": {"email": ["Не совпадает с другим идентификатором"]}}, status=400)
+            user = user or user_by_email
 
     if not user:
         return JsonResponse({"detail": {"qr_code": ["Пользователь не найден"]}}, status=404)
@@ -155,6 +171,7 @@ def onec_customer_sync(request):
                 "id": user.id,
                 "one_c_guid": guid_for_resp,
                 "qr_code": user.qr_code,
+                "email": user.email,
                 "bonus_balance": float(user.bonuses or 0),
                 "referrer_telegram_id": getattr(getattr(user, "referrer", None), "telegram_id", None),
             },
