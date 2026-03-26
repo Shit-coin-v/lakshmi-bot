@@ -45,6 +45,11 @@ def send_order_to_onec_impl(self, order_id: int):
         if order.sync_status == "sent" and order.sent_to_onec_at:
             return {"status": "already_sent", "order_id": order_id}
 
+        if not order.customer.card_id:
+            msg = f"Customer {order.customer_id} has no card_id — cannot send to 1C"
+            _fail_order(order_id, msg)
+            return {"status": "failed", "reason": "missing_card_id", "order_id": order_id}
+
         order.sync_status = "queued"
         order.sync_attempts = (order.sync_attempts or 0) + 1
         order.last_sync_error = None

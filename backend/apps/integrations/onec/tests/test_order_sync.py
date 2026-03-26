@@ -87,6 +87,17 @@ class SendOrderToOnecImplTests(TestCase):
             quantity=2, price_at_moment=Decimal("50.00"),
         )
 
+    def test_missing_card_id_fails(self):
+        """Order for customer without card_id should fail immediately."""
+        CustomUser.objects.filter(pk=self.customer.pk).update(card_id="")
+
+        result = send_order_to_onec_impl(_make_celery_self(), self.order.id)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["reason"], "missing_card_id")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.sync_status, "failed")
+
     def test_idempotent_already_sent(self):
         """If order already sent, return immediately without HTTP call."""
         from datetime import datetime
