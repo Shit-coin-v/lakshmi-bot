@@ -82,6 +82,7 @@ class SendCampaignRewardToOnecTests(TestCase):
             card_id=self.user.card_id,
             bonus_amount=Decimal("100.00"),
             is_accrual=True,
+            receipt_guid=self.log.receipt_guid,
         )
 
     # --- 2. one_time_marks_used ---
@@ -165,6 +166,7 @@ class SendCampaignRewardToOnecTests(TestCase):
         self.assertEqual(call_kwargs["card_id"], self.user.card_id)
         self.assertEqual(call_kwargs["bonus_amount"], Decimal("100.00"))
         self.assertTrue(call_kwargs["is_accrual"])
+        self.assertEqual(call_kwargs["receipt_guid"], self.log.receipt_guid)
 
     # --- 8. retry_on_error (non-eager mode) ---
 

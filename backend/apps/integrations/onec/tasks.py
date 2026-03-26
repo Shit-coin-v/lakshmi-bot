@@ -223,6 +223,7 @@ def send_campaign_reward_to_onec(self, reward_log_id: int):
             card_id=log.customer.card_id,
             bonus_amount=log.bonus_amount,
             is_accrual=log.is_accrual,
+            receipt_guid=log.receipt_guid,
         )
 
         # Success — update log status

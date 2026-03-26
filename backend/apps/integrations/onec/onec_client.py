@@ -36,14 +36,17 @@ def build_onec_headers() -> dict[str, str]:
     return headers
 
 
-def send_bonus_to_onec(card_id: str, bonus_amount: Decimal, is_accrual: bool) -> dict:
+def send_bonus_to_onec(
+    card_id: str, bonus_amount: Decimal, is_accrual: bool, receipt_guid: str,
+) -> dict:
     """Send bonus accrual/deduction command to 1C. Raises on error.
 
     Payload format:
     {
         "card_id": "LC-000042",
         "bonus_amount": "100.00",
-        "is_accrual": true
+        "is_accrual": true,
+        "receipt_guid": "abc-123"
     }
     """
     url = get_onec_bonus_url()
@@ -54,6 +57,7 @@ def send_bonus_to_onec(card_id: str, bonus_amount: Decimal, is_accrual: bool) ->
         "card_id": card_id,
         "bonus_amount": str(bonus_amount),
         "is_accrual": is_accrual,
+        "receipt_guid": receipt_guid,
     }
     headers = build_onec_headers()
 
