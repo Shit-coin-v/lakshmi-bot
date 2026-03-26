@@ -219,7 +219,7 @@ def send_campaign_reward_to_onec(self, reward_log_id: int):
     )
 
     try:
-        send_bonus_to_onec(
+        result = send_bonus_to_onec(
             card_id=log.customer.card_id,
             bonus_amount=log.bonus_amount,
             is_accrual=log.is_accrual,
@@ -232,6 +232,21 @@ def send_campaign_reward_to_onec(self, reward_log_id: int):
             last_error="",
         )
 
+        # Update customer balance if 1C returned new_balance
+        new_balance = result.get("new_balance")
+        if new_balance is not None:
+            from decimal import Decimal
+            from apps.main.models import CustomUser
+            try:
+                CustomUser.objects.filter(id=log.customer_id).update(
+                    bonuses=Decimal(str(new_balance)),
+                )
+            except (ValueError, TypeError, ArithmeticError):
+                logger.warning(
+                    "send_campaign_reward_to_onec: invalid new_balance=%r from 1C",
+                    new_balance,
+                )
+
         # Mark one_time_use campaign as used
         if log.campaign.one_time_use:
             CustomerCampaignAssignment.objects.filter(
@@ -243,8 +258,8 @@ def send_campaign_reward_to_onec(self, reward_log_id: int):
             )
 
         logger.info(
-            "send_campaign_reward_to_onec: success log=%d campaign=%d card=%s bonus=%s",
-            log.id, log.campaign_id, log.customer.card_id, log.bonus_amount,
+            "send_campaign_reward_to_onec: success log=%d campaign=%d card=%s bonus=%s new_balance=%s",
+            log.id, log.campaign_id, log.customer.card_id, log.bonus_amount, new_balance,
         )
         return {"status": "sent", "reward_log_id": reward_log_id}
 

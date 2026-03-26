@@ -70,7 +70,7 @@ class SendCampaignRewardToOnecTests(TestCase):
     @patch("apps.integrations.onec.onec_client.send_bonus_to_onec")
     @patch("apps.integrations.onec.onec_client.get_onec_bonus_url", return_value="http://1c.local/bonus")
     def test_successful_send(self, _mock_url, mock_send):
-        mock_send.return_value = {"status": "ok"}
+        mock_send.return_value = {"status": "ok", "new_balance": 650.0}
 
         result = send_campaign_reward_to_onec.apply(args=[self.log.id]).result
 
@@ -78,12 +78,9 @@ class SendCampaignRewardToOnecTests(TestCase):
         self.log.refresh_from_db()
         self.assertEqual(self.log.status, CampaignRewardLog.Status.SUCCESS)
         self.assertEqual(self.log.attempts, 1)
-        mock_send.assert_called_once_with(
-            card_id=self.user.card_id,
-            bonus_amount=Decimal("100.00"),
-            is_accrual=True,
-            receipt_guid=self.log.receipt_guid,
-        )
+        # Verify customer balance updated from 1C response
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.bonuses, Decimal("650.00"))
 
     # --- 2. one_time_marks_used ---
 

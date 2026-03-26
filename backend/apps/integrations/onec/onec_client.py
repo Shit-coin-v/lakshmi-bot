@@ -70,4 +70,11 @@ def send_bonus_to_onec(
     if resp.status_code not in (200, 201):
         raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:500]}")
 
-    return {"status": "ok", "http_status": resp.status_code}
+    result = {"status": "ok", "http_status": resp.status_code}
+    try:
+        body = resp.json()
+        if "new_balance" in body:
+            result["new_balance"] = body["new_balance"]
+    except (ValueError, KeyError):
+        pass
+    return result
