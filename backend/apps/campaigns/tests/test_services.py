@@ -18,7 +18,7 @@ class AssignCampaignTestCase(TestCase):
             name="Test Segment",
             slug="test-segment",
             segment_type="manual",
-            rules={"user_ids": []},
+            rules={"card_ids": []},
         )
         self.campaign = Campaign.objects.create(
             name="Test Campaign",
@@ -45,7 +45,7 @@ class AssignCampaignTestCase(TestCase):
     def test_manual_segment_creates_assignments(self):
         u1 = self._create_user(1001)
         u2 = self._create_user(1002)
-        self.segment.rules = {"user_ids": [u1.id, u2.id]}
+        self.segment.rules = {"card_ids": [u1.card_id, u2.card_id]}
         self.segment.save()
 
         result = assign_campaign_to_customers(self.campaign.id)
@@ -60,7 +60,7 @@ class AssignCampaignTestCase(TestCase):
     def test_manual_segment_skips_promo_disabled(self):
         u1 = self._create_user(2001)
         u2 = self._create_user(2002, promo_enabled=False)
-        self.segment.rules = {"user_ids": [u1.id, u2.id]}
+        self.segment.rules = {"card_ids": [u1.card_id, u2.card_id]}
         self.segment.save()
 
         result = assign_campaign_to_customers(self.campaign.id)
@@ -75,7 +75,7 @@ class AssignCampaignTestCase(TestCase):
 
     def test_manual_segment_no_duplicates_on_rerun(self):
         u1 = self._create_user(3001)
-        self.segment.rules = {"user_ids": [u1.id]}
+        self.segment.rules = {"card_ids": [u1.card_id]}
         self.segment.save()
 
         result1 = assign_campaign_to_customers(self.campaign.id)

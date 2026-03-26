@@ -24,7 +24,7 @@ class AssignOverlappingTests(TestCase):
         seg = CustomerSegment.objects.create(
             name=f"Seg {slug}", slug=slug,
             segment_type="manual",
-            rules={"user_ids": [self.user.id]},
+            rules={"card_ids": [self.user.card_id]},
         )
         return seg
 

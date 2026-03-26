@@ -55,12 +55,12 @@ def get_segment_customers(segment: CustomerSegment) -> QuerySet[CustomUser]:
     rules = segment.rules or {}
 
     if segment.segment_type == "manual":
-        user_ids = rules.get("user_ids")
-        if not isinstance(user_ids, list):
+        card_ids = rules.get("card_ids")
+        if not isinstance(card_ids, list) or not card_ids:
             raise ValidationError(
-                "Для ручного сегмента rules должен содержать 'user_ids' (список)."
+                "Для ручного сегмента rules должен содержать 'card_ids' (список)."
             )
-        return CustomUser.objects.filter(id__in=user_ids)
+        return CustomUser.objects.filter(card_id__in=card_ids)
 
     if segment.segment_type == "rule_based":
         qs = CustomUser.objects.all()

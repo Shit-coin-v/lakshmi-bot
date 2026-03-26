@@ -27,7 +27,7 @@ class EvaluateCampaignRewardTests(TestCase):
             name="Test Seg",
             slug="test-seg",
             segment_type="manual",
-            rules={"user_ids": [self.user.id]},
+            rules={"card_ids": [self.user.card_id]},
         )
         self.campaign = Campaign.objects.create(
             name="Test Campaign",
@@ -345,7 +345,7 @@ class EvaluateCampaignRewardTests(TestCase):
     def test_multiple_assignments_fail_closed(self):
         segment2 = CustomerSegment.objects.create(
             name="Seg2", slug="seg2", segment_type="manual",
-            rules={"user_ids": [self.user.id]},
+            rules={"card_ids": [self.user.card_id]},
         )
         campaign2 = Campaign.objects.create(
             name="Campaign 2", slug="campaign-2",

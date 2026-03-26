@@ -18,7 +18,7 @@ class UserAssignedCampaignsAPITestCase(TestCase):
             name="Test Segment",
             slug="test-segment",
             segment_type="manual",
-            rules={"user_ids": []},
+            rules={"card_ids": []},
         )
         self.user = CustomUser.objects.create(
             telegram_id=70001,

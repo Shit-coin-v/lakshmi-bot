@@ -115,7 +115,7 @@ class RFMAudienceTests(TestCase):
         segment = CustomerSegment.objects.create(
             name="Manual Seg", slug="manual-seg",
             segment_type="manual",
-            rules={"user_ids": [u1.id]},
+            rules={"card_ids": [u1.card_id]},
         )
         campaign = Campaign.objects.create(
             name="CS Campaign", slug="cs-campaign",
@@ -153,7 +153,7 @@ class RFMAudienceTests(TestCase):
 
     def test_rfm_campaign_with_segment_set_fails_validation(self):
         segment = CustomerSegment.objects.create(
-            name="S", slug="s-conflict", segment_type="manual", rules={"user_ids": []},
+            name="S", slug="s-conflict", segment_type="manual", rules={"card_ids": []},
         )
         with self.assertRaises(ValidationError):
             Campaign(
@@ -167,7 +167,7 @@ class RFMAudienceTests(TestCase):
 
     def test_customer_segment_with_rfm_set_fails_validation(self):
         segment = CustomerSegment.objects.create(
-            name="S2", slug="s2-conflict", segment_type="manual", rules={"user_ids": []},
+            name="S2", slug="s2-conflict", segment_type="manual", rules={"card_ids": []},
         )
         with self.assertRaises(ValidationError):
             Campaign(
@@ -221,7 +221,7 @@ class RFMAudienceTests(TestCase):
         segment = CustomerSegment.objects.create(
             name="Legacy Seg", slug="legacy-seg",
             segment_type="manual",
-            rules={"user_ids": [u1.id]},
+            rules={"card_ids": [u1.card_id]},
         )
         campaign = Campaign.objects.create(
             name="Legacy Campaign", slug="legacy-campaign",
@@ -250,7 +250,7 @@ class DBConstraintTests(TransactionTestCase):
         self.now = timezone.now()
         self.table = connection.ops.quote_name(Campaign._meta.db_table)
         self.segment = CustomerSegment.objects.create(
-            name="DBTest", slug="dbtest", segment_type="manual", rules={"user_ids": []},
+            name="DBTest", slug="dbtest", segment_type="manual", rules={"card_ids": []},
         )
 
     def _insert_raw(self, audience_type, segment_id, rfm_segment):

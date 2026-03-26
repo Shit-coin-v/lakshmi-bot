@@ -34,7 +34,7 @@ class SendCampaignRewardToOnecTests(TestCase):
         self.segment = CustomerSegment.objects.create(
             name="Reward Seg", slug="reward-seg",
             segment_type="manual",
-            rules={"user_ids": [self.user.id]},
+            rules={"card_ids": [self.user.card_id]},
         )
         self.campaign = Campaign.objects.create(
             name="Reward Campaign", slug="reward-campaign",
