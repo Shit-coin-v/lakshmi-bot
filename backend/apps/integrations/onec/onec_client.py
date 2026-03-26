@@ -62,8 +62,8 @@ def send_bonus_to_onec(
     headers = build_onec_headers()
 
     logger.info(
-        "send_bonus_to_onec: card_id=%s bonus=%s accrual=%s url=%s",
-        card_id, bonus_amount, is_accrual, url,
+        "send_bonus_to_onec: card_id=%s bonus=%s accrual=%s receipt=%s url=%s",
+        card_id, bonus_amount, is_accrual, receipt_guid, url,
     )
 
     resp = requests.post(url, json=payload, headers=headers, timeout=10)
