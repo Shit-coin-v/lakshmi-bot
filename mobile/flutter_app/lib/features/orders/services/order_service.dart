@@ -132,6 +132,8 @@ class OrderService {
         'comment': commentText,
         'payment_method': paymentMethod,
         'items': itemsPayload,
+        if (fulfillmentType == 'delivery')
+          'delivery_zone_code': (o['delivery_zone_code'] ?? '').toString(),
       };
 
       final createRes = await _dio.post('/api/orders/create/', data: payload);

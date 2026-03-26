@@ -86,6 +86,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "total_price",
             "bonus_used",
             "payment_amount",
+            "delivery_zone_code",
             "items",
             "courier_phone",
             "picker_phone",
