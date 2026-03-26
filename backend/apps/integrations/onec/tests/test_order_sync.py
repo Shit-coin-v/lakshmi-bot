@@ -166,6 +166,7 @@ class SendOrderToOnecImplTests(TestCase):
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
 
         self.assertEqual(payload["order_id"], self.order.id)
+        self.assertEqual(payload["customer"]["card_id"], self.customer.card_id)
         self.assertEqual(payload["customer"]["telegram_id"], 90002)
         self.assertEqual(payload["customer"]["email"], "t@t.com")
         self.assertEqual(payload["store_id"], 1)

@@ -82,6 +82,7 @@ def send_order_to_onec_impl(self, order_id: int):
             "created_at": order.created_at.astimezone(dj_tz.get_current_timezone()).isoformat(),
             "customer": {
                 "id": order.customer_id,
+                "card_id": order.customer.card_id,
                 "telegram_id": order.customer.telegram_id,
                 "email": order.customer.email,
                 "phone": order.phone,
