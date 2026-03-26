@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from apps.common.health import healthz
+from apps.integrations.onec.customer_lookup import onec_customer_lookup
 from apps.integrations.onec.customer_sync import onec_customer_sync
 from apps.integrations.onec.health import onec_health
 from apps.integrations.onec.order_create import onec_order_create
@@ -27,6 +28,7 @@ urlpatterns = [
     # 1C integrations
     path("onec/receipt", onec_receipt, name="onec_receipt"),
     path("onec/customer", onec_customer_sync, name="onec_customer_sync"),
+    path("onec/customer-lookup", onec_customer_lookup, name="onec_customer_lookup"),
     path("onec/product", onec_product_sync, name="onec_product_sync"),
     path("onec/stock", onec_stock_sync, name="onec_stock_sync"),
     path("onec/order", onec_order_create, name="onec_order_create"),
