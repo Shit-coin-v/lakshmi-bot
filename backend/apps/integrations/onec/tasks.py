@@ -238,8 +238,9 @@ def send_campaign_reward_to_onec(self, reward_log_id: int):
             from decimal import Decimal
             from apps.main.models import CustomUser
             try:
+                balance_str = str(new_balance).replace(",", ".")
                 CustomUser.objects.filter(id=log.customer_id).update(
-                    bonuses=Decimal(str(new_balance)),
+                    bonuses=Decimal(balance_str),
                 )
             except (ValueError, TypeError, ArithmeticError):
                 logger.warning(
