@@ -15,7 +15,7 @@ class ReceiptPositionSerializer(serializers.Serializer):
         max_digits=12, decimal_places=2, required=False, default=Decimal("0")
     )
     is_promotional = serializers.BooleanField(required=False, default=False)
-    line_number = serializers.IntegerField(min_value=1)
+    line_number = serializers.IntegerField(min_value=0)
     bonus_earned = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -41,7 +41,7 @@ class ReceiptTotalsSerializer(serializers.Serializer):
 
 
 class ReceiptCustomerSerializer(serializers.Serializer):
-    card_id = serializers.CharField()
+    card_id = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ReceiptSerializer(serializers.Serializer):
