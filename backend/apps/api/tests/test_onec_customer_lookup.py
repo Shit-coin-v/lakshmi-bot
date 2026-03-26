@@ -47,6 +47,16 @@ class OneCCustomerLookupTests(OneCTestBase):
         self.assertEqual(data["status"], "ok")
         self.assertEqual(data["card_id"], user.card_id)
 
+    def test_lookup_with_string_telegram_id(self, _ip):
+        user = CustomUser.objects.create(telegram_id=9002)
+
+        response = self._post({"telegram_id": "9002"})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["card_id"], user.card_id)
+
     # --- missing / null ---
 
     def test_missing_telegram_id_returns_400(self, _ip):

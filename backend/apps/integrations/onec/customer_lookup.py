@@ -44,10 +44,26 @@ def onec_customer_lookup(request):
             details={"telegram_id": ["required"]},
         )
 
-    if isinstance(telegram_id, bool) or not isinstance(telegram_id, int):
+    if isinstance(telegram_id, bool):
         return onec_error(
             "invalid_field",
-            "telegram_id must be an integer.",
+            "telegram_id must be an integer or numeric string.",
+            details={"telegram_id": ["invalid"]},
+        )
+
+    if isinstance(telegram_id, str):
+        try:
+            telegram_id = int(telegram_id)
+        except ValueError:
+            return onec_error(
+                "invalid_field",
+                "telegram_id must be an integer or numeric string.",
+                details={"telegram_id": ["invalid"]},
+            )
+    elif not isinstance(telegram_id, int):
+        return onec_error(
+            "invalid_field",
+            "telegram_id must be an integer or numeric string.",
             details={"telegram_id": ["invalid"]},
         )
 
