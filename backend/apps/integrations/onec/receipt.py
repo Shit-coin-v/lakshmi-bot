@@ -366,6 +366,44 @@ def onec_receipt(request):
         CustomUser.objects.filter(id=user.id).update(**update_kwargs)
         user.refresh_from_db(fields=["bonuses", "purchase_count", "total_spent", "last_purchase_date"])
 
+    # --- Campaign reward check (fail-open, async via Celery) ---
+    if not is_guest and user.card_id:
+        try:
+            from apps.campaigns.services import evaluate_campaign_reward
+            from apps.campaigns.models import CampaignRewardLog
+
+            reward = evaluate_campaign_reward(
+                customer=user,
+                total_amount=total_amount,
+                positions=positions,
+                receipt_guid=data["receipt_guid"],
+            )
+            if reward:
+                log, _created = CampaignRewardLog.objects.get_or_create(
+                    receipt_guid=data["receipt_guid"],
+                    defaults={
+                        "customer": user,
+                        "assignment_id": reward.assignment_id,
+                        "campaign_id": reward.campaign_id,
+                        "rule_id": reward.rule_id,
+                        "reward_type": reward.reward_type,
+                        "bonus_amount": reward.bonus_amount,
+                        "is_accrual": reward.is_accrual,
+                        "status": CampaignRewardLog.Status.PENDING,
+                    },
+                )
+                if log.status != CampaignRewardLog.Status.SUCCESS:
+                    from apps.integrations.onec.tasks import send_campaign_reward_to_onec
+                    from django.db import transaction as db_tx_hook
+                    db_tx_hook.on_commit(
+                        lambda lid=log.id: send_campaign_reward_to_onec.delay(lid)
+                    )
+        except Exception:
+            logger.exception(
+                "campaign_reward: failed user=%d receipt=%s",
+                user.id, data["receipt_guid"],
+            )
+
     mapping = OneCClientMap.objects.filter(user=user).first()
     guid_for_resp = getattr(mapping, "one_c_guid", None)
 

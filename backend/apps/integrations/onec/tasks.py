@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import requests
 from celery import shared_task
+from django.db import models
 from django.utils import timezone
 
 from .order_sync import _get_onec_order_url, send_order_to_onec_impl
@@ -181,3 +182,89 @@ def rollback_stuck_assembly_orders(self):
         "rollback_stuck_assembly_orders: rolled back %d/%d orders to 'new'",
         count, len(stuck_ids),
     )
+
+
+@shared_task(bind=True, max_retries=5)
+def send_campaign_reward_to_onec(self, reward_log_id: int):
+    """Send campaign bonus reward to 1C after receipt processing."""
+    from apps.campaigns.models import CampaignRewardLog, CustomerCampaignAssignment
+
+    from .onec_client import get_onec_bonus_url, send_bonus_to_onec
+
+    try:
+        log = (
+            CampaignRewardLog.objects
+            .select_related("customer", "assignment", "campaign")
+            .get(id=reward_log_id)
+        )
+    except CampaignRewardLog.DoesNotExist:
+        logger.error("send_campaign_reward_to_onec: log %d not found", reward_log_id)
+        return {"status": "failed", "reason": "log_not_found"}
+
+    # Idempotency: already successfully sent
+    if log.status == CampaignRewardLog.Status.SUCCESS:
+        return {"status": "already_sent", "reward_log_id": reward_log_id}
+
+    # Check URL configured
+    if not get_onec_bonus_url():
+        logger.info(
+            "send_campaign_reward_to_onec: ONEC_BONUS_URL not configured, skipping log %d",
+            reward_log_id,
+        )
+        return {"status": "skipped", "reason": "no_url"}
+
+    # Increment attempts
+    CampaignRewardLog.objects.filter(id=log.id).update(
+        attempts=models.F("attempts") + 1,
+    )
+
+    try:
+        send_bonus_to_onec(
+            card_id=log.customer.card_id,
+            bonus_amount=log.bonus_amount,
+            is_accrual=log.is_accrual,
+        )
+
+        # Success — update log status
+        CampaignRewardLog.objects.filter(id=log.id).update(
+            status=CampaignRewardLog.Status.SUCCESS,
+            last_error="",
+        )
+
+        # Mark one_time_use campaign as used
+        if log.campaign.one_time_use:
+            CustomerCampaignAssignment.objects.filter(
+                id=log.assignment_id, used=False,
+            ).update(
+                used=True,
+                used_at=timezone.now(),
+                receipt_id=log.receipt_guid,
+            )
+
+        logger.info(
+            "send_campaign_reward_to_onec: success log=%d campaign=%d card=%s bonus=%s",
+            log.id, log.campaign_id, log.customer.card_id, log.bonus_amount,
+        )
+        return {"status": "sent", "reward_log_id": reward_log_id}
+
+    except (requests.RequestException, RuntimeError, ValueError) as exc:
+        error_msg = str(exc)[:1000]
+        CampaignRewardLog.objects.filter(id=log.id).update(
+            status=CampaignRewardLog.Status.FAILED,
+            last_error=error_msg,
+        )
+        logger.exception(
+            "send_campaign_reward_to_onec: failed log=%d error=%s",
+            log.id, error_msg,
+        )
+
+        from django.conf import settings as django_settings
+        if getattr(django_settings, "CELERY_TASK_ALWAYS_EAGER", False):
+            return {"status": "failed", "reason": error_msg}
+
+        if self.request.retries >= self.max_retries:
+            return {"status": "failed", "reason": error_msg}
+
+        base = min(20 + self.request.retries * 10, 70)
+        countdown = base + random.uniform(0, base * 0.3)
+        raise self.retry(exc=exc, countdown=countdown)

@@ -1,5 +1,7 @@
 import logging
+from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q, QuerySet
@@ -190,3 +192,177 @@ def assign_campaign_to_customers(campaign_id: int) -> dict:
         "skipped_overlapping": skipped_overlapping,
         "skipped_opted_out": skipped_opted_out,
     }
+
+
+@dataclass
+class CampaignRewardPayload:
+    assignment_id: int
+    campaign_id: int
+    campaign_name: str
+    rule_id: int
+    reward_type: str
+    bonus_amount: Decimal
+    is_accrual: bool
+    card_id: str
+    receipt_guid: str
+
+
+def evaluate_campaign_reward(
+    customer,
+    total_amount: Decimal,
+    positions: list[dict],
+    receipt_guid: str,
+) -> CampaignRewardPayload | None:
+    """Evaluate whether a campaign reward applies to this receipt.
+
+    Returns CampaignRewardPayload if conditions are met, None otherwise.
+    Does NOT create CampaignRewardLog — caller is responsible.
+    Does NOT modify any data.
+    """
+    from .models import CampaignRewardLog, CustomerCampaignAssignment
+
+    # No card_id — cannot send to 1C
+    if not customer.card_id:
+        return None
+
+    # Already successfully processed for this receipt
+    if CampaignRewardLog.objects.filter(
+        receipt_guid=receipt_guid, status=CampaignRewardLog.Status.SUCCESS,
+    ).exists():
+        return None
+
+    # Find active assignments (limit 2 for fail-closed check)
+    now = timezone.now()
+    assignments = list(
+        CustomerCampaignAssignment.objects.filter(
+            customer=customer,
+            campaign__is_active=True,
+            campaign__start_at__lte=now,
+            campaign__end_at__gte=now,
+            used=False,
+        )
+        .select_related("campaign")
+        .order_by("-campaign__priority", "-campaign__created_at")[:2]
+    )
+
+    if not assignments:
+        return None
+
+    if len(assignments) > 1:
+        logger.warning(
+            "evaluate_campaign_reward: customer_id=%d has %d active assignments, fail-closed",
+            customer.id, len(assignments),
+        )
+        return None
+
+    assignment = assignments[0]
+    campaign = assignment.campaign
+
+    # Get active rules (limit 2 for fail-closed)
+    from .models import CampaignRule
+    rules = list(
+        campaign.rules.filter(is_active=True)
+        .select_related("product", "category")
+        .prefetch_related("products")[:2]
+    )
+
+    if not rules:
+        return None
+
+    if len(rules) > 1:
+        logger.warning(
+            "evaluate_campaign_reward: campaign_id=%d has %d active rules, fail-closed",
+            campaign.id, len(rules),
+        )
+        return None
+
+    rule = rules[0]
+
+    # Unsupported reward types
+    if rule.reward_type == "product_discount":
+        logger.info(
+            "evaluate_campaign_reward: skipping product_discount for receipt flow, campaign_id=%d",
+            campaign.id,
+        )
+        return None
+
+    # Check min_purchase_amount
+    if rule.min_purchase_amount is not None and total_amount < rule.min_purchase_amount:
+        return None
+
+    # Determine matching amount based on product filter
+    from apps.main.models import Product as ProductModel
+
+    has_product_filter = False
+    target_codes: set[str] = set()
+
+    if rule.product_id is not None and rule.product:
+        # Legacy FK
+        has_product_filter = True
+        target_codes = {rule.product.product_code}
+    elif rule.products.exists():
+        # M2M
+        has_product_filter = True
+        target_codes = set(rule.products.values_list("product_code", flat=True))
+    elif rule.category_id is not None:
+        # Category filter — lookup via Product.category FK
+        has_product_filter = True
+        receipt_codes = {pos["product_code"] for pos in positions}
+        target_codes = set(
+            ProductModel.objects.filter(
+                product_code__in=receipt_codes, category=rule.category,
+            ).values_list("product_code", flat=True)
+        )
+
+    if has_product_filter:
+        matched_positions = [p for p in positions if p["product_code"] in target_codes]
+        if not matched_positions:
+            return None
+        matching_amount = sum(
+            (_as_decimal(p["price"]) - _as_decimal(p.get("discount_amount", 0)))
+            * _as_decimal(p["quantity"])
+            for p in matched_positions
+        )
+    else:
+        matching_amount = total_amount
+
+    # Calculate bonus
+    bonus = Decimal("0")
+    if rule.reward_type == "fixed_bonus":
+        bonus = rule.reward_value or Decimal("0")
+    elif rule.reward_type == "bonus_percent":
+        percent = rule.reward_percent or Decimal("0")
+        bonus = matching_amount * percent / Decimal("100")
+    elif rule.reward_type == "fixed_plus_percent":
+        fixed = rule.reward_value or Decimal("0")
+        percent = rule.reward_percent or Decimal("0")
+        bonus = fixed + matching_amount * percent / Decimal("100")
+    else:
+        logger.warning(
+            "evaluate_campaign_reward: unknown reward_type=%s, campaign_id=%d",
+            rule.reward_type, campaign.id,
+        )
+        return None
+
+    bonus = bonus.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if bonus <= 0:
+        return None
+
+    return CampaignRewardPayload(
+        assignment_id=assignment.id,
+        campaign_id=campaign.id,
+        campaign_name=campaign.name,
+        rule_id=rule.id,
+        reward_type=rule.reward_type,
+        bonus_amount=bonus,
+        is_accrual=True,
+        card_id=customer.card_id,
+        receipt_guid=receipt_guid,
+    )
+
+
+def _as_decimal(value) -> Decimal:
+    """Convert value to Decimal."""
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))

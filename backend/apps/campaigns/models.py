@@ -330,3 +330,40 @@ class CustomerCampaignAssignment(models.Model):
 
     def __str__(self):
         return f"{self.customer} — {self.campaign}"
+
+
+class CampaignRewardLog(models.Model):
+    """Факт применения campaign reward к чеку. Идемпотентность по receipt_guid."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Ожидает отправки"
+        SUCCESS = "success", "Успешно"
+        FAILED = "failed", "Ошибка"
+
+    receipt_guid = models.CharField("GUID чека", max_length=100, unique=True, db_index=True)
+    customer = models.ForeignKey(
+        "main.CustomUser", on_delete=models.CASCADE, related_name="campaign_reward_logs",
+    )
+    assignment = models.ForeignKey(
+        CustomerCampaignAssignment, on_delete=models.CASCADE, related_name="reward_logs",
+    )
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="reward_logs")
+    rule = models.ForeignKey(CampaignRule, on_delete=models.CASCADE, related_name="reward_logs")
+    reward_type = models.CharField("Тип награды", max_length=30)
+    bonus_amount = models.DecimalField("Сумма бонусов", max_digits=10, decimal_places=2)
+    is_accrual = models.BooleanField("Начисление", default=True)
+    status = models.CharField(
+        "Статус", max_length=10, choices=Status.choices, default=Status.PENDING,
+    )
+    last_error = models.TextField("Последняя ошибка", blank=True, default="")
+    attempts = models.PositiveIntegerField("Попыток отправки", default=0)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        db_table = "campaign_reward_log"
+        verbose_name = "Лог начисления по кампании"
+        verbose_name_plural = "Логи начислений по кампаниям"
+
+    def __str__(self):
+        return f"Reward {self.receipt_guid} → {self.status}"
