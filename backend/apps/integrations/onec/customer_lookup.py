@@ -35,6 +35,8 @@ def onec_customer_lookup(request):
     if not isinstance(data, dict):
         return onec_error("invalid_json", "Request body must be a JSON object.")
 
+    logger.info("customer_lookup: payload=%s", data)
+
     telegram_id = data.get("telegram_id")
 
     if telegram_id is None:
