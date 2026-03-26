@@ -88,8 +88,13 @@ class OrderCreateView(generics.CreateAPIView):
         serializer.save(customer=self.request.telegram_user)
 
     def create(self, request, *args, **kwargs):
+        import logging
+        _logger = logging.getLogger(__name__)
+        _logger.info("OrderCreate payload: %s", request.data)
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            _logger.warning("OrderCreate validation errors: %s", serializer.errors)
+            serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         order = serializer.instance
 
