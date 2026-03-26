@@ -6,10 +6,9 @@ import json
 import uuid
 from decimal import Decimal
 from datetime import timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from django.conf import settings as django_settings
-from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.common import security
@@ -162,7 +161,7 @@ class ReceiptCampaignIntegrationTests(OneCTestBase):
     @patch("apps.integrations.onec.tasks.send_campaign_reward_to_onec.delay")
     def test_pending_log_re_enqueues(self, mock_delay, _mock_ip):
         receipt_guid = f"R-{uuid.uuid4().hex[:12]}"
-        log = CampaignRewardLog.objects.create(
+        CampaignRewardLog.objects.create(
             receipt_guid=receipt_guid,
             customer=self.user,
             assignment=self.assignment,

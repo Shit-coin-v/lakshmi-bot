@@ -259,7 +259,6 @@ def evaluate_campaign_reward(
     campaign = assignment.campaign
 
     # Get active rules (limit 2 for fail-closed)
-    from .models import CampaignRule
     rules = list(
         campaign.rules.filter(is_active=True)
         .select_related("product", "category")

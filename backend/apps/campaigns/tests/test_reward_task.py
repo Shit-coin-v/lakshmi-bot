@@ -1,7 +1,7 @@
 """Tests for send_campaign_reward_to_onec Celery task."""
 
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import timedelta
 
 from django.test import TestCase, override_settings
