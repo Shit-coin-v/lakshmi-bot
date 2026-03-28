@@ -16,6 +16,7 @@ from aiogram.fsm.context import FSMContext
 
 import config
 from onec_client import send_customer_to_onec
+from referral import parse_start_payload
 from shared.bot_utils.chat_cleanup import send_clean, track_message
 from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
@@ -131,22 +132,10 @@ async def command_start_handler(message: Message, state: FSMContext):
         await send_clean(message, "🏠 Вы в главном меню", reply_markup=get_qr_code_button())
         return
     else:
-        command_args = message.text.split()
-        referrer_id = None
-        referral_code = None
-        if len(command_args) > 1:
-            payload = command_args[1]
-            if payload.startswith('ref_'):
-                # New format: /start ref_A7K2M9XP (referral_code)
-                referral_code = payload[4:] or None
-            elif payload.startswith('ref'):
-                # Legacy format: /start ref123456789 (telegram_id)
-                try:
-                    referrer_id = int(payload[3:])
-                    if not await backend.get_user_by_telegram_id(referrer_id):
-                        referrer_id = None
-                except ValueError:
-                    referrer_id = None
+        referrer_id, referral_code = parse_start_payload(message.text)
+        # Validate legacy referrer_id exists
+        if referrer_id and not await backend.get_user_by_telegram_id(referrer_id):
+            referrer_id = None
 
         await state.update_data(
             telegram_id=message.from_user.id,
