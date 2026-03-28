@@ -16,7 +16,7 @@ from aiogram.fsm.context import FSMContext
 
 import config
 from onec_client import send_customer_to_onec
-from referral import parse_start_payload
+from referral import parse_start_payload, resolve_referrer_tg_id
 from shared.bot_utils.chat_cleanup import send_clean, track_message
 from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
@@ -196,8 +196,7 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         pass
 
     if user:
-        # For 1C: pass referrer's telegram_id
-        referrer_tg_id = data.get("referrer_id") or user.get("referrer_telegram_id")
+        referrer_tg_id = resolve_referrer_tg_id(data, user)
         await send_customer_to_onec(user, referrer_tg_id)
         sent = await callback.message.answer(
             "Спасибо! Вы успешно зарегистрированы.\n\n🏠 Вы в главном меню",

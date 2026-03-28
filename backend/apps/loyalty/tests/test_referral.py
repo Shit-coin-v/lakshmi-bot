@@ -805,17 +805,11 @@ class ReferralInfoLinkTests(TestCase):
 # 10. Telegram bot backward compatibility (parsing)
 # ===================================================================
 
-# Import the real helper from the bot — tests the actual production code.
-import sys
-import os
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..", "bots", "customer_bot",
-))
-from referral import parse_start_payload  # noqa: E402
+from shared.referral import parse_start_payload, resolve_referrer_tg_id
 
 
 class TelegramStartPayloadParsingTests(TestCase):
-    """Tests for parse_start_payload — the real bot helper function."""
+    """Tests for parse_start_payload — the real shared helper used by the bot."""
 
     def test_legacy_format_ref_telegram_id(self):
         """/start ref123456789 → referrer_id=123456789, referral_code=None."""
@@ -864,9 +858,7 @@ class BotUserSerializerContractTests(TestCase):
         referee = CustomUser.objects.create(telegram_id=95002, referrer=referrer)
 
         data = BotUserSerializer(referee).data
-        # referrer_id is PK (internal) — NOT telegram_id
         self.assertEqual(data["referrer_id"], referrer.pk)
-        # referrer_telegram_id is the actual telegram_id for 1C
         self.assertEqual(data["referrer_telegram_id"], 95001)
 
     def test_serializer_referral_code_present(self):
@@ -889,22 +881,26 @@ class BotUserSerializerContractTests(TestCase):
 
 
 # ===================================================================
-# 12. Bot flow → 1С: referrer_telegram_id, not PK
+# 12. Bot flow → 1С: resolve_referrer_tg_id produces telegram_id, not PK
 # ===================================================================
 
 @override_settings(**_TEST_SETTINGS)
 class BotFlowOnecReferrerTests(TestCase):
-    """Verify the bot registration flow sends referrer_telegram_id to 1C.
+    """Test resolve_referrer_tg_id — the real function the bot uses
+    to determine what telegram_id to send to 1C via send_customer_to_onec.
 
-    Tests the data path: API register → BotUserSerializer response →
-    consent_callback reads referrer_telegram_id → send_customer_to_onec.
+    The bot does:
+        referrer_tg_id = resolve_referrer_tg_id(state_data, user_response)
+        await send_customer_to_onec(user, referrer_tg_id)
+
+    These tests call the real resolve_referrer_tg_id with real API responses.
     """
 
-    def test_legacy_referral_sends_telegram_id_to_onec(self):
-        """Legacy /start ref{tg_id}: 1C receives referrer's telegram_id."""
+    def test_legacy_flow_resolve_returns_telegram_id(self):
+        """Legacy /start ref{tg_id}: resolve gives referrer's telegram_id."""
         referrer = CustomUser.objects.create(telegram_id=96001)
 
-        # Bot sends referrer_id (telegram_id) in legacy format
+        # 1. Register via API (same as bot does)
         resp = self.client.post(
             "/api/bot/users/register/",
             data=json.dumps({
@@ -916,21 +912,23 @@ class BotFlowOnecReferrerTests(TestCase):
             HTTP_X_API_KEY="test-key",
         )
         self.assertEqual(resp.status_code, 201)
-        user_data = resp.json()
-        # Bot would call: send_customer_to_onec(user_data, referrer_tg_id)
-        # where referrer_tg_id = data.get("referrer_id") or user.get("referrer_telegram_id")
-        # In legacy path: data["referrer_id"] = 96001 (telegram_id, from FSMContext)
-        # In response: referrer_telegram_id is also available
-        self.assertEqual(user_data["referrer_telegram_id"], 96001)
-        # referrer_id is PK — NOT what goes to 1C
-        self.assertEqual(user_data["referrer_id"], referrer.pk)
-        self.assertNotEqual(user_data["referrer_id"], 96001)  # proves PK != tg_id
+        user_response = resp.json()
 
-    def test_code_referral_sends_telegram_id_to_onec(self):
-        """New /start ref_{code}: 1C receives referrer's telegram_id via response."""
+        # 2. Simulate FSM state (legacy: referrer_id is telegram_id)
+        state_data = {"referrer_id": 96001, "referral_code": None}
+
+        # 3. Call the REAL production function
+        tg_id = resolve_referrer_tg_id(state_data, user_response)
+
+        # 4. This is what goes to send_customer_to_onec — must be telegram_id
+        self.assertEqual(tg_id, 96001)
+        self.assertNotEqual(tg_id, referrer.pk)  # NOT the internal PK
+
+    def test_code_flow_resolve_returns_telegram_id(self):
+        """New /start ref_{code}: resolve gives referrer's telegram_id."""
         referrer = CustomUser.objects.create(telegram_id=96010)
 
-        # Bot sends referral_code in new format
+        # 1. Register via API with referral_code
         resp = self.client.post(
             "/api/bot/users/register/",
             data=json.dumps({
@@ -942,16 +940,35 @@ class BotFlowOnecReferrerTests(TestCase):
             HTTP_X_API_KEY="test-key",
         )
         self.assertEqual(resp.status_code, 201)
-        user_data = resp.json()
-        # Bot calls: send_customer_to_onec(user, referrer_tg_id)
-        # where referrer_tg_id = data.get("referrer_id") or user.get("referrer_telegram_id")
-        # In code path: data["referrer_id"] is None (wasn't in state)
-        # So bot falls through to user.get("referrer_telegram_id")
-        self.assertEqual(user_data["referrer_telegram_id"], 96010)
-        # The DB link is correct
-        referee = CustomUser.objects.get(telegram_id=96011)
-        self.assertEqual(referee.referrer_id, referrer.pk)
-        self.assertEqual(referee.referrer.telegram_id, 96010)
+        user_response = resp.json()
+
+        # 2. Simulate FSM state (code-based: no referrer_id in state)
+        state_data = {"referrer_id": None, "referral_code": referrer.referral_code}
+
+        # 3. Call the REAL production function
+        tg_id = resolve_referrer_tg_id(state_data, user_response)
+
+        # 4. Must be referrer's telegram_id, not PK
+        self.assertEqual(tg_id, 96010)
+        self.assertNotEqual(tg_id, referrer.pk)
+
+    def test_no_referrer_resolve_returns_none(self):
+        """No referral at all: resolve returns None."""
+        resp = self.client.post(
+            "/api/bot/users/register/",
+            data=json.dumps({
+                "telegram_id": 96020,
+                "first_name": "NoRef",
+            }),
+            content_type="application/json",
+            HTTP_X_API_KEY="test-key",
+        )
+        self.assertEqual(resp.status_code, 201)
+        user_response = resp.json()
+
+        state_data = {"referrer_id": None, "referral_code": None}
+        tg_id = resolve_referrer_tg_id(state_data, user_response)
+        self.assertIsNone(tg_id)
 
 
 # ===================================================================
@@ -976,7 +993,6 @@ class LandingPartialStoreConfigTests(TestCase):
         content = resp.content.decode()
         self.assertIn("App Store", content)
         self.assertNotIn("Google Play", content)
-        # No empty href
         self.assertNotIn('href=""', content)
 
     @override_settings(APPSTORE_URL="", GOOGLE_PLAY_URL="https://play.google.com/store/test")
