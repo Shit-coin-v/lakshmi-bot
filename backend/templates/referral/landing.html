@@ -37,6 +37,7 @@ text-decoration:none;font-size:13px;font-weight:500}
   <div class="code" id="code">{{ referral_code }}</div>
   <button class="copy-btn" id="copyBtn">Скопировать код</button>
   <div class="copy-ok" id="copyOk">Код скопирован!</div>
+  {% if appstore_url or google_play_url %}
   <div class="divider"></div>
   <div class="store-links">
     {% if appstore_url %}
@@ -50,16 +51,25 @@ text-decoration:none;font-size:13px;font-weight:500}
     Установите приложение и введите код при регистрации,<br>
     чтобы получить бонусы.
   </div>
+  {% endif %}
 </div>
 <script>
 document.getElementById('copyBtn').addEventListener('click',function(){
   var code=document.getElementById('code').textContent.trim();
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(code).then(function(){showOk()});
-  }else{
-    var t=document.createElement('textarea');t.value=code;
-    document.body.appendChild(t);t.select();document.execCommand('copy');
-    document.body.removeChild(t);showOk();
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(showOk,fallbackCopy);
+    }else{fallbackCopy()}
+  }catch(e){fallbackCopy()}
+  function fallbackCopy(){
+    try{
+      var t=document.createElement('textarea');t.value=code;
+      t.style.position='fixed';t.style.left='-9999px';
+      document.body.appendChild(t);t.select();document.execCommand('copy');
+      document.body.removeChild(t);showOk();
+    }catch(e){
+      window.prompt('Скопируйте код вручную:',code);
+    }
   }
 });
 function showOk(){

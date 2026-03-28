@@ -127,7 +127,9 @@ class UserRegisterTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201)
         user = CustomUser.objects.get(telegram_id=300002)
-        self.assertEqual(user.referrer_id, referrer.telegram_id)
+        # After FK migration: referrer_id stores PK, not telegram_id
+        self.assertEqual(user.referrer_id, referrer.pk)
+        self.assertEqual(user.referrer.telegram_id, 300000)
 
     def test_register_duplicate_telegram_id_returns_400(self):
         CustomUser.objects.create(telegram_id=300003)

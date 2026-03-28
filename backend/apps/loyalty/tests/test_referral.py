@@ -695,3 +695,205 @@ class ReferralEdgeCaseTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(ReferralReward.objects.count(), 1)
+
+
+# ===================================================================
+# 8. Referral landing page (GET /ref/<code>/)
+# ===================================================================
+
+@override_settings(**{
+    **_TEST_SETTINGS,
+    "APPSTORE_URL": "https://apps.apple.com/app/test",
+    "GOOGLE_PLAY_URL": "https://play.google.com/store/apps/details?id=test",
+})
+class ReferralLandingPageTests(TestCase):
+    """Tests for GET /ref/<code>/ — landing page with referral code + store links."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = CustomUser.objects.create(telegram_id=90001)
+
+    def test_landing_valid_code_200(self):
+        """Valid referral code returns 200 with code in HTML."""
+        resp = self.client.get(f"/ref/{self.user.referral_code}/")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn(self.user.referral_code, content)
+
+    def test_landing_invalid_code_404(self):
+        """Invalid referral code returns 404."""
+        resp = self.client.get("/ref/ZZZZZZZZ/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_landing_contains_store_links(self):
+        """Landing page renders store links from settings."""
+        resp = self.client.get(f"/ref/{self.user.referral_code}/")
+        content = resp.content.decode()
+        self.assertIn("https://apps.apple.com/app/test", content)
+        self.assertIn("https://play.google.com/store/apps/details?id=test", content)
+        self.assertIn("App Store", content)
+        self.assertIn("Google Play", content)
+
+    @override_settings(APPSTORE_URL="", GOOGLE_PLAY_URL="")
+    def test_landing_no_store_urls_no_broken_buttons(self):
+        """When store URLs are empty, no store buttons or divider rendered."""
+        resp = self.client.get(f"/ref/{self.user.referral_code}/")
+        content = resp.content.decode()
+        # Code still present
+        self.assertIn(self.user.referral_code, content)
+        # No store buttons rendered
+        self.assertNotIn("App Store", content)
+        self.assertNotIn("Google Play", content)
+        # No store-links section (divider hidden via {% if %})
+        self.assertNotIn('class="store-btn"', content)
+
+    def test_landing_contains_copy_button(self):
+        """Landing page has copy button and clipboard script."""
+        resp = self.client.get(f"/ref/{self.user.referral_code}/")
+        content = resp.content.decode()
+        self.assertIn("copyBtn", content)
+        self.assertIn("navigator.clipboard", content)
+        # Fallback: prompt for manual copy
+        self.assertIn("prompt", content)
+
+
+# ===================================================================
+# 9. ReferralInfoView — REFERRAL_BASE_URL
+# ===================================================================
+
+@override_settings(**{**_TEST_SETTINGS, "REFERRAL_BASE_URL": "https://example.com"})
+class ReferralInfoLinkTests(TestCase):
+    """Tests for /api/customer/me/referral/ link construction from settings."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = CustomUser.objects.create(telegram_id=91001)
+        self.tokens = generate_tokens(self.user)
+
+    def _auth_headers(self):
+        return {"HTTP_AUTHORIZATION": f"Bearer {self.tokens['access']}"}
+
+    def test_referral_link_uses_base_url(self):
+        """referral_link built from REFERRAL_BASE_URL setting."""
+        resp = self.client.get(REFERRAL_INFO_URL, **self._auth_headers())
+        data = resp.json()
+        self.assertEqual(
+            data["referral_link"],
+            f"https://example.com/ref/{self.user.referral_code}/",
+        )
+
+    @override_settings(REFERRAL_BASE_URL="")
+    def test_referral_link_relative_when_no_base_url(self):
+        """When REFERRAL_BASE_URL is empty, link is relative path."""
+        resp = self.client.get(REFERRAL_INFO_URL, **self._auth_headers())
+        data = resp.json()
+        self.assertEqual(
+            data["referral_link"],
+            f"/ref/{self.user.referral_code}/",
+        )
+
+    @override_settings(REFERRAL_BASE_URL="https://example.com/")
+    def test_referral_link_strips_trailing_slash(self):
+        """Trailing slash in REFERRAL_BASE_URL doesn't produce double slash."""
+        resp = self.client.get(REFERRAL_INFO_URL, **self._auth_headers())
+        data = resp.json()
+        self.assertNotIn("//ref/", data["referral_link"])
+        self.assertTrue(data["referral_link"].startswith("https://example.com/ref/"))
+
+
+# ===================================================================
+# 10. Telegram bot backward compatibility (parsing)
+# ===================================================================
+
+class TelegramStartPayloadParsingTests(TestCase):
+    """Tests for /start ref... payload parsing in bot.
+
+    These test the parsing logic directly, not the bot framework.
+    """
+
+    @staticmethod
+    def _parse_start_payload(text):
+        """Simulate the parsing logic from bots/customer_bot/run.py."""
+        referrer_id = None
+        referral_code = None
+        command_args = text.split()
+        if len(command_args) > 1:
+            payload = command_args[1]
+            if payload.startswith('ref_'):
+                referral_code = payload[4:] or None
+            elif payload.startswith('ref'):
+                try:
+                    referrer_id = int(payload[3:])
+                except ValueError:
+                    referrer_id = None
+        return referrer_id, referral_code
+
+    def test_legacy_format_ref_telegram_id(self):
+        """/start ref123456789 → referrer_id=123456789, referral_code=None."""
+        rid, rcode = self._parse_start_payload("/start ref123456789")
+        self.assertEqual(rid, 123456789)
+        self.assertIsNone(rcode)
+
+    def test_new_format_ref_code(self):
+        """/start ref_A7K2M9XP → referrer_id=None, referral_code='A7K2M9XP'."""
+        rid, rcode = self._parse_start_payload("/start ref_A7K2M9XP")
+        self.assertIsNone(rid)
+        self.assertEqual(rcode, "A7K2M9XP")
+
+    def test_plain_start(self):
+        """/start with no payload → both None."""
+        rid, rcode = self._parse_start_payload("/start")
+        self.assertIsNone(rid)
+        self.assertIsNone(rcode)
+
+    def test_ref_underscore_empty(self):
+        """/start ref_ → referral_code=None (empty after prefix)."""
+        rid, rcode = self._parse_start_payload("/start ref_")
+        self.assertIsNone(rid)
+        self.assertIsNone(rcode)
+
+    def test_legacy_format_non_numeric(self):
+        """/start refABC → referrer_id=None (not a number), referral_code=None."""
+        rid, rcode = self._parse_start_payload("/start refABC")
+        self.assertIsNone(rid)
+        self.assertIsNone(rcode)
+
+
+# ===================================================================
+# 11. BotUserSerializer contract — referrer_telegram_id
+# ===================================================================
+
+@override_settings(**_TEST_SETTINGS)
+class BotUserSerializerContractTests(TestCase):
+    """Verify BotUserSerializer exposes referrer_telegram_id (not just PK)."""
+
+    def test_serializer_returns_referrer_telegram_id(self):
+        """BotUserSerializer.referrer_telegram_id == referrer's telegram_id."""
+        from apps.bot_api.serializers import BotUserSerializer
+
+        referrer = CustomUser.objects.create(telegram_id=95001)
+        referee = CustomUser.objects.create(telegram_id=95002, referrer=referrer)
+
+        data = BotUserSerializer(referee).data
+        # referrer_id is PK (internal) — NOT telegram_id
+        self.assertEqual(data["referrer_id"], referrer.pk)
+        # referrer_telegram_id is the actual telegram_id for 1C
+        self.assertEqual(data["referrer_telegram_id"], 95001)
+
+    def test_serializer_referral_code_present(self):
+        """BotUserSerializer includes referral_code."""
+        from apps.bot_api.serializers import BotUserSerializer
+
+        user = CustomUser.objects.create(telegram_id=95003)
+        data = BotUserSerializer(user).data
+        self.assertEqual(data["referral_code"], user.referral_code)
+        self.assertEqual(len(data["referral_code"]), 8)
+
+    def test_serializer_no_referrer_returns_none(self):
+        """When no referrer, referrer_telegram_id is None."""
+        from apps.bot_api.serializers import BotUserSerializer
+
+        user = CustomUser.objects.create(telegram_id=95004)
+        data = BotUserSerializer(user).data
+        self.assertIsNone(data["referrer_telegram_id"])
+        self.assertIsNone(data["referrer_id"])
