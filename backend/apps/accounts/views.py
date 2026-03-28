@@ -54,6 +54,7 @@ class RegisterView(APIView):
                 "password": d["password"],
                 "full_name": d["full_name"],
                 "phone": d.get("phone") or None,
+                "referral_code": (d.get("referral_code") or "").strip() or None,
             },
             timeout=600,
         )
@@ -200,6 +201,14 @@ class VerifyEmailView(APIView):
             )
             user.set_password(pending["password"])
             user.save()
+
+            # Resolve referral_code -> referrer
+            referral_code = pending.get("referral_code")
+            if referral_code:
+                referrer = CustomUser.objects.filter(referral_code=referral_code).first()
+                if referrer and referrer.pk != user.pk:
+                    CustomUser.objects.filter(pk=user.pk).update(referrer=referrer)
+
             cache.delete(f"pending_reg:{email}")
 
             tokens = generate_tokens(user)

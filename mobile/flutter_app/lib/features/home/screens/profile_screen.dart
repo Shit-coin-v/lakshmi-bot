@@ -276,6 +276,12 @@ class ProfileScreen extends ConsumerWidget {
                         title: "Настройки уведомлений",
                         route: '/profile/notification-settings',
                       ),
+                      Divider(height: 1, indent: 50),
+                      _SettingsItem(
+                        icon: Icons.card_giftcard,
+                        title: "Пригласить друга",
+                        route: '/profile/referral',
+                      ),
                     ],
                   ),
                 ),

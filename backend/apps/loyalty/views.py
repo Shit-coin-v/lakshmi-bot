@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 
 from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
-from apps.loyalty.models import CustomUser, Product, Transaction
+from apps.loyalty.models import CustomUser, Product, ReferralReward, Transaction
 
 from apps.api.security import require_onec_auth
 from apps.loyalty.serializers import BonusHistorySerializer, PurchaseSerializer
@@ -168,3 +168,68 @@ class PurchaseAPIView(APIView):
             "referrer": getattr(customer.referrer, "telegram_id", None),
         }
         return Response(response, status=status.HTTP_201_CREATED)
+
+
+class ReferralInfoView(APIView):
+    """GET /api/customer/me/referral/ — referral code, link, stats."""
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [CustomerPermission]
+
+    def get(self, request):
+        user = request.telegram_user
+
+        registered_count = CustomUser.objects.filter(referrer=user).count()
+        purchased_count = ReferralReward.objects.filter(
+            referrer=user, status=ReferralReward.Status.SUCCESS,
+        ).count()
+        bonus_earned = (
+            ReferralReward.objects.filter(
+                referrer=user, status=ReferralReward.Status.SUCCESS,
+            ).aggregate(total=Sum("bonus_amount"))["total"]
+            or D("0")
+        )
+
+        return Response({
+            "referral_code": user.referral_code,
+            "referral_link": f"https://lakshmi.app/ref/{user.referral_code}",
+            "stats": {
+                "registered_count": registered_count,
+                "purchased_count": purchased_count,
+                "bonus_earned": float(bonus_earned),
+            },
+        })
+
+
+class ReferralListView(APIView):
+    """GET /api/customer/me/referrals/ — list of referrals with details."""
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [CustomerPermission]
+
+    def get(self, request):
+        user = request.telegram_user
+
+        referrals = CustomUser.objects.filter(referrer=user).order_by("-registration_date")
+        results = []
+        # Pre-fetch rewards for all referrals
+        rewards_map = {
+            rr.referee_id: rr
+            for rr in ReferralReward.objects.filter(referrer=user)
+        }
+
+        for ref in referrals:
+            # Mask name: first 2 chars + "..."
+            name = ref.full_name or ""
+            masked_name = (name[:2] + "...") if len(name) > 2 else name
+
+            reward = rewards_map.get(ref.pk)
+            results.append({
+                "full_name": masked_name,
+                "registered_at": ref.registration_date,
+                "has_purchased": reward is not None and reward.status == ReferralReward.Status.SUCCESS,
+                "reward_status": reward.status if reward else None,
+                "bonus_amount": float(reward.bonus_amount) if reward else None,
+            })
+
+        return Response({"results": results})

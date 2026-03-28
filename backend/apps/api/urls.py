@@ -14,7 +14,7 @@ from apps.integrations.onec.receipt import onec_receipt
 from apps.integrations.onec.category_sync_endpoint import onec_category_sync
 from apps.integrations.onec.customers_batch_sync_endpoint import onec_customers_batch_sync
 from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
-from apps.loyalty.views import BonusHistoryView, PurchaseAPIView
+from apps.loyalty.views import BonusHistoryView, PurchaseAPIView, ReferralInfoView, ReferralListView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
 from apps.integrations.payments.webhook import yukassa_webhook
@@ -54,6 +54,8 @@ urlpatterns = [
     path("api/orders/<int:pk>/", OrderDetailView.as_view(), name="order-detail"),
     path("api/orders/<int:pk>/cancel/", OrderCancelView.as_view(), name="order-cancel"),
     path("api/customer/me/bonus-history/", BonusHistoryView.as_view(), name="customer-bonus-history"),
+    path("api/customer/me/referral/", ReferralInfoView.as_view(), name="customer-referral-info"),
+    path("api/customer/me/referrals/", ReferralListView.as_view(), name="customer-referral-list"),
     path("api/customer/<int:pk>/", CustomerProfileView.as_view(), name="customer-profile"),
     # Campaigns
     path("api/campaigns/active/", UserAssignedCampaignsView.as_view(), name="campaigns-active"),

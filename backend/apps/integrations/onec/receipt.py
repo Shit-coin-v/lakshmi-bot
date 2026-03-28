@@ -56,6 +56,33 @@ class DuplicateReceiptLineError(Exception):
         self.line_number = line_number
 
 
+def _try_referral_reward(referee, receipt_guid: str):
+    """Начислить 50 бонусов реферу за первую покупку реферала. Idempotent, fail-open."""
+    from apps.loyalty.models import ReferralReward
+    from apps.integrations.onec.tasks import send_referral_reward_to_onec
+
+    referrer = referee.referrer
+    if not referrer or not referrer.card_id:
+        return
+
+    reward, created = ReferralReward.objects.get_or_create(
+        referee=referee,
+        defaults={
+            "referrer": referrer,
+            "bonus_amount": D("50"),
+            "receipt_guid": receipt_guid,
+            "source": "telegram" if referee.auth_method == "telegram" else "app",
+            "status": ReferralReward.Status.PENDING,
+        },
+    )
+    if not created:
+        return  # уже начислено ранее
+
+    db_tx.on_commit(
+        lambda rid=reward.id: send_referral_reward_to_onec.delay(rid)
+    )
+
+
 @csrf_exempt
 @require_POST
 @require_onec_auth
@@ -135,7 +162,7 @@ def onec_receipt(request):
     is_guest = False
 
     if card_id:
-        user = CustomUser.objects.filter(card_id=card_id).first()
+        user = CustomUser.objects.select_related("referrer").filter(card_id=card_id).first()
         if not user:
             return onec_error(
                 "unknown_customer",
@@ -401,6 +428,16 @@ def onec_receipt(request):
         except Exception:
             logger.exception(
                 "campaign_reward: failed user=%d receipt=%s",
+                user.id, data["receipt_guid"],
+            )
+
+    # --- Referral reward check (one-time, idempotent) ---
+    if not is_guest and created_count > 0 and user.referrer_id:
+        try:
+            _try_referral_reward(user, receipt_guid=data["receipt_guid"])
+        except Exception:
+            logger.exception(
+                "referral_reward: failed user=%d receipt=%s",
                 user.id, data["receipt_guid"],
             )
 

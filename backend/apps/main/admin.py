@@ -47,6 +47,7 @@ class CustomUserAdmin(admin.ModelAdmin):
         'full_name',
         'telegram_id',
         'card_id',
+        'referral_code',
         'email',
         'bonuses',
         'qr_code',
@@ -62,9 +63,9 @@ class CustomUserAdmin(admin.ModelAdmin):
         'general_enabled',
         'order_status_enabled',
     )
-    search_fields = ('full_name', 'telegram_id', 'card_id', 'email')
+    search_fields = ('full_name', 'telegram_id', 'card_id', 'email', 'referral_code')
     list_filter = ('newsletter_enabled', 'promo_enabled', 'news_enabled', 'general_enabled', 'order_status_enabled')
-    readonly_fields = ('registration_date',)
+    readonly_fields = ('registration_date', 'referral_code')
     inlines = [ReferralInline]
 
     def get_queryset(self, request):

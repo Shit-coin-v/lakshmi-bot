@@ -17,7 +17,7 @@ def merge_accounts(keep, remove):
     """
     from apps.orders.models import Order
     from apps.notifications.models import Notification, NotificationOpenEvent, CustomerDevice
-    from apps.loyalty.models import Transaction
+    from apps.loyalty.models import ReferralReward, Transaction
     from apps.main.models import BotActivity, NewsletterDelivery, CustomUser
 
     # Lock both rows to prevent concurrent merges
@@ -38,6 +38,7 @@ def merge_accounts(keep, remove):
     remove_total_spent = remove.total_spent or Decimal("0")
     remove_purchase_count = remove.purchase_count or 0
     remove_last_purchase = remove.last_purchase_date
+    remove_referrer = remove.referrer
 
     # Transfer related objects
     Order.objects.filter(customer=remove).update(customer=keep)
@@ -49,9 +50,11 @@ def merge_accounts(keep, remove):
     NewsletterDelivery.objects.filter(customer=remove).update(customer=keep)
 
     # Update referrals: anyone who had remove as referrer -> now has keep
-    # Note: referrer FK uses to_field="telegram_id", so we need to update
-    # after keep gets the telegram_id. For now, clear referrer on affected users.
-    CustomUser.objects.filter(referrer=remove).update(referrer=None)
+    CustomUser.objects.filter(referrer=remove).update(referrer=keep)
+
+    # Transfer ReferralReward records
+    ReferralReward.objects.filter(referrer=remove).update(referrer=keep)
+    ReferralReward.objects.filter(referee=remove).update(referee=keep)
 
     # Delete remove first to free up the UNIQUE telegram_id
     remove.delete()
@@ -72,10 +75,10 @@ def merge_accounts(keep, remove):
         if not keep.last_purchase_date or remove_last_purchase > keep.last_purchase_date:
             keep.last_purchase_date = remove_last_purchase
 
-    keep.save()
+    # Preserve referrer: if keep has no referrer, take from remove
+    if not keep.referrer_id and remove_referrer:
+        keep.referrer = remove_referrer
 
-    # Re-link referrals to keep (now that keep has telegram_id set)
-    # Users whose referrer was cleared above can now be linked to keep
-    # This requires a data fixup if needed — for MVP, referrals are cleared.
+    keep.save()
 
     logger.info("Merge complete: keep=%s, removed pk was deleted", keep.pk)

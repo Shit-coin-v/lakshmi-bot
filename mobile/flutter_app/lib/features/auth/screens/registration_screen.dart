@@ -17,11 +17,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   bool _termsAccepted = false;
   bool _loading = false;
   String? _error;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _showReferralCode = false;
 
   @override
   void dispose() {
@@ -29,6 +31,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -69,10 +72,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     });
 
     try {
+      final referralCode = _referralCodeController.text.trim();
       await ref.read(authProvider.notifier).register(
             email: email,
             password: password,
             fullName: fullName,
+            referralCode: referralCode.isNotEmpty ? referralCode : null,
           );
       if (mounted) {
         context.go('/verify-email', extra: email);
@@ -152,6 +157,40 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+            // --- Referral code (collapsed by default) ---
+            GestureDetector(
+              onTap: () => setState(() => _showReferralCode = !_showReferralCode),
+              child: Row(
+                children: [
+                  Icon(
+                    _showReferralCode ? Icons.expand_less : Icons.expand_more,
+                    color: kPrimaryGreen,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'У меня есть код приглашения',
+                    style: TextStyle(
+                      color: kPrimaryGreen,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_showReferralCode) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _referralCodeController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  hintText: "Введите код приглашения",
+                ),
+              ),
+            ],
 
             const SizedBox(height: 20),
             Row(

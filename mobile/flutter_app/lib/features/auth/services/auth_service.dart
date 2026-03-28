@@ -87,6 +87,7 @@ class AuthService {
     required String password,
     required String fullName,
     String? phone,
+    String? referralCode,
   }) async {
     try {
       await _dio.post('/api/auth/register/', data: {
@@ -94,6 +95,8 @@ class AuthService {
         'password': password,
         'full_name': fullName,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (referralCode != null && referralCode.isNotEmpty)
+          'referral_code': referralCode,
       });
       // No tokens returned — user is created only after email verification
     } on DioException catch (e) {

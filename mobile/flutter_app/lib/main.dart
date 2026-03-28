@@ -36,6 +36,7 @@ import 'features/orders/screens/order_details_screen.dart';
 import 'features/notifications/screens/notification_detail_screen.dart';
 import 'features/catalog/screens/category_tree_screen.dart';
 import 'features/catalog/screens/category_products_screen.dart';
+import 'features/referral/screens/referral_screen.dart';
 
 import 'core/api_client.dart';
 import 'core/analytics_observer.dart';
@@ -262,6 +263,10 @@ GoRouter _createRouter(WidgetRef ref) {
                   path: 'notification-settings',
                   builder: (ctx, st) =>
                       const NotificationSettingsScreen(),
+                ),
+                GoRoute(
+                  path: 'referral',
+                  builder: (ctx, st) => const ReferralScreen(),
                 ),
               ],
             ),

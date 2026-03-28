@@ -75,7 +75,8 @@ def onec_customer_sync(request):
             ref_tid = int(referrer_tid)
         except (TypeError, ValueError):
             ref_tid = None
-        if ref_tid and ref_tid != user.telegram_id and not getattr(user, "referrer", None):
+        # Do not overwrite existing referrer (immutable after assignment)
+        if ref_tid and ref_tid != user.telegram_id and not user.referrer_id:
             ref_user = CustomUser.objects.filter(telegram_id=ref_tid).first()
             if ref_user:
                 user.referrer = ref_user

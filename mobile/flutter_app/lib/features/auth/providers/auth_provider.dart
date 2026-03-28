@@ -84,12 +84,14 @@ class AuthState extends StateNotifier<UserModel?> {
     required String password,
     required String fullName,
     String? phone,
+    String? referralCode,
   }) async {
     await _authService.register(
       email: email,
       password: password,
       fullName: fullName,
       phone: phone,
+      referralCode: referralCode,
     );
     // No state change — user is not created until email verification
   }

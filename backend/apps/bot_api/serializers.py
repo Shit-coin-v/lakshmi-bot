@@ -14,6 +14,8 @@ from apps.orders.models import Order, OrderItem
 class BotUserSerializer(serializers.ModelSerializer):
     """Read-only user representation for bots."""
 
+    referrer_telegram_id = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomUser
         fields = [
@@ -29,6 +31,8 @@ class BotUserSerializer(serializers.ModelSerializer):
             "qr_code",
             "bonuses",
             "referrer_id",
+            "referrer_telegram_id",
+            "referral_code",
             "last_purchase_date",
             "total_spent",
             "purchase_count",
@@ -44,11 +48,25 @@ class BotUserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_referrer_telegram_id(self, obj):
+        if obj.referrer_id:
+            referrer = getattr(obj, "referrer", None)
+            if referrer:
+                return referrer.telegram_id
+            # Fallback: query DB
+            from apps.main.models import CustomUser as CU
+            try:
+                return CU.objects.filter(pk=obj.referrer_id).values_list("telegram_id", flat=True).first()
+            except Exception:
+                return None
+        return None
+
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     """Create a new user via Telegram registration."""
 
     referrer_id = serializers.IntegerField(required=False, allow_null=True)
+    referral_code = serializers.CharField(max_length=8, required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = CustomUser
@@ -60,6 +78,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             "birth_date",
             "qr_code",
             "referrer_id",
+            "referral_code",
             "personal_data_consent",
         ]
 
@@ -70,12 +89,20 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         referrer_id = validated_data.pop("referrer_id", None)
-        if referrer_id is not None:
-            try:
-                referrer = CustomUser.objects.get(telegram_id=referrer_id)
-                validated_data["referrer"] = referrer
-            except CustomUser.DoesNotExist:
-                pass  # ignore invalid referrer
+        referral_code = (validated_data.pop("referral_code", None) or "").strip() or None
+
+        referrer = None
+
+        # referral_code takes priority over legacy referrer_id (telegram_id)
+        if referral_code:
+            referrer = CustomUser.objects.filter(referral_code=referral_code).first()
+        elif referrer_id is not None:
+            # Backward compat: old bot sends referrer_id as telegram_id
+            referrer = CustomUser.objects.filter(telegram_id=referrer_id).first()
+
+        if referrer:
+            validated_data["referrer"] = referrer
+
         validated_data["auth_method"] = "telegram"
         return CustomUser.objects.create(**validated_data)
 

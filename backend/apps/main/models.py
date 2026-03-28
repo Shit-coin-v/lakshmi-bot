@@ -1,5 +1,12 @@
+import random
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+# Base32-like alphabet without ambiguous chars (0OIL1)
+_REFERRAL_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+_REFERRAL_CODE_LENGTH = 8
 
 
 class Category(models.Model):
@@ -49,6 +56,7 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+
 class CustomUser(models.Model):
     AUTH_METHOD_CHOICES = [
         ("telegram", "Telegram"),
@@ -73,7 +81,6 @@ class CustomUser(models.Model):
         on_delete=models.SET_NULL,
         related_name="referrals",
         db_column="referrer_id",
-        to_field="telegram_id"
     )
     last_purchase_date = models.DateTimeField(null=True, blank=True)
     total_spent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -100,6 +107,12 @@ class CustomUser(models.Model):
         blank=True,
         db_index=True,
     )
+    referral_code = models.CharField(
+        "Реферальный код",
+        max_length=8,
+        unique=True,
+        db_index=True,
+    )
 
     class Meta:
         db_table = "customers"
@@ -121,7 +134,33 @@ class CustomUser(models.Model):
     def generate_card_id(pk: int) -> str:
         return f"LC-{pk:06d}"
 
+    @staticmethod
+    def _generate_referral_code() -> str:
+        return "".join(random.choices(_REFERRAL_ALPHABET, k=_REFERRAL_CODE_LENGTH))
+
     def save(self, *args, **kwargs):
+        # --- Referral protection: self-referral ---
+        if self.pk and self.referrer_id and self.referrer_id == self.pk:
+            raise ValidationError("Self-referral is not allowed")
+
+        # --- Referral protection: immutable referrer ---
+        if self.pk:
+            old_referrer = (
+                type(self).objects.filter(pk=self.pk)
+                .values_list("referrer_id", flat=True)
+                .first()
+            )
+            if old_referrer is not None and old_referrer != self.referrer_id:
+                raise ValidationError("Referrer cannot be changed after assignment")
+
+        # --- Generate referral_code on first save ---
+        if not self.referral_code:
+            for _attempt in range(10):
+                code = self._generate_referral_code()
+                if not type(self).objects.filter(referral_code=code).exists():
+                    self.referral_code = code
+                    break
+
         super().save(*args, **kwargs)
         if not self.card_id and self.pk:
             self.card_id = self.generate_card_id(self.pk)

@@ -149,6 +149,100 @@ def notify_onec_order_completed(self, order_id: int):
         raise self.retry(exc=exc, countdown=countdown)
 
 
+@shared_task(bind=True, max_retries=5)
+def send_referral_reward_to_onec(self, reward_id: int):
+    """Send referral bonus reward to 1C after first purchase by referee."""
+    from apps.loyalty.models import ReferralReward
+
+    from .onec_client import get_onec_bonus_url, send_bonus_to_onec
+
+    try:
+        reward = (
+            ReferralReward.objects
+            .select_related("referrer")
+            .get(id=reward_id)
+        )
+    except ReferralReward.DoesNotExist:
+        logger.error("send_referral_reward_to_onec: reward %d not found", reward_id)
+        return {"status": "failed", "reason": "reward_not_found"}
+
+    # Idempotency: already successfully sent
+    if reward.status == ReferralReward.Status.SUCCESS:
+        return {"status": "already_sent", "reward_id": reward_id}
+
+    # Check URL configured
+    if not get_onec_bonus_url():
+        logger.info(
+            "send_referral_reward_to_onec: ONEC_BONUS_URL not configured, skipping reward %d",
+            reward_id,
+        )
+        return {"status": "skipped", "reason": "no_url"}
+
+    # Increment attempts
+    ReferralReward.objects.filter(id=reward.id).update(
+        attempts=models.F("attempts") + 1,
+    )
+
+    try:
+        result = send_bonus_to_onec(
+            card_id=reward.referrer.card_id,
+            bonus_amount=reward.bonus_amount,
+            is_accrual=True,
+            receipt_guid=f"ref-{reward.id}",
+        )
+
+        # Success — update status
+        ReferralReward.objects.filter(id=reward.id).update(
+            status=ReferralReward.Status.SUCCESS,
+            last_error="",
+        )
+
+        # Update customer balance if 1C returned new_balance
+        new_balance = result.get("new_balance")
+        if new_balance is not None:
+            from decimal import Decimal
+            from apps.main.models import CustomUser
+            try:
+                balance_str = str(new_balance).replace(",", ".")
+                CustomUser.objects.filter(id=reward.referrer_id).update(
+                    bonuses=Decimal(balance_str),
+                )
+            except (ValueError, TypeError, ArithmeticError):
+                logger.warning(
+                    "send_referral_reward_to_onec: invalid new_balance=%r from 1C",
+                    new_balance,
+                )
+
+        logger.info(
+            "send_referral_reward_to_onec: success reward=%d card=%s bonus=%s new_balance=%s",
+            reward.id, reward.referrer.card_id, reward.bonus_amount,
+            result.get("new_balance"),
+        )
+        return {"status": "sent", "reward_id": reward_id}
+
+    except (requests.RequestException, RuntimeError, ValueError) as exc:
+        error_msg = str(exc)[:1000]
+        ReferralReward.objects.filter(id=reward.id).update(
+            status=ReferralReward.Status.FAILED,
+            last_error=error_msg,
+        )
+        logger.exception(
+            "send_referral_reward_to_onec: failed reward=%d error=%s",
+            reward.id, error_msg,
+        )
+
+        from django.conf import settings as django_settings
+        if getattr(django_settings, "CELERY_TASK_ALWAYS_EAGER", False):
+            return {"status": "failed", "reason": error_msg}
+
+        if self.request.retries >= self.max_retries:
+            return {"status": "failed", "reason": error_msg}
+
+        base = min(20 + self.request.retries * 10, 70)
+        countdown = base + random.uniform(0, base * 0.3)
+        raise self.retry(exc=exc, countdown=countdown)
+
+
 @shared_task(bind=True, max_retries=0)
 def rollback_stuck_assembly_orders(self):
     """Periodic: rollback orders stuck in 'assembly' without 1C confirmation.
