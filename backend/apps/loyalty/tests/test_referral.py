@@ -5,7 +5,6 @@ integration, API endpoints, and registration with referral code.
 """
 
 import json
-import re
 import uuid
 from decimal import Decimal
 from unittest.mock import patch
