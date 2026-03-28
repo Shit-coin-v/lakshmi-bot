@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CustomerBonusTier, CustomerRFMHistory, CustomerRFMProfile
+from .models import CustomerBonusTier, CustomerRFMHistory, CustomerRFMProfile, RFMSegmentSyncLog
 
 
 @admin.register(CustomerBonusTier)
@@ -81,3 +81,10 @@ class CustomerRFMHistoryAdmin(admin.ModelAdmin):
         "calculated_at",
         "created_at",
     )
+
+
+@admin.register(RFMSegmentSyncLog)
+class RFMSegmentSyncLogAdmin(admin.ModelAdmin):
+    list_display = ("effective_month", "status", "total_customers", "chunks_sent", "chunks_failed", "completed_at")
+    list_filter = ("status",)
+    readonly_fields = ("effective_month", "status", "total_customers", "total_chunks", "chunks_sent", "chunks_failed", "last_error", "started_at", "completed_at", "created_at")

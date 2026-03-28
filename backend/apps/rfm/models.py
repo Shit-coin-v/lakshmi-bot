@@ -133,3 +133,33 @@ class CustomerRFMHistory(models.Model):
 
     def __str__(self):
         return f"{self.customer_id}: {self.previous_segment_code} → {self.segment_code} ({self.transition_type})"
+
+
+class RFMSegmentSyncLog(models.Model):
+    """Журнал batch-синхронизации RFM-сегментов в 1С. Одна запись на месяц."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        IN_PROGRESS = "in_progress"
+        SUCCESS = "success"
+        PARTIAL = "partial"      # часть chunks не доставлена
+        FAILED = "failed"
+
+    effective_month = models.DateField(unique=True)  # 2026-04-01
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    total_customers = models.IntegerField(default=0)
+    total_chunks = models.IntegerField(default=0)
+    chunks_sent = models.IntegerField(default=0)
+    chunks_failed = models.IntegerField(default=0)
+    last_error = models.TextField(blank=True, default="")
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "rfm_segment_sync_log"
+        verbose_name = "Лог синхронизации RFM в 1С"
+        verbose_name_plural = "Логи синхронизации RFM в 1С"
+
+    def __str__(self):
+        return f"{self.effective_month} — {self.status}"

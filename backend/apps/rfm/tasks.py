@@ -1,9 +1,13 @@
 import calendar
 import logging
+import math
+import random
 from datetime import date
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +128,9 @@ def fix_monthly_bonus_tiers():
             duration,
         )
 
+    if getattr(settings, "ONEC_RFM_SYNC_ENABLED", False) and created > 0:
+        sync_rfm_segments_to_onec.delay(str(effective_from))
+
     return {
         "effective_from": str(effective_from),
         "effective_to": str(effective_to),
@@ -134,3 +141,148 @@ def fix_monthly_bonus_tiers():
         "total": total,
         "duration_seconds": duration,
     }
+
+
+@shared_task(bind=True, max_retries=3, name="apps.rfm.tasks.sync_rfm_segments_to_onec")
+def sync_rfm_segments_to_onec(self, effective_month: str):
+    """Синхронизация RFM-сегментов в 1С. Отправляет chunks по card_id + segment."""
+    from apps.integrations.onec.onec_client import send_rfm_chunk_to_onec
+
+    from .models import CustomerBonusTier, RFMSegmentSyncLog
+
+    # Kill switch
+    if not getattr(settings, "ONEC_RFM_SYNC_ENABLED", False):
+        logger.info("sync_rfm_segments_to_onec: disabled via ONEC_RFM_SYNC_ENABLED")
+        return {"status": "disabled"}
+
+    rfm_sync_url = getattr(settings, "ONEC_RFM_SYNC_URL", "") or ""
+    if not rfm_sync_url:
+        logger.info("sync_rfm_segments_to_onec: ONEC_RFM_SYNC_URL not configured")
+        return {"status": "skipped", "reason": "no_url"}
+
+    effective_date = date.fromisoformat(effective_month)
+
+    sync_log, _created = RFMSegmentSyncLog.objects.get_or_create(
+        effective_month=effective_date,
+    )
+
+    # Idempotency: уже успешно отправлено
+    if sync_log.status == RFMSegmentSyncLog.Status.SUCCESS:
+        logger.info(
+            "sync_rfm_segments_to_onec: already SUCCESS for %s, skipping",
+            effective_month,
+        )
+        return {"status": "already_sent", "effective_month": effective_month}
+
+    try:
+        # Читаем CustomerBonusTier за месяц, только с card_id
+        bonus_tiers = (
+            CustomerBonusTier.objects
+            .filter(effective_from=effective_date)
+            .select_related("customer")
+            .exclude(customer__card_id__isnull=True)
+            .exclude(customer__card_id="")
+        )
+
+        customers_payload = [
+            {
+                "card_id": bt.customer.card_id,
+                "segment": bt.segment_label_at_fixation,
+            }
+            for bt in bonus_tiers
+        ]
+
+        total_customers = len(customers_payload)
+        if total_customers == 0:
+            logger.info(
+                "sync_rfm_segments_to_onec: no customers with card_id for %s",
+                effective_month,
+            )
+            sync_log.status = RFMSegmentSyncLog.Status.SUCCESS
+            sync_log.completed_at = timezone.now()
+            sync_log.save(update_fields=["status", "completed_at"])
+            return {"status": "empty", "effective_month": effective_month}
+
+        chunk_size = getattr(settings, "ONEC_RFM_SYNC_CHUNK_SIZE", 500)
+        total_chunks = math.ceil(total_customers / chunk_size)
+
+        # Обновляем sync_log: IN_PROGRESS
+        sync_log.status = RFMSegmentSyncLog.Status.IN_PROGRESS
+        sync_log.started_at = timezone.now()
+        sync_log.total_customers = total_customers
+        sync_log.total_chunks = total_chunks
+        sync_log.chunks_sent = 0
+        sync_log.chunks_failed = 0
+        sync_log.last_error = ""
+        sync_log.save(update_fields=[
+            "status", "started_at", "total_customers", "total_chunks",
+            "chunks_sent", "chunks_failed", "last_error",
+        ])
+
+        # Отправляем chunks последовательно
+        for i in range(total_chunks):
+            chunk = customers_payload[i * chunk_size : (i + 1) * chunk_size]
+            try:
+                send_rfm_chunk_to_onec(chunk)
+                sync_log.chunks_sent += 1
+                logger.info(
+                    "sync_rfm_segments_to_onec: chunk %d/%d sent (%d customers)",
+                    i + 1, total_chunks, len(chunk),
+                )
+            except (requests.RequestException, RuntimeError, ValueError) as chunk_exc:
+                sync_log.chunks_failed += 1
+                sync_log.last_error = str(chunk_exc)[:1000]
+                logger.exception(
+                    "sync_rfm_segments_to_onec: chunk %d/%d failed: %s",
+                    i + 1, total_chunks, chunk_exc,
+                )
+            # Сохраняем прогресс после каждого chunk
+            sync_log.save(update_fields=["chunks_sent", "chunks_failed", "last_error"])
+
+        # Финальный статус
+        if sync_log.chunks_failed == 0:
+            sync_log.status = RFMSegmentSyncLog.Status.SUCCESS
+        elif sync_log.chunks_sent > 0:
+            sync_log.status = RFMSegmentSyncLog.Status.PARTIAL
+        else:
+            sync_log.status = RFMSegmentSyncLog.Status.FAILED
+
+        sync_log.completed_at = timezone.now()
+        sync_log.save(update_fields=["status", "completed_at"])
+
+        logger.info(
+            "sync_rfm_segments_to_onec: completed month=%s status=%s "
+            "customers=%d chunks_sent=%d chunks_failed=%d",
+            effective_month, sync_log.status,
+            total_customers, sync_log.chunks_sent, sync_log.chunks_failed,
+        )
+
+        return {
+            "status": sync_log.status,
+            "effective_month": effective_month,
+            "total_customers": total_customers,
+            "chunks_sent": sync_log.chunks_sent,
+            "chunks_failed": sync_log.chunks_failed,
+        }
+
+    except Exception as exc:
+        error_msg = str(exc)[:1000]
+        sync_log.status = RFMSegmentSyncLog.Status.FAILED
+        sync_log.last_error = error_msg
+        sync_log.completed_at = timezone.now()
+        sync_log.save(update_fields=["status", "last_error", "completed_at"])
+
+        logger.exception(
+            "sync_rfm_segments_to_onec: task failed month=%s error=%s",
+            effective_month, error_msg,
+        )
+
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+            return {"status": "failed", "reason": error_msg}
+
+        if self.request.retries >= self.max_retries:
+            return {"status": "failed", "reason": error_msg}
+
+        base = min(20 + self.request.retries * 10, 70)
+        countdown = base + random.uniform(0, base * 0.3)
+        raise self.retry(exc=exc, countdown=countdown)

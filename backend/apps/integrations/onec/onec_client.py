@@ -78,3 +78,30 @@ def send_bonus_to_onec(
     except (ValueError, KeyError):
         pass
     return result
+
+
+def send_rfm_chunk_to_onec(customers_payload: list[dict]) -> dict:
+    """POST list of {card_id, segment} to 1C."""
+    url = getattr(settings, "ONEC_RFM_SYNC_URL", "") or ""
+    if not url:
+        raise ValueError("ONEC_RFM_SYNC_URL not configured")
+
+    headers = build_onec_headers()
+
+    logger.info(
+        "send_rfm_chunk_to_onec: sending %d customers to %s",
+        len(customers_payload), url,
+    )
+
+    resp = requests.post(url, json=customers_payload, headers=headers, timeout=30)
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:500]}")
+
+    result = {"status": "ok", "processed": len(customers_payload)}
+    try:
+        body = resp.json()
+        if "processed" in body:
+            result["processed"] = body["processed"]
+    except (ValueError, KeyError):
+        pass
+    return result
