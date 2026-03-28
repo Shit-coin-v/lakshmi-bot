@@ -190,9 +190,15 @@ class ReferralInfoView(APIView):
             or D("0")
         )
 
+        base_url = getattr(settings, "REFERRAL_BASE_URL", "").rstrip("/")
+        if base_url:
+            referral_link = f"{base_url}/ref/{user.referral_code}/"
+        else:
+            referral_link = f"/ref/{user.referral_code}/"
+
         return Response({
             "referral_code": user.referral_code,
-            "referral_link": f"https://lakshmi.app/ref/{user.referral_code}",
+            "referral_link": referral_link,
             "stats": {
                 "registered_count": registered_count,
                 "purchased_count": purchased_count,

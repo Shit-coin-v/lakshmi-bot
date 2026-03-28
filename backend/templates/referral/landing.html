@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lakshmi - Приглашение</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+background:#f5f5f5;display:flex;justify-content:center;align-items:center;
+min-height:100vh;padding:16px}
+.card{background:#fff;border-radius:16px;padding:32px 24px;max-width:400px;
+width:100%;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.logo{font-size:28px;font-weight:700;color:#2e7d32;margin-bottom:8px}
+.subtitle{color:#666;font-size:14px;margin-bottom:24px}
+.code-label{font-size:13px;color:#888;margin-bottom:8px}
+.code{font-size:32px;font-weight:700;letter-spacing:4px;color:#2e7d32;
+background:#f0f7f0;border-radius:12px;padding:16px;margin-bottom:16px;
+user-select:all;cursor:pointer;position:relative}
+.copy-btn{background:#2e7d32;color:#fff;border:none;border-radius:8px;
+padding:10px 24px;font-size:14px;cursor:pointer;margin-bottom:24px;width:100%}
+.copy-btn:active{background:#1b5e20}
+.copy-ok{color:#2e7d32;font-size:13px;display:none;margin-bottom:16px}
+.divider{height:1px;background:#eee;margin:16px 0}
+.store-links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.store-btn{display:inline-flex;align-items:center;gap:8px;
+background:#222;color:#fff;border-radius:8px;padding:10px 20px;
+text-decoration:none;font-size:13px;font-weight:500}
+.hint{color:#999;font-size:12px;margin-top:20px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Lakshmi</div>
+  <div class="subtitle">Вас пригласили в программу лояльности</div>
+  <div class="code-label">Ваш код приглашения</div>
+  <div class="code" id="code">{{ referral_code }}</div>
+  <button class="copy-btn" id="copyBtn">Скопировать код</button>
+  <div class="copy-ok" id="copyOk">Код скопирован!</div>
+  <div class="divider"></div>
+  <div class="store-links">
+    {% if appstore_url %}
+    <a href="{{ appstore_url }}" class="store-btn">App Store</a>
+    {% endif %}
+    {% if google_play_url %}
+    <a href="{{ google_play_url }}" class="store-btn">Google Play</a>
+    {% endif %}
+  </div>
+  <div class="hint">
+    Установите приложение и введите код при регистрации,<br>
+    чтобы получить бонусы.
+  </div>
+</div>
+<script>
+document.getElementById('copyBtn').addEventListener('click',function(){
+  var code=document.getElementById('code').textContent.trim();
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(code).then(function(){showOk()});
+  }else{
+    var t=document.createElement('textarea');t.value=code;
+    document.body.appendChild(t);t.select();document.execCommand('copy');
+    document.body.removeChild(t);showOk();
+  }
+});
+function showOk(){
+  var el=document.getElementById('copyOk');el.style.display='block';
+  setTimeout(function(){el.style.display='none'},2000);
+}
+</script>
+</body>
+</html>

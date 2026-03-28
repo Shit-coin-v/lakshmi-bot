@@ -123,11 +123,8 @@ class ReferralScreen extends ConsumerWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          SharePlus.instance.share(
-                            ShareParams(
-                              text:
-                                  'Устанавливай приложение Lakshmi по моей ссылке и получай бонусы! ${info.referralLink}',
-                            ),
+                          Share.share(
+                            'Устанавливай приложение Lakshmi по моей ссылке и получай бонусы! ${info.referralLink}',
                           );
                         },
                         icon: const Icon(Icons.share, size: 18),
@@ -217,7 +214,7 @@ class ReferralScreen extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: state.referrals.length,
-                separatorBuilder: (_, __) => Divider(
+                separatorBuilder: (_, _) => Divider(
                   height: 1,
                   indent: 16,
                   color: Colors.grey.shade200,

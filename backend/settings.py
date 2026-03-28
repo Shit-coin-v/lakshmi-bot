@@ -285,6 +285,11 @@ ALLOW_TELEGRAM_HEADER_AUTH = _env_bool("ALLOW_TELEGRAM_HEADER_AUTH", False)
 
 PERSONAL_RANKING_ENABLED = _env_bool("PERSONAL_RANKING_ENABLED", False)
 
+# Referral
+REFERRAL_BASE_URL = os.getenv("REFERRAL_BASE_URL", "")  # e.g. "https://lakshmi.app"
+APPSTORE_URL = os.getenv("APPSTORE_URL", "")
+GOOGLE_PLAY_URL = os.getenv("GOOGLE_PLAY_URL", "")
+
 # Email
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"

@@ -14,6 +14,7 @@ from apps.integrations.onec.receipt import onec_receipt
 from apps.integrations.onec.category_sync_endpoint import onec_category_sync
 from apps.integrations.onec.customers_batch_sync_endpoint import onec_customers_batch_sync
 from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
+from apps.loyalty.referral_redirect import referral_landing
 from apps.loyalty.views import BonusHistoryView, PurchaseAPIView, ReferralInfoView, ReferralListView
 from apps.main.views import CustomerProfileView, SendMessageAPIView
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
@@ -75,4 +76,6 @@ urlpatterns = [
     path("api/bot/", include("apps.bot_api.urls")),
     # Analytics
     path("api/analytics/", include("apps.analytics.urls")),
+    # Referral landing (public, no auth)
+    path("ref/<str:code>/", referral_landing, name="referral-landing"),
 ]

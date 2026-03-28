@@ -133,19 +133,27 @@ async def command_start_handler(message: Message, state: FSMContext):
     else:
         command_args = message.text.split()
         referrer_id = None
-        if len(command_args) > 1 and command_args[1].startswith('ref'):
-            try:
-                referrer_id = int(command_args[1][3:])
-                if not await backend.get_user_by_telegram_id(referrer_id):
+        referral_code = None
+        if len(command_args) > 1:
+            payload = command_args[1]
+            if payload.startswith('ref_'):
+                # New format: /start ref_A7K2M9XP (referral_code)
+                referral_code = payload[4:] or None
+            elif payload.startswith('ref'):
+                # Legacy format: /start ref123456789 (telegram_id)
+                try:
+                    referrer_id = int(payload[3:])
+                    if not await backend.get_user_by_telegram_id(referrer_id):
+                        referrer_id = None
+                except ValueError:
                     referrer_id = None
-            except ValueError:
-                referrer_id = None
 
         await state.update_data(
             telegram_id=message.from_user.id,
             first_name=message.from_user.first_name,
             last_name=message.from_user.last_name,
-            referrer_id=referrer_id
+            referrer_id=referrer_id,
+            referral_code=referral_code,
         )
 
         await send_clean(
@@ -177,14 +185,20 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         callback.from_user.id, telegram_id=callback.from_user.id
     )
 
-    user = await backend.register_user({
+    reg_payload = {
         "telegram_id": callback.from_user.id,
         "first_name": callback.from_user.first_name,
         "last_name": callback.from_user.last_name,
-        "referrer_id": data.get("referrer_id"),
         "personal_data_consent": True,
         "qr_code": str(callback.from_user.id),
-    })
+    }
+    # New format takes priority; legacy referrer_id as fallback
+    if data.get("referral_code"):
+        reg_payload["referral_code"] = data["referral_code"]
+    elif data.get("referrer_id"):
+        reg_payload["referrer_id"] = data["referrer_id"]
+
+    user = await backend.register_user(reg_payload)
 
     # Delete the consent message
     try:
@@ -193,7 +207,9 @@ async def consent_callback(callback: CallbackQuery, state: FSMContext):
         pass
 
     if user:
-        await send_customer_to_onec(user, data.get("referrer_id"))
+        # For 1C: pass referrer's telegram_id
+        referrer_tg_id = data.get("referrer_id") or user.get("referrer_telegram_id")
+        await send_customer_to_onec(user, referrer_tg_id)
         sent = await callback.message.answer(
             "Спасибо! Вы успешно зарегистрированы.\n\n🏠 Вы в главном меню",
             reply_markup=get_qr_code_button(),
@@ -252,7 +268,12 @@ async def callback_handler(callback: CallbackQuery):
     elif callback.data == "invite_friend":
         bot_info = await get_bot().get_me()
         bot_username = bot_info.username
-        ref_link = f"https://t.me/{bot_username}?start=ref{user['telegram_id']}"
+        referral_code = user.get('referral_code', '')
+        if referral_code:
+            ref_link = f"https://t.me/{bot_username}?start=ref_{referral_code}"
+        else:
+            # Fallback for users without referral_code (shouldn't happen)
+            ref_link = f"https://t.me/{bot_username}?start=ref{user['telegram_id']}"
         await callback.message.edit_text(
             f"🔗 Ваша реферальная ссылка:\n{ref_link}",
             reply_markup=get_back_to_menu_button(),
