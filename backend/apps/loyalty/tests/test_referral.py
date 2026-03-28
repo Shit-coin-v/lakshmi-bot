@@ -183,7 +183,7 @@ class ReferralRewardModelTests(TestCase):
         """9. ReferralReward created via _try_referral_reward."""
         from apps.integrations.onec.receipt import _try_referral_reward
 
-        with patch("apps.integrations.onec.tasks.send_referral_reward_to_onec") as mock_task:
+        with patch("apps.integrations.onec.tasks.send_referral_reward_to_onec"):
             _try_referral_reward(self.referee, receipt_guid="guid-first")
 
         self.assertEqual(ReferralReward.objects.count(), 1)
