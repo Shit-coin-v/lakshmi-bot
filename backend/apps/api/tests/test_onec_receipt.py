@@ -560,6 +560,35 @@ class OneCReceiptTests(OneCTestBase):
         from django.conf import settings as _s
         self.assertEqual(response.json()["customer"]["telegram_id"], _s.GUEST_TELEGRAM_ID)
 
+    def test_total_spent_uses_totals_amount_on_full_receipt(self):
+        payload = self._base_payload()
+        payload["receipt_guid"] = "R-FULL"
+        payload["positions"] = [
+            {"product_code": "SKU-1", "quantity": "1", "price": "100.00", "line_number": 1},
+            {"product_code": "SKU-2", "quantity": "1", "price": "50.00", "line_number": 2},
+        ]
+        # sum(pos_total) = 150.00; totals.total_amount = 149.00 (скидка на чек)
+        payload["totals"] = {
+            "total_amount": "149.00",
+            "discount_total": "1.00",
+            "bonus_spent": "0",
+            "bonus_earned": "0",
+        }
+
+        user = CustomUser.objects.create(telegram_id=9101, total_spent=Decimal("0"))
+        payload["customer"] = {"card_id": user.card_id}
+
+        response = self._post_receipt(
+            payload,
+            api_key=security.API_KEY,
+            idem="00000000-0000-0000-0000-000000000501",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        user.refresh_from_db()
+        # Полный чек — total_spent берётся из totals.total_amount, а не из суммы позиций.
+        self.assertEqual(user.total_spent, Decimal("149.00"))
+
     def test_card_id_format(self):
         user = CustomUser.objects.create(telegram_id=9001)
         self.assertRegex(user.card_id, r'^LC-\d{6}$')

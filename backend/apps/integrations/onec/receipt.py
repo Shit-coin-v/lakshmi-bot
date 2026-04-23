@@ -381,7 +381,12 @@ def onec_receipt(request):
 
     if created_count > 0 and not is_guest:
         bonus_delta_to_apply = _quantize(delta_bonus)
-        total_spent_delta = _quantize(total_spent_delta)
+        # Если все позиции чека созданы — берём total_amount из 1С (источник истины).
+        # Если только часть (partial delivery) — используем сумму по позициям.
+        if created_count == len(positions):
+            total_spent_delta = _quantize(total_amount)
+        else:
+            total_spent_delta = _quantize(total_spent_delta)
         update_kwargs: dict[str, Any] = {
             "bonuses": Coalesce(F("bonuses"), Value(D("0"))) + bonus_delta_to_apply,
             "last_purchase_date": purchased_at_value,
