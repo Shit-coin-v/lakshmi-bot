@@ -325,20 +325,23 @@ PRODUCT_IMAGE_ALLOWED_FORMATS = _env_list(
     "PRODUCT_IMAGE_ALLOWED_FORMATS", ["jpg", "jpeg", "png", "webp"]
 )
 PRODUCT_IMAGE_PROCESSING_TIMEOUT = _env_int("PRODUCT_IMAGE_PROCESSING_TIMEOUT", 120)
-PRODUCT_IMAGE_STYLE_PROMPT = os.getenv(
-    "PRODUCT_IMAGE_STYLE_PROMPT",
-    (
-        "Clean studio product photo for grocery delivery catalog. "
-        "Place the product centered on a clean light background, preferably "
-        "white or very light warm gray. Keep realistic proportions. Preserve "
-        "original packaging, label, logo, colors, and readable product text "
-        "as much as possible. Remove hands, people, clutter, table, "
-        "background noise, and extra objects. Add soft natural shadow under "
-        "the product. Use consistent lighting, sharp focus, high detail, "
-        "ecommerce marketplace style. Square 1:1 composition, 1024x1024. "
-        "Do not invent new labels. Do not change the product identity. "
-        "No watermark."
-    ),
+_DEFAULT_PRODUCT_IMAGE_PROMPT = (
+    "Clean studio product photo for grocery delivery catalog. "
+    "Place the product centered on a clean light background, preferably "
+    "white or very light warm gray. Keep realistic proportions. Preserve "
+    "original packaging, label, logo, colors, and readable product text "
+    "as much as possible. Remove hands, people, clutter, table, "
+    "background noise, and extra objects. Add soft natural shadow under "
+    "the product. Use consistent lighting, sharp focus, high detail, "
+    "ecommerce marketplace style. Square 1:1 composition, 1024x1024. "
+    "Do not invent new labels. Do not change the product identity. "
+    "No watermark."
+)
+# Используем "or" вместо default-аргумента os.getenv: если переменная
+# задана пустой строкой (PRODUCT_IMAGE_STYLE_PROMPT= в .env), fallback
+# на дефолт всё равно сработает.
+PRODUCT_IMAGE_STYLE_PROMPT = (
+    os.getenv("PRODUCT_IMAGE_STYLE_PROMPT") or _DEFAULT_PRODUCT_IMAGE_PROMPT
 )
 
 
