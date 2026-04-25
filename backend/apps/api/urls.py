@@ -16,7 +16,11 @@ from apps.integrations.onec.customers_batch_sync_endpoint import onec_customers_
 from apps.integrations.onec.stock_sync_endpoint import onec_stock_sync
 from apps.loyalty.referral_redirect import referral_landing
 from apps.loyalty.views import BonusHistoryView, PurchaseAPIView, ReferralInfoView, ReferralListView
-from apps.main.views import CustomerProfileView, SendMessageAPIView
+from apps.main.views import (
+    CustomerProfileView,
+    ProductImageUploadView,
+    SendMessageAPIView,
+)
 from apps.notifications.views import NotificationViewSet, PushRegisterView, UpdateFCMTokenView
 from apps.integrations.payments.webhook import yukassa_webhook
 from apps.campaigns.views import CustomerPromoView, MarkCampaignUsedView, UserAssignedCampaignsView
@@ -49,6 +53,11 @@ urlpatterns = [
     path("api/catalog/root/", CatalogRootView.as_view(), name="catalog-root"),
     path("api/catalog/<int:pk>/children/", CatalogChildrenView.as_view(), name="catalog-children"),
     path("api/products/", ProductListView.as_view(), name="product-list"),
+    path(
+        "api/products/<int:pk>/image/",
+        ProductImageUploadView.as_view(),
+        name="product-image-upload",
+    ),
     path("api/showcase/", include("apps.showcase.urls")),
     path("api/orders/create/", OrderCreateView.as_view(), name="order-create"),
     path("api/orders/", OrderListUserView.as_view(), name="order-history"),

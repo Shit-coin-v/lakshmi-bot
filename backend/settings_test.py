@@ -47,5 +47,6 @@ REST_FRAMEWORK = {
         "anon_auth": "1000/min",
         "verify_code": "1000/min",
         "telegram_user": "1000/min",
+        "product_image_upload": "1000/min",
     },
 }

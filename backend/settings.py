@@ -251,6 +251,7 @@ REST_FRAMEWORK = {
         "anon_auth": "10/min",
         "verify_code": "5/min",
         "telegram_user": "120/min",
+        "product_image_upload": "30/min",
     },
 }
 
@@ -309,3 +310,61 @@ YUKASSA_SHOP_ID = os.getenv("YUKASSA_SHOP_ID", "")
 YUKASSA_SECRET_KEY = os.getenv("YUKASSA_SECRET_KEY", "")
 YUKASSA_RETURN_URL = os.getenv("YUKASSA_RETURN_URL", "")  # deeplink for return to app
 YUKASSA_PAYMENT_TIMEOUT_MINUTES = _env_int("YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
+
+
+# --- Lakshmi Photo Studio (OpenAI image processing) ---
+# Стилизация фото товаров через OpenAI Image API. Endpoint:
+# POST /api/products/<id>/image/ (см. apps/main/views.py:ProductImageUploadView).
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+PRODUCT_IMAGE_MODEL = os.getenv("PRODUCT_IMAGE_MODEL", "gpt-image-1")
+PRODUCT_IMAGE_OUTPUT_SIZE = os.getenv("PRODUCT_IMAGE_OUTPUT_SIZE", "1024x1024")
+PRODUCT_IMAGE_MAX_UPLOAD_SIZE = _env_int(
+    "PRODUCT_IMAGE_MAX_UPLOAD_SIZE", 10 * 1024 * 1024
+)
+PRODUCT_IMAGE_ALLOWED_FORMATS = _env_list(
+    "PRODUCT_IMAGE_ALLOWED_FORMATS", ["jpg", "jpeg", "png", "webp"]
+)
+PRODUCT_IMAGE_PROCESSING_TIMEOUT = _env_int("PRODUCT_IMAGE_PROCESSING_TIMEOUT", 120)
+PRODUCT_IMAGE_STYLE_PROMPT = os.getenv(
+    "PRODUCT_IMAGE_STYLE_PROMPT",
+    (
+        "Clean studio product photo for grocery delivery catalog. "
+        "Place the product centered on a clean light background, preferably "
+        "white or very light warm gray. Keep realistic proportions. Preserve "
+        "original packaging, label, logo, colors, and readable product text "
+        "as much as possible. Remove hands, people, clutter, table, "
+        "background noise, and extra objects. Add soft natural shadow under "
+        "the product. Use consistent lighting, sharp focus, high detail, "
+        "ecommerce marketplace style. Square 1:1 composition, 1024x1024. "
+        "Do not invent new labels. Do not change the product identity. "
+        "No watermark."
+    ),
+)
+
+
+# --- CORS (для отдельного домена Lakshmi Photo Studio) ---
+# По умолчанию выключен; включается заданием CORS_ALLOWED_ORIGINS в env.
+# Используется django-cors-headers, добавлен в INSTALLED_APPS/MIDDLEWARE
+# только если список не пуст, чтобы не менять поведение существующих
+# endpoints без явной настройки.
+CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
+if CORS_ALLOWED_ORIGINS:
+    if "corsheaders" not in INSTALLED_APPS:
+        INSTALLED_APPS.append("corsheaders")
+    if "corsheaders.middleware.CorsMiddleware" not in MIDDLEWARE:
+        # CorsMiddleware должен идти как можно выше — сразу после
+        # PrometheusBeforeMiddleware и SecurityMiddleware.
+        MIDDLEWARE.insert(2, "corsheaders.middleware.CorsMiddleware")
+    CORS_ALLOW_CREDENTIALS = False
+    CORS_ALLOW_HEADERS = (
+        "accept",
+        "accept-encoding",
+        "authorization",
+        "content-type",
+        "dnt",
+        "origin",
+        "user-agent",
+        "x-csrftoken",
+        "x-requested-with",
+        "x-api-key",
+    )
