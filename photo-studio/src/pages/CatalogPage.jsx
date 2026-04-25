@@ -10,6 +10,7 @@ import Spinner from '../components/Spinner.jsx';
 import useProducts from '../hooks/useProducts.js';
 import useCategories from '../hooks/useCategories.js';
 import useDailyProgress from '../hooks/useDailyProgress.js';
+import useApiKey from '../hooks/useApiKey.js';
 import { useSession } from '../context/SessionContext.jsx';
 import { getPhotoStatus, PHOTO_STATUS } from '../utils/photoStatus.js';
 
@@ -20,6 +21,14 @@ export default function CatalogPage() {
   const navigate = useNavigate();
   const { setSelectedProduct } = useSession();
   const { count: dailyDone } = useDailyProgress();
+  const { clear: clearApiKey } = useApiKey();
+
+  function handleChangeKey() {
+    if (window.confirm('Сменить ключ доступа? Текущая сессия будет сброшена.')) {
+      clearApiKey();
+      window.location.reload();
+    }
+  }
 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -67,13 +76,41 @@ export default function CatalogPage() {
 
   return (
     <div style={{ padding: '12px 16px 80px' }}>
-      <header style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: '8px 0 4px' }}>Каталог товаров</h1>
-        <p style={{ fontSize: 13, color: BRAND.muted, margin: 0 }}>
-          {loading && items.length === 0
-            ? 'Загружаем…'
-            : `Показано: ${filtered.length}${total ? ` из ${total}` : ''}`}
-        </p>
+      <header
+        style={{
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 8,
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: '8px 0 4px' }}>Каталог товаров</h1>
+          <p style={{ fontSize: 13, color: BRAND.muted, margin: 0 }}>
+            {loading && items.length === 0
+              ? 'Загружаем…'
+              : `Показано: ${filtered.length}${total ? ` из ${total}` : ''}`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleChangeKey}
+          aria-label="Сменить ключ доступа"
+          style={{
+            marginTop: 8,
+            padding: '6px 10px',
+            background: BRAND.surface,
+            color: BRAND.muted,
+            border: `1px solid ${BRAND.border}`,
+            borderRadius: RADIUS.md,
+            fontSize: 12,
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Сменить ключ
+        </button>
       </header>
 
       <ProgressDay done={dailyDone} totalMissing={totalMissing} />
