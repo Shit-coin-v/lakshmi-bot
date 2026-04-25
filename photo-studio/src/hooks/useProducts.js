@@ -5,7 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getProducts } from '../api/catalog.js';
 
-export default function useProducts({ search = '', categoryId = null, pageSize = 50 } = {}) {
+export default function useProducts({
+  search = '',
+  categoryId = null,
+  hasImage = null,
+  pageSize = 50,
+} = {}) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -25,6 +30,7 @@ export default function useProducts({ search = '', categoryId = null, pageSize =
         const result = await getProducts({
           search,
           categoryId,
+          hasImage,
           page: nextPage,
           pageSize,
           signal: controller.signal,
@@ -39,7 +45,7 @@ export default function useProducts({ search = '', categoryId = null, pageSize =
         setLoading(false);
       }
     },
-    [search, categoryId, pageSize]
+    [search, categoryId, hasImage, pageSize]
   );
 
   // Сбрасываемся на 1-ю страницу при смене фильтров
@@ -49,7 +55,7 @@ export default function useProducts({ search = '', categoryId = null, pageSize =
       if (abortRef.current) abortRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId]);
+  }, [search, categoryId, hasImage]);
 
   const loadMore = useCallback(() => {
     if (loading) return;

@@ -371,3 +371,11 @@ if CORS_ALLOWED_ORIGINS:
         "x-requested-with",
         "x-api-key",
     )
+    # Без expose браузер не отдаёт пагинационные заголовки в JS, и
+    # клиент не знает общий count → кнопка "Загрузить ещё" не покажется.
+    CORS_EXPOSE_HEADERS = (
+        "X-Total-Count",
+        "X-Page",
+        "X-Page-Size",
+        "Link",
+    )

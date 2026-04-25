@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BRAND, RADIUS } from '../theme.js';
 import SearchBar from '../components/SearchBar.jsx';
@@ -12,7 +12,7 @@ import useCategories from '../hooks/useCategories.js';
 import useDailyProgress from '../hooks/useDailyProgress.js';
 import useApiKey from '../hooks/useApiKey.js';
 import { useSession } from '../context/SessionContext.jsx';
-import { getPhotoStatus, PHOTO_STATUS } from '../utils/photoStatus.js';
+import { PHOTO_STATUS } from '../utils/photoStatus.js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -42,37 +42,67 @@ export default function CatalogPage() {
   }, [searchInput]);
 
   const { categories } = useCategories();
+
+  // Маппим выбор фильтра в параметр backend has_image=true|false|null.
+  // Серверная фильтрация — работает по всему каталогу, а не по
+  // загруженной странице.
+  const hasImage = useMemo(() => {
+    if (photoStatus === PHOTO_STATUS.READY) return true;
+    if (photoStatus === PHOTO_STATUS.MISSING) return false;
+    return null;
+  }, [photoStatus]);
+
   const { items, total, loading, error, loadMore, reload } = useProducts({
     search: debouncedSearch,
     categoryId,
+    hasImage,
   });
 
-  // Локальная фильтрация: статус фото и дополнительный поиск по SKU.
+  // Локально дополнительно фильтруем по product_code, чтобы поиск
+  // ловил SKU независимо от того, ищет ли backend по нему.
   const filtered = useMemo(() => {
-    let out = items;
-    if (photoStatus !== 'all') {
-      out = out.filter((p) => getPhotoStatus(p) === photoStatus);
-    }
     const q = searchInput.trim().toLowerCase();
-    if (q) {
-      out = out.filter(
-        (p) =>
-          (p.product_code || '').toLowerCase().includes(q) ||
-          (p.name || '').toLowerCase().includes(q)
-      );
-    }
-    return out;
-  }, [items, photoStatus, searchInput]);
+    if (!q) return items;
+    return items.filter(
+      (p) =>
+        (p.product_code || '').toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q)
+    );
+  }, [items, searchInput]);
 
-  const totalMissing = useMemo(
-    () => items.filter((p) => getPhotoStatus(p) === PHOTO_STATUS.MISSING).length,
-    [items]
-  );
+  // Сколько товаров без фото — берём напрямую с backend через
+  // отдельный фильтр has_image=false: total = ровно столько товаров
+  // в каталоге без фото. Используется для прогресса дня.
+  const totalMissing = useMemo(() => {
+    if (hasImage === false) return total;
+    if (hasImage === true) return null; // не интересно при просмотре "Готово"
+    return null; // на вкладке "Все" не считаем — слишком неточно
+  }, [hasImage, total]);
 
   function handleSelect(product) {
     setSelectedProduct(product);
     navigate('/camera');
   }
+
+  // Infinite scroll: подгружаем следующую страницу, когда сторожевой
+  // div достиг viewport. Срабатывает только если ещё есть данные.
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return undefined;
+    if (items.length >= total) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [items.length, total, loading, loadMore]);
 
   return (
     <div style={{ padding: '12px 16px 80px' }}>
@@ -90,7 +120,7 @@ export default function CatalogPage() {
           <p style={{ fontSize: 13, color: BRAND.muted, margin: 0 }}>
             {loading && items.length === 0
               ? 'Загружаем…'
-              : `Показано: ${filtered.length}${total ? ` из ${total}` : ''}`}
+              : `${filtered.length}${total ? ` из ${total}` : ''}`}
           </p>
         </div>
         <button
@@ -172,6 +202,15 @@ export default function CatalogPage() {
         </div>
       )}
 
+      {/* Сторожевой div для infinite scroll. Когда пересекает viewport,
+          IntersectionObserver выше вызывает loadMore(). */}
+      {items.length < total && (
+        <div ref={sentinelRef} style={{ height: 1 }} />
+      )}
+
+      {/* Запасная кнопка для тех, у кого Observer недоступен или
+          сторожевой div так и не показался (например, очень короткий
+          список после серверной фильтрации). */}
       {items.length < total && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <button
@@ -190,6 +229,12 @@ export default function CatalogPage() {
           >
             {loading ? <Spinner size={16} /> : 'Загрузить ещё'}
           </button>
+        </div>
+      )}
+
+      {loading && items.length > 0 && (
+        <div style={{ textAlign: 'center', padding: '12px 0' }}>
+          <Spinner size={20} />
         </div>
       )}
     </div>

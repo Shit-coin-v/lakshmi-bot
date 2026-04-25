@@ -19,7 +19,17 @@ class CategoryListSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'parent_id', 'has_children']
 
     def get_has_children(self, obj):
-        return obj.children.filter(is_active=True).exists()
+        qs = obj.children.filter(is_active=True)
+        request = self.context.get("request") if self.context else None
+        if request is not None:
+            from apps.main.services.catalog_filters import request_can_view_hidden
+
+            if not request_can_view_hidden(request):
+                qs = qs.exclude(hide_from_app=True)
+        else:
+            # Без request не можем проверить staff-права — по умолчанию скрываем.
+            qs = qs.exclude(hide_from_app=True)
+        return qs.exists()
 
 
 class ProductListSerializer(serializers.ModelSerializer):

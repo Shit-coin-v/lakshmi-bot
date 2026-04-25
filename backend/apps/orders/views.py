@@ -12,6 +12,10 @@ from rest_framework.views import APIView
 from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import CustomerPermission
 from apps.main.models import Category
+from apps.main.services.catalog_filters import (
+    get_hidden_category_ids,
+    request_can_view_hidden,
+)
 from apps.orders.serializers import (
     CategoryListSerializer,
     OrderCreateSerializer,
@@ -23,9 +27,19 @@ from apps.orders.models import Order, Product
 
 
 class CatalogRootView(generics.ListAPIView):
-    queryset = Category.objects.filter(is_active=True, parent__isnull=True)
     serializer_class = CategoryListSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        qs = Category.objects.filter(is_active=True, parent__isnull=True)
+        if not request_can_view_hidden(self.request):
+            qs = qs.exclude(hide_from_app=True)
+        return qs
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
 
 
 class CatalogChildrenView(generics.ListAPIView):
@@ -34,7 +48,19 @@ class CatalogChildrenView(generics.ListAPIView):
 
     def get_queryset(self):
         parent = generics.get_object_or_404(Category, pk=self.kwargs["pk"])
-        return parent.children.filter(is_active=True)
+        qs = parent.children.filter(is_active=True)
+        if not request_can_view_hidden(self.request):
+            qs = qs.exclude(hide_from_app=True)
+            # Если сам родитель помечен hide_from_app, его потомков тоже скрываем.
+            hidden_ids = get_hidden_category_ids()
+            if parent.pk in hidden_ids:
+                return qs.none()
+        return qs
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
 
 
 class ProductListView(generics.ListAPIView):
@@ -46,9 +72,19 @@ class ProductListView(generics.ListAPIView):
     search_fields = ["name", "description"]
 
     def get_queryset(self):
+        from django.db.models import Q
         from rest_framework.exceptions import ValidationError
 
         qs = super().get_queryset()
+
+        # Скрытые категории — спрятать товары и из выдачи, и из поиска.
+        # Staff (Photo Studio) с валидным X-Api-Key + ?include_hidden=true
+        # получает полный каталог.
+        if not request_can_view_hidden(self.request):
+            hidden_ids = get_hidden_category_ids()
+            if hidden_ids:
+                qs = qs.exclude(category_id__in=hidden_ids)
+
         category_id = self.request.query_params.get("category_id")
         if category_id is not None:
             try:
@@ -57,6 +93,22 @@ class ProductListView(generics.ListAPIView):
                 raise ValidationError({"category_id": "Должно быть целым числом."})
             ids = self._collect_descendant_ids(category_id)
             qs = qs.filter(category_id__in=ids)
+
+        # has_image=true|false — фильтр по наличию загруженного фото.
+        # Используется Photo Studio для вкладок "Готово" / "Нет фото",
+        # чтобы фильтрация работала на всём каталоге, а не локально по
+        # одной странице.
+        has_image = self.request.query_params.get("has_image")
+        if has_image is not None:
+            value = has_image.strip().lower()
+            if value in {"true", "1", "yes"}:
+                qs = qs.exclude(Q(image__isnull=True) | Q(image=""))
+            elif value in {"false", "0", "no"}:
+                qs = qs.filter(Q(image__isnull=True) | Q(image=""))
+            else:
+                raise ValidationError(
+                    {"has_image": "Допустимы значения true/false."}
+                )
         return qs
 
     @staticmethod

@@ -146,6 +146,14 @@ class NewsletterOpenEventAdmin(admin.ModelAdmin):
     readonly_fields = ('occurred_at',)
 
 
-admin.site.register(Category)
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "parent", "is_active", "hide_from_app", "sort_order", "external_id")
+    list_filter = ("is_active", "hide_from_app", "parent")
+    search_fields = ("name", "external_id")
+    list_editable = ("hide_from_app", "is_active", "sort_order")
+    ordering = ("sort_order", "name")
+
+
 admin.site.register(Product, ProductAdmin)
 admin.site.register(CustomUser, CustomUserAdmin)

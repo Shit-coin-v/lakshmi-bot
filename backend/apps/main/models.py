@@ -17,6 +17,14 @@ class Category(models.Model):
     external_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
+    # Скрывает категорию (и её товары) из клиентских API: каталог, поиск,
+    # витрина, рекомендации. Staff/Photo Studio могут получить скрытые
+    # данные, передав `?include_hidden=true` с валидным X-Api-Key.
+    hide_from_app = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Скрыть из приложения",
+    )
 
     class Meta:
         db_table = 'categories'

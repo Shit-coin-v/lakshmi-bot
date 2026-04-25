@@ -19,6 +19,10 @@ from rest_framework.permissions import AllowAny
 
 from apps.common.authentication import JWTAuthentication
 from apps.main.models import CustomUser, Product
+from apps.main.services.catalog_filters import (
+    get_hidden_category_ids,
+    request_can_view_hidden,
+)
 from apps.orders.serializers import ProductListSerializer
 
 
@@ -45,6 +49,14 @@ class ShowcaseView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = Product.objects.filter(is_active=True)
+
+        # Скрытые категории — товары из них не должны попадать в витрину
+        # и в персональные рекомендации (общий queryset). Staff-bypass
+        # (`?include_hidden=true` + X-Api-Key) для витрины тоже работает.
+        if not request_can_view_hidden(self.request):
+            hidden_ids = get_hidden_category_ids()
+            if hidden_ids:
+                qs = qs.exclude(category_id__in=hidden_ids)
 
         use_personal = (
             getattr(django_settings, "PERSONAL_RANKING_ENABLED", False)
