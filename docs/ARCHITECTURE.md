@@ -1,6 +1,6 @@
 # Архитектура проекта
 
-> **Обновлено:** 2026-02-26
+> **Обновлено:** 2026-04-25
 
 ---
 
@@ -11,13 +11,14 @@
 | Backend | Django 5.2 + DRF 3.15, Python 3.12 |
 | Задачи | Celery 5.5 (worker + beat), Redis 7 |
 | БД | PostgreSQL 17 |
-| Боты | aiogram 3.13 (customer, courier, picker) |
-| Мобильное приложение | Flutter (Dart) |
-| Платежи | ЮKassa (СБП, hold/capture) |
+| Боты | aiogram 3.13 (`customer_bot`, `courier_bot`, `picker_bot`) |
+| Mobile | Flutter (Dart) |
+| Платежи | ЮKassa (СБП hold/capture, refund) |
+| Push | FCM (Firebase Cloud Messaging) |
 | Инфраструктура | Docker Compose, Nginx 1.27 |
 | Мониторинг | Prometheus, Grafana, Loki, Promtail |
 | Аналитика | Metabase |
-| CI | GitHub Actions (lint + test + build) |
+| CI | GitHub Actions (lint + tests + Docker build) |
 
 ---
 
@@ -25,167 +26,272 @@
 
 ```
 lakshmi-bot/
-├── docker-compose.yml            # Dev-конфигурация
-├── docker-compose.prod.yml       # Production-оверлей (resource limits, replicas)
-├── Makefile                      # make build/up/test/migrate/backup
-├── .github/workflows/            # CI pipeline
+├── docker-compose.yml             # Базовый compose (dev и prod)
+├── docker-compose.prod.yml        # Production-оверлей (resource limits, backup)
+├── Makefile                       # build/up/test/migrate/backup и пр.
+├── .github/workflows/ci.yml       # Lint → tests (backend, bot, flutter) → docker-build
 │
 ├── scripts/
-│   ├── migrate.sh                # Миграции (вынесены из entrypoint)
+│   ├── migrate.sh                 # python manage.py migrate --noinput
 │   ├── collectstatic.sh
-│   ├── backup_db.sh              # Бэкап PostgreSQL + Metabase
-│   └── init_dev.sh
+│   ├── backup_db.sh               # Ручной бэкап PostgreSQL + Metabase H2
+│   ├── backup_cron.sh             # Бэкап с ротацией (BACKUP_RETENTION_DAYS, по умолчанию 7)
+│   └── init_dev.sh                # Bootstrap dev-окружения
 │
 ├── infra/
 │   ├── docker/
-│   │   ├── backend/Dockerfile    # python:3.12-slim
+│   │   ├── backend/Dockerfile     # python:3.12-slim, Gunicorn
 │   │   └── bots/
-│   │       ├── Dockerfile           # customer_bot
+│   │       ├── Dockerfile         # customer_bot
 │   │       ├── Dockerfile.courier
 │   │       └── Dockerfile.picker
 │   ├── nginx/
-│   │   ├── nginx.conf            # Rate limiting, security headers
-│   │   └── Dockerfile            # nginx:1.27-alpine
-│   ├── redis/redis.conf          # Пароль + protected-mode
+│   │   ├── nginx.conf             # security headers, проксирование Grafana/Metabase, static/media
+│   │   ├── rate-limit.conf        # zone api 20 r/s burst 40, zone onec 50 r/s burst 100
+│   │   └── Dockerfile             # nginx:1.27-alpine
+│   ├── redis/redis.conf           # Пароль + protected-mode
 │   └── observability/
-│       ├── grafana/datasources.yaml
-│       ├── prometheus/
-│       │   ├── prometheus.yml
-│       │   └── alerts.yml        # ServiceDown, HighErrorRate, CeleryBacklog
-│       ├── loki/loki-config.yaml
-│       └── promtail/promtail-config.yaml
+│       ├── grafana/
+│       │   ├── datasources.yaml
+│       │   ├── dashboards.yaml
+│       │   └── json/lakshmi-operations.json
+│       ├── prometheus.yml         # scrape app:8000/metrics, rule_files: alerts.yml
+│       ├── alerts.yml             # ServiceDown, HighErrorRate, CeleryQueueBacklog
+│       ├── loki-config.yaml
+│       └── promtail-config.yaml
 │
-├── backend/                      # Django-приложение
-│   ├── settings.py               # Основные настройки
-│   ├── settings_test.py          # SQLite, eager Celery, LocMemCache
-│   ├── celeryapp.py              # Celery app + beat schedule
-│   ├── requirements.txt          # Production-зависимости
-│   ├── requirements-dev.txt      # Dev: pytest, ruff
-│   ├── entrypoint.sh             # Gunicorn (без миграций)
+├── backend/
+│   ├── settings.py                # Production-settings
+│   ├── settings_test.py           # SQLite, eager Celery, LocMemCache
+│   ├── celeryapp.py               # Celery app + beat-schedule (8 задач)
+│   ├── requirements.txt
+│   ├── requirements-dev.txt       # pytest, ruff
+│   ├── entrypoint.sh              # Gunicorn (миграции вынесены)
 │   │
 │   └── apps/
-│       ├── main/                 # Product, CustomUser, BroadcastMessage, NewsletterDelivery
-│       ├── orders/               # Order, OrderItem, CourierProfile, PickerProfile, RoundRobinCursor
-│       ├── loyalty/              # Transaction (покупки, бонусы)
-│       ├── notifications/        # Notification, CustomerDevice, push-задачи
-│       ├── accounts/             # Email-авторизация: JWT, регистрация, merge аккаунтов
-│       ├── bot_api/              # API для ботов: заказы, персонал, статусы
-│       ├── common/               # security, permissions, middleware, health
+│       ├── common/                # health, security (require_onec_auth), middleware, permissions, authentication (JWT)
+│       ├── api/                   # Корневые urls, OneCClientMap, ReceiptDedup, AppConfigView
+│       ├── main/                  # Product, CustomUser, BroadcastMessage, NewsletterDelivery
+│       ├── orders/                # Order, OrderItem, OrderItemChange, CourierProfile, PickerProfile, RoundRobinCursor
+│       ├── loyalty/               # Transaction, ReferralReward, BonusHistoryView, ReferralInfo/List
+│       ├── notifications/         # Notification, CustomerDevice, FCM push, beat-задачи
+│       ├── accounts/              # Email-авторизация: JWT, регистрация, merge аккаунтов
+│       ├── bot_api/               # Service API для ботов: заказы, персонал, статусы
+│       ├── analytics/             # AnalyticsEvent (session_start/end, screen_view, cart_*, search, promo_click)
+│       ├── campaigns/             # CustomerSegment, Campaign, CampaignRule, CustomerCampaignAssignment, CampaignRewardLog
+│       ├── rfm/                   # CustomerRFMProfile, CustomerBonusTier, CustomerRFMHistory, RFMSegmentSyncLog
+│       ├── showcase/              # ProductRanking (global + personal), urls под /api/showcase/
 │       └── integrations/
-│           ├── onec/             # 1C ERP: sync клиентов/товаров, чеки, заказы
-│           ├── payments/         # ЮKassa: СБП hold/capture, webhook, expire
-│           └── delivery/         # Заглушка (не реализовано)
+│           ├── onec/              # 1C ERP: чеки, клиенты, товары, категории, остатки, заказы, RFM-sync
+│           ├── payments/          # ЮKassa: СБП hold/capture, webhook, expire, refund
+│           └── delivery/          # Заглушка
 │
 ├── bots/
-│   ├── customer_bot/             # Клиентский Telegram-бот
-│   ├── courier_bot/              # Бот курьера (round-robin назначение)
-│   └── picker_bot/               # Бот сборщика (3-step flow)
+│   ├── customer_bot/
+│   ├── courier_bot/               # Round-robin назначение
+│   └── picker_bot/                # 3-step flow сборщика
 │
-├── shared/                       # Общий код между backend и bots
+├── shared/                        # Общий код backend ↔ боты
 │   ├── clients/
-│   │   ├── onec_client.py        # Async HTTP-клиент 1C (aiohttp)
-│   │   └── backend_client.py     # Бот → Backend HTTP-клиент
-│   ├── broadcast/                # Django ORM sender для рассылок
-│   ├── bot_utils/                # Общие утилиты ботов: access, cleanup, retry
+│   │   ├── onec_client.py         # Async aiohttp-клиент 1C
+│   │   └── backend_client.py      # Бот → Backend
+│   ├── broadcast/                 # Django ORM sender для рассылок
+│   ├── bot_utils/                 # access, cleanup, retry
 │   ├── dto/
-│   └── config/
+│   ├── config/
+│   └── referral.py                # Реферальная логика (общая для backend и ботов)
 │
-├── mobile/flutter_app/           # Flutter мобильное приложение
+├── mobile/flutter_app/
 │
 └── docs/
-    ├── ARCHITECTURE.md           # Этот файл
-    ├── DEPLOYMENT.md             # Инструкции по деплою
-    ├── FULL_AUDIT_2026_02_07.md  # Аудит безопасности v3.0 (39 задач — все закрыты)
-    └── plans/                    # Исторические спецификации и планы
+    ├── ARCHITECTURE.md            # Этот файл
+    ├── DEPLOYMENT.md
+    ├── 1c-integration-code.md     # Готовый BSL-код для интеграции с 1С
+    ├── backend/                   # Дополнительные backend-доки
+    └── plans/                     # Исторические спецификации
 ```
 
 ---
 
 ## Авторизация
 
-Три механизма, разделены по зонам:
+Четыре механизма, разделены по зонам:
 
 | Механизм | Где используется | Заголовок | Ответ при ошибке |
-|----------|-----------------|-----------|-----------------|
-| `@require_onec_auth` | 1C endpoints (`/onec/*`) | `X-Api-Key` + IP whitelist | 401 |
-| `ApiKeyPermission` | Backend-to-backend (push, SendMessage) | `X-Api-Key` | 403 |
-| `TelegramUserPermission` | Customer-facing endpoints | `X-Telegram-User-Id` | 403 |
-| JWT (PyJWT) | Email-авторизация (`/api/auth/*`) | `Authorization: Bearer <token>` | 401 |
+|----------|-----------------|-----------|------------------|
+| `@require_onec_auth` (apps/common/security.py) | endpoints `/onec/*` | `X-Api-Key` + опциональный IP whitelist `ONEC_ALLOW_IPS` | 401 / 403 |
+| `ApiKeyPermission` (apps/common/permissions.py) | service-to-service (push, SendMessage) | `X-Api-Key` / `X-Onec-Auth` | 403 |
+| `TelegramUserPermission` / `CustomerPermission` | клиентские endpoints | `X-Telegram-User-Id` (или JWT в `CustomerPermission`, флаг `ALLOW_TELEGRAM_HEADER_AUTH`) | 403 |
+| JWT `JWTAuthentication` (apps/common/authentication.py) | мобильное приложение `/api/auth/*` | `Authorization: Bearer <token>` | 401 |
+
+JWT: HS256 на Django `SECRET_KEY`, access — 30 мин, refresh — 7 дней. HMAC-подписи не используются.
+
+В production пустой `ONEC_ALLOW_IPS` = «запретить всё» (403). Поддерживаются wildcard-маски (`192.168.1.*`).
 
 ---
 
 ## Поток заказа
 
 ```
-Клиент (Flutter) → POST /api/orders/create/
-  ├── cash/card_courier → Order(new) → 1C + push сборщикам
-  └── sbp → ЮKassa hold → webhook → Order(new) → 1C + push сборщикам
+Источники заказа:
+  Mobile app → POST /api/orders/create/        (cash / card_courier / sbp)
+  1С        → POST /onec/order                 (привязка onec_guid)
+
+Оплата СБП: ЮKassa hold (authorized) → Order(new) → 1С + push сборщикам
+Оплата cash/card_courier: сразу Order(new) → 1С + push сборщикам
 
 Сборщик (picker_bot):
   new → accepted → assembly → ready
-  ready + самовывоз → completed
+  ready (самовывоз) → completed
 
-Курьер (courier_bot, round-robin назначение):
-  ready + доставка → delivery → arrived → completed
-  completed → ЮKassa capture (если СБП)
+Курьер (courier_bot, round-robin RoundRobinCursor по store_id):
+  ready (доставка) → delivery → arrived → completed
+  completed (СБП) → ЮKassa capture
 
-Отмена на любом этапе → cancel + ЮKassa refund (если СБП)
+Отмена на любом этапе → canceled + ЮKassa refund (для СБП)
 ```
 
-Статусы: `new → accepted → assembly → ready → delivery → arrived → completed` (+ `canceled`)
+Статусы: `new → accepted → assembly → ready → delivery → arrived → completed` (+ `canceled`).
+
+`/onec/orders/pending` (GET) атомарно переводит выбранные заказы из `new` в `assembly`.
 
 ---
 
-## Celery-задачи
+## Программа лояльности
 
-| Задача | Расписание | Описание |
-|--------|-----------|----------|
-| `send_order_to_onec` | По событию | Отправка заказа в 1C (retry с jitter) |
-| `broadcast_send_task` | По событию | Рассылка через Telegram (async_to_sync) |
-| `send_telegram_message_task` | По событию | Одиночное сообщение в Telegram |
-| `send_birthday_congratulations` | Beat (ежедневно) | Поздравления с ДР |
-| `expire_pending_payments` | Beat (каждые 5 мин) | Отмена неоплаченных СБП-платежей |
-| `redispatch_unassigned_orders` | Beat (каждые 2 мин) | Назначение курьера на нераспределённые заказы |
-| `rollback_stuck_assembly_orders` | Beat (каждые 5 мин) | Откат застрявших заказов в `new` |
+- `Transaction` — фиксация продаж и бонусов. Ключевые поля для чеков 1С: `receipt_guid`, `receipt_line`, `receipt_bonus_*`.
+- Идемпотентность: `idempotency_key` (UUID) и `(receipt_guid, receipt_line)` (unique).
+- `purchase_type ∈ {delivery, pickup, in_store}` — устанавливается в чеках и заказах.
+- `store_id` — Integer, внешний ID магазина из 1С (модель Store не вводится).
+- `ReferralReward` — реферальные начисления (`pending`/`success`/`failed`), один reward на одного `referee`.
+- Гостевые чеки (без `card_id`) привязываются к пользователю с `GUEST_TELEGRAM_ID`.
+
+### RFM (apps/rfm)
+
+- `CustomerRFMProfile` — текущие R/F/M-скоры и `segment_label`.
+- `CustomerBonusTier` — фиксация месячного тира (`champions`/`standard`) с `effective_from`/`effective_to`.
+- `CustomerRFMHistory` — лог переходов между сегментами.
+- `RFMSegmentSyncLog` — лог чанков синхронизации в 1С.
+
+Расчёт ежедневно (`recalculate_all_rfm`), фиксация тиров — 1-го числа месяца (`fix_monthly_bonus_tiers`). При `ONEC_RFM_SYNC_ENABLED=true` после фиксации запускается `sync_rfm_segments_to_onec` (чанками по `ONEC_RFM_SYNC_CHUNK_SIZE`, по умолчанию 500). Названия сегментов отдаются на русском.
+
+### Кампании (apps/campaigns)
+
+- `CustomerSegment` — ручной или правило-ориентированный.
+- `Campaign` — `audience_type ∈ {customer_segment, rfm_segment}`.
+- `CampaignRule` — `reward_type ∈ {fixed_bonus, bonus_percent, fixed_plus_percent, product_discount}`.
+- `CustomerCampaignAssignment`, `CampaignRewardLog` — назначения и журнал начислений.
+- Триггер начисления — обработка чека (`/onec/receipt`) и реферальные события (fail-open).
+
+### Витрина (apps/showcase)
+
+- `ProductRanking` — глобальный рейтинг товаров и (опционально) персональный (`PERSONAL_RANKING_ENABLED`).
+- Эндпоинты под `/api/showcase/`.
+
+### Аналитика (apps/analytics)
+
+- `AnalyticsEvent` — события клиента (session_start/end, screen_view, cart_add/remove, search, promo_click).
+- Индексы: `(user, event_type)`, `created_at`. Эндпоинты под `/api/analytics/`.
+
+---
+
+## Celery-задачи и beat-schedule
+
+Beat-расписание (backend/celeryapp.py):
+
+| Задача | Расписание | Назначение |
+|--------|-----------|------------|
+| `send_order_to_onec` | по событию | Отправка заказа в 1С (retry 20–70 сек с jitter) |
+| `broadcast_send_task` | по событию | Рассылка через Telegram (Django ORM sender) |
+| `send_telegram_message_task` | по событию | Одиночное сообщение в Telegram |
+| `send_birthday_congratulations` | ежедневно 09:00 (Asia/Yakutsk) | Поздравления с ДР через FCM/Telegram |
+| `redispatch_unassigned_orders` | каждые 2 мин | Round-robin назначение курьера |
+| `expire_pending_payments` | каждые 5 мин | Отмена просроченных СБП-платежей |
+| `rollback_stuck_assembly_orders` | каждые 5 мин | Откат застрявших заказов из `assembly` в `new` |
+| `recalculate_rfm_profiles` | ежедневно 03:00 | Пересчёт RFM-сегментов |
+| `fix_monthly_bonus_tiers` | 1-го числа 00:05 | Месячная фиксация бонусных тиров (+ опц. sync в 1С) |
+| `calculate_showcase_rankings` | ежедневно 04:00 | Глобальный рейтинг товаров (time_limit 1800s) |
+| `calculate_personal_rankings` | ежедневно 04:30 | Персональные рейтинги (если `PERSONAL_RANKING_ENABLED`, time_limit 3600s) |
+
+Scheduler — `django_celery_beat.schedulers:DatabaseScheduler`. Worker — `--max-tasks-per-child=1000`.
 
 ---
 
 ## Docker-сервисы
 
-| Сервис | Образ | Описание |
-|--------|-------|----------|
-| `app` | backend/Dockerfile | Django + Gunicorn |
-| `celery_worker` | backend/Dockerfile | Celery worker (max-tasks-per-child=1000) |
-| `celery_beat` | backend/Dockerfile | Celery beat (DatabaseScheduler) |
-| `customer_bot` | bots/Dockerfile | Клиентский Telegram-бот |
-| `courier_bot` | bots/Dockerfile.courier | Бот курьера |
-| `picker_bot` | bots/Dockerfile.picker | Бот сборщика |
-| `db` | postgres:17 | PostgreSQL |
-| `redis` | redis:7 | Брокер Celery + кэш (с паролем) |
-| `nginx` | nginx:1.27-alpine | Reverse proxy (prod) |
-| `prometheus` | prom/prometheus | Метрики |
-| `grafana` | grafana/grafana | Дашборды |
-| `loki` | grafana/loki | Логи |
-| `promtail` | grafana/promtail | Сбор логов |
-| `metabase` | metabase/metabase | Аналитика (H2 DB) |
+| Сервис | Образ | Назначение |
+|--------|-------|-----------|
+| `app` | infra/docker/backend/Dockerfile | Django + Gunicorn, healthcheck `/healthz/` |
+| `celery_worker` | infra/docker/backend/Dockerfile | Worker, healthcheck `celery inspect ping` |
+| `celery_beat` | infra/docker/backend/Dockerfile | Beat (`DatabaseScheduler`) |
+| `customer_bot` | infra/docker/bots/Dockerfile | Клиентский Telegram-бот |
+| `courier_bot` | infra/docker/bots/Dockerfile.courier | Бот курьера |
+| `picker_bot` | infra/docker/bots/Dockerfile.picker | Бот сборщика |
+| `db` | postgres:17 | PostgreSQL, healthcheck `pg_isready` |
+| `redis` | redis:7 | Брокер Celery + кэш (с паролем), healthcheck `redis-cli ping` |
+| `nginx` | infra/nginx/Dockerfile (1.27-alpine) | Reverse proxy, rate-limit, security headers |
+| `prometheus` | prom/prometheus:v2.48.1 | Метрики (`/metrics` приложения) |
+| `grafana` | grafana/grafana:10.4.3 | Дашборды (root_url из `PUBLIC_BASE_URL`/grafana/) |
+| `loki` | grafana/loki:2.9.6 | Логи |
+| `promtail` | grafana/promtail:2.9.6 | Сбор логов из `/var/lib/docker/containers` |
+| `metabase` | metabase/metabase:v0.50.36 | Аналитика на PostgreSQL |
+| `migrate` | infra/docker/backend/Dockerfile | One-off (профиль `setup`): `python manage.py migrate` |
+| `collectstatic` | infra/docker/backend/Dockerfile | One-off (профиль `setup`): `collectstatic --noinput` |
+| `db_backup` | postgres:17 | One-off (профиль `backup`, prod-overlay): бэкап с ротацией |
+
+Сети: `backend` (app/celery/db/redis/боты), `monitoring` (prometheus/grafana/loki/promtail/app/nginx), `bot` (боты + app + redis).
+
+Volumes: `static`, `media`, `pg_data`, `db_backups`, `lokidata`, `grafanadata`, `prometheusdata`, `metabase-data`, `redis_data`.
 
 ---
 
-## Сети Docker (production)
+## Production-оверлей (`docker-compose.prod.yml`)
 
-| Сеть | Сервисы |
-|------|---------|
-| `frontend` | nginx |
-| `backend` | app, celery_worker, celery_beat, db, redis, боты |
-| `monitoring` | prometheus, grafana, loki, promtail |
+- `nginx` слушает 80 и 443 (SSL termination на внешнем proxy).
+- Resource limits: app 2 CPU / 2 GB, celery_worker 1 CPU / 1 GB, celery_beat 0.5 / 512 MB, db 2 CPU / 2 GB, redis 0.5 / 512 MB, nginx 1 / 512 MB.
+- `celery_worker` масштабируется через `--scale celery_worker=N`.
+- Сервис `db_backup` (профиль `backup`) — ручной/cron-запуск с ротацией (`BACKUP_RETENTION_DAYS=7` по умолчанию).
+- Увеличенные лимиты json-логов.
 
 ---
 
-## Ключевые решения
+## Наблюдаемость
 
-- **Два 1C-клиента** (async в ботах + sync в Celery) — осознанный split, разные retry-стратегии
-- **`store_id` как Integer** (не FK) — внешний ID из 1C, модель Store не нужна
-- **Round-robin курьеров** — `RoundRobinCursor` с `select_for_update`, event-driven + beat fallback
-- **Broadcast через Django ORM** — SQLAlchemy удалена, единый канал
-- **Header-based пагинация** — тело ответа = массив, мета в заголовках `X-Total-Count`, `Link`
-- **SSL на внешнем proxy** — Nginx слушает порт 80, SSL termination на Cloudflare/Caddy
+- **Метрики:** `app:8000/metrics` (django-prometheus middleware), Prometheus scrape interval 15s.
+- **Алерты** (`infra/observability/alerts.yml`):
+  - `ServiceDown` — `up == 0` в течение 1 мин (critical)
+  - `HighErrorRate` — доля 5xx > 5% за 5 мин (warning)
+  - `CeleryQueueBacklog` — активных задач > 50 в течение 10 мин (warning)
+- **Логи:** Promtail → Loki, логи Docker-контейнеров.
+- **Дашборды:** Grafana авто-провижн `lakshmi-operations.json`.
+- **BI:** Metabase подключён к PostgreSQL.
+- Все observability-порты слушают `127.0.0.1` (доступ — через nginx-проксирование `/grafana/`, `/metabase/`).
+
+---
+
+## CI (GitHub Actions, `.github/workflows/ci.yml`)
+
+| Job | Зависит от | Что делает |
+|-----|-----------|------------|
+| `lint` | — | `ruff check backend/ bots/ shared/` |
+| `test-backend` | lint | Django tests, `DJANGO_SETTINGS_MODULE=settings_test` |
+| `test-bot` | lint | pytest по `bots/customer_bot/tests/` со service-postgres |
+| `test-flutter` | lint | `flutter analyze && flutter test` |
+| `docker-build` | все tests | Сборка образов app + customer_bot |
+
+Триггеры: push в `dev`/`main`, PR в `main`.
+
+---
+
+## Ключевые архитектурные решения
+
+- **Два 1C-клиента** (async aiohttp в ботах + sync requests в Celery) — осознанный split, разные retry-стратегии.
+- **`store_id` как Integer** (не FK) — внешний ID из 1С, модель Store не вводится.
+- **Round-robin курьеров** — `RoundRobinCursor` с `select_for_update`, event-driven + beat fallback.
+- **Broadcast через Django ORM** — SQLAlchemy удалена, единый канал.
+- **Header-based пагинация** — тело ответа = массив, мета в заголовках `X-Total-Count`, `Link`.
+- **SSL на внешнем proxy** — Nginx слушает 80/443 (HTTP), TLS termination у Cloudflare/Caddy.
+- **Идемпотентность чеков** — пара `(receipt_guid, receipt_line)` unique + `X-Idempotency-Key` (UUID) на `/onec/receipt`.
+- **Гостевые чеки** — `GUEST_TELEGRAM_ID` для покупок без `card_id`.
+- **Миграции вне entrypoint** — отдельный one-off сервис под профилем `setup` устраняет race conditions при scale.
+- **RFM как отдельное приложение** — изолированная пересчёт-логика и отдельный sync-канал в 1С с журналом батчей.
