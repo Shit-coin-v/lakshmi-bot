@@ -56,7 +56,9 @@ class ProductsGridView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.75,
+            // Квадратная область фото 1:1 + ~127px на название
+            // (фиксировано 2 строки), цену и кнопку с запасом.
+            childAspectRatio: 0.55,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

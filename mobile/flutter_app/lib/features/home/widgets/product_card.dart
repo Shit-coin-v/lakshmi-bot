@@ -35,50 +35,65 @@ class ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          // Квадратная область фото 1:1 — AI-обработанные снимки
+          // 1024x1024 показываются целиком без обрезки.
+          AspectRatio(
+            aspectRatio: 1.0,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
-              child: Image.network(
-                product.fullImageUrl,
-                fit: BoxFit.cover,
+              child: Container(
+                color: Colors.white,
                 width: double.infinity,
-                errorBuilder: (ctx, err, stack) => const Center(
-                  child: Icon(
-                    Icons.image_not_supported,
-                    size: 40,
-                    color: Colors.grey,
+                child: Image.network(
+                  product.fullImageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (ctx, err, stack) => const Center(
+                    child: Icon(
+                      Icons.image_not_supported,
+                      size: 40,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Фиксируем высоту области названия под 2 строки —
+                  // тогда у соседних карточек кнопки окажутся на одной
+                  // линии независимо от длины названия.
+                  SizedBox(
+                    height: 32,
+                    child: Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  product.price.formatPrice(),
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                  const SizedBox(height: 4),
+                  Text(
+                    product.price.formatPrice(),
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (quantity == 0)
+                  const Spacer(),
+                  if (quantity == 0)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -125,7 +140,8 @@ class ProductCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
