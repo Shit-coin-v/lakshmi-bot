@@ -7,11 +7,14 @@
 
 ---
 
+> **Статус Critical (раздел 1): ✅ закрыты в `dev`**, коммиты `e5e76fd → 6c09a45`.
+> Backend test-suite: **825/831 passed**, 6 ошибок — все 6 pre-existing на baseline `05104ff`, к моим изменениям отношения не имеют.
+
 ## 0. Резюме
 
 | Severity     | Кол-во | Ключевые блокеры                                                                 |
 |--------------|--------|----------------------------------------------------------------------------------|
-| **Critical** | 5      | PyJWT CVE-2024-53861, OrderCreate без atomic+idempotency, гонка webhook ЮKassa, dev-секреты в `.env`, отсутствие locks на Celery beat |
+| **Critical** | 5 → **0** ✅ | PyJWT CVE-2024-53861, OrderCreate без atomic+idempotency, гонка webhook ЮKassa, dev-секреты в `.env`, отсутствие locks на Celery beat |
 | **High**     | 12     | Логирование PII в OrderCreate, FCM token в логах, `except Exception` в платежах/чеках, partial RFM sync retry, magic numbers в финансах, X-Telegram-User-Id auth flag |
 | **Medium**   | ~25    | N+1 в сериализаторах, дублирование handlers между ботами, file-uploads без magic-bytes, `bot/*` deps без pin, длинные view-файлы, нет state-machine на Order, axios `^1.7.9` |
 | **Low/Info** | ~15    | Cleanup без logger, deprecated поля, комментированный код, base64 cursor, `canceled→new` переход без документации |
@@ -25,16 +28,16 @@
 
 ---
 
-## 1. CRITICAL
+## 1. CRITICAL — все закрыты ✅
 
-### C1. PyJWT 2.9.0 — CVE-2024-53861 (issuer claim type confusion)
+### C1. PyJWT 2.9.0 — CVE-2024-53861 (issuer claim type confusion) ✅ closed in `e5e76fd`
 **Файл:** `backend/requirements.txt:56`
 **Текущая версия:** `PyJWT==2.9.0`
 **Безопасная версия:** `>=2.10.1`
 **Воздействие:** в issuer-проверке `jwt.decode(...)` неконтролируемые типы могут привести к auth-bypass. В проекте JWT используется как основной механизм авторизации мобильного приложения (`backend/apps/common/authentication.py`).
 **Исправление:** `pip install --upgrade 'PyJWT>=2.10.1'`, обновить `backend/requirements.txt`, прогнать backend-тесты.
 
-### C2. `OrderCreateView` — отсутствуют `transaction.atomic` и idempotency
+### C2. `OrderCreateView` — отсутствуют `transaction.atomic` и idempotency ✅ closed in `47c83fe`
 **Файл:** `backend/apps/orders/views.py:133-161`
 - `create()` не обёрнут в `transaction.atomic()`. Сравните с `OrderCancelView.post` (строка 197), где atomic + `select_for_update()` есть.
 - Нет проверки `Idempotency-Key` или дедупа по корзине: двойной POST/двойной клик → два заказа, две инициации платежа в ЮKassa.
@@ -43,14 +46,14 @@
 1. Обернуть `create()`/`OrderCreateSerializer.create()` в `transaction.atomic()`.
 2. Принять `Idempotency-Key` (как в `apps/integrations/onec/receipt.py:128`); кэшировать `(customer_id, idempotency_key) → order_id` в Redis на 30 мин или в новой модели; при повторе возвращать тот же order.
 
-### C3. ЮKassa webhook может прийти раньше, чем заказ создан в БД
+### C3. ЮKassa webhook может прийти раньше, чем заказ создан в БД ✅ closed in `1f916df`
 **Файл:** `backend/apps/integrations/payments/webhook.py:99` (`Order.objects.get(payment_id=...)`)
 **Сценарий:** медленный `Order.save()` → webhook от ЮKassa приходит первым → `DoesNotExist` → 404 в адрес ЮKassa → ЮKassa перестаёт ретраить (или ретраит, но статус заказа уже потерян).
 **Исправление:**
 - Возвращать 200 + ставить отложенную задачу-ретрай на webhook-обработку через 5–10 сек, если order не найден.
 - Либо создавать `Order` до вызова `yukassa.create_payment(...)` (см. C2 — это совмещается).
 
-### C4. Celery beat-таски без локов — двойное выполнение при overlap
+### C4. Celery beat-таски без локов — двойное выполнение при overlap ✅ closed in `2b36e83`
 **Файлы:**
 - `backend/apps/rfm/tasks.py` — `recalculate_all_rfm`
 - `backend/apps/integrations/payments/tasks.py:279-307` — `expire_pending_payments`
@@ -69,7 +72,7 @@ def recalculate_all_rfm():
         ...
 ```
 
-### C5. Реальные production-токены в локальном `.env`
+### C5. Реальные production-токены в локальном `.env` ⚠️ tooling добавлен в `4e7ec5d`, ротация — за пользователем
 **Файл:** `.env:2,4,6,11,91,110`
 - `BOT_TOKEN`, `COURIER_BOT_TOKEN`, `PICKER_BOT_TOKEN` — реальные токены ботов.
 - `EMAIL_HOST_PASSWORD=zbtgpagjjrkpmctq` — Yandex app-password.
