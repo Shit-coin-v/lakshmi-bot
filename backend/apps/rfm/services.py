@@ -12,21 +12,24 @@ from .models import CustomerRFMHistory, CustomerRFMProfile
 # Каждый список содержит 4 порога, разбивающих клиентов на 5 групп (1..5).
 # Значения подобраны как разумные стартовые для розничной торговли.
 # При необходимости заменить на расчёт по перцентилям.
+# Прокси-доступ через функции, чтобы settings подхватывались на момент
+# вызова (важно для тестов с override_settings).
 # ---------------------------------------------------------------------------
 
-# Recency: меньше дней = лучше → выше score
-RECENCY_THRESHOLDS = [7, 30, 90, 180]  # дни
 
-# Frequency: больше покупок = лучше → выше score
-FREQUENCY_THRESHOLDS = [2, 5, 10, 20]  # количество
+def _recency_thresholds():
+    """Recency: меньше дней = лучше → выше score (дни)."""
+    return getattr(settings, "RFM_RECENCY_THRESHOLDS", [7, 30, 90, 180])
 
-# Monetary: больше потрачено = лучше → выше score
-MONETARY_THRESHOLDS = [
-    Decimal("1000"),
-    Decimal("5000"),
-    Decimal("15000"),
-    Decimal("50000"),
-]
+
+def _frequency_thresholds():
+    """Frequency: больше покупок = лучше → выше score (количество)."""
+    return getattr(settings, "RFM_FREQUENCY_THRESHOLDS", [2, 5, 10, 20])
+
+
+def _monetary_thresholds():
+    """Monetary: больше потрачено = лучше → выше score (сумма)."""
+    return getattr(settings, "RFM_MONETARY_THRESHOLDS", [1000, 5000, 15000, 50000])
 
 # ---------------------------------------------------------------------------
 # Карта rfm_code → segment_label.
@@ -65,7 +68,7 @@ def _score_recency(days: int | None) -> int:
     """Recency score: меньше дней → выше score."""
     if days is None:
         return 1
-    for i, threshold in enumerate(RECENCY_THRESHOLDS):
+    for i, threshold in enumerate(_recency_thresholds()):
         if days <= threshold:
             return 5 - i
     return 1
@@ -73,7 +76,7 @@ def _score_recency(days: int | None) -> int:
 
 def _score_frequency(count: int) -> int:
     """Frequency score: больше покупок → выше score."""
-    for i, threshold in enumerate(reversed(FREQUENCY_THRESHOLDS)):
+    for i, threshold in enumerate(reversed(_frequency_thresholds())):
         if count >= threshold:
             return 5 - i
     return 1
@@ -81,7 +84,7 @@ def _score_frequency(count: int) -> int:
 
 def _score_monetary(value: Decimal) -> int:
     """Monetary score: больше потрачено → выше score."""
-    for i, threshold in enumerate(reversed(MONETARY_THRESHOLDS)):
+    for i, threshold in enumerate(reversed(_monetary_thresholds())):
         if value >= threshold:
             return 5 - i
     return 1

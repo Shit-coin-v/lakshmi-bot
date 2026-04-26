@@ -1,5 +1,6 @@
 import os
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -293,6 +294,16 @@ ONEC_RFM_SYNC_ENABLED = _env_bool("ONEC_RFM_SYNC_ENABLED", False)
 
 ALLOW_TELEGRAM_HEADER_AUTH = _env_bool("ALLOW_TELEGRAM_HEADER_AUTH", False)
 
+# Жёсткий запрет включать заголовочную аутентификацию (X-Telegram-User-Id)
+# в production: заголовок легко подделать любым curl. В dev (DEBUG=True)
+# и в settings_test.py (assert уже пройдёт, ALLOW_TELEGRAM_HEADER_AUTH
+# переопределяется позже) ассерт прозрачен.
+if not DEBUG and ALLOW_TELEGRAM_HEADER_AUTH:
+    raise ImproperlyConfigured(
+        "ALLOW_TELEGRAM_HEADER_AUTH=True небезопасен в production: "
+        "X-Telegram-User-Id header можно подделать. Используй JWT-аутентификацию."
+    )
+
 PERSONAL_RANKING_ENABLED = _env_bool("PERSONAL_RANKING_ENABLED", False)
 
 # Referral
@@ -315,7 +326,36 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "") or os.getenv("EMAIL_HOS
 YUKASSA_SHOP_ID = os.getenv("YUKASSA_SHOP_ID", "")
 YUKASSA_SECRET_KEY = os.getenv("YUKASSA_SECRET_KEY", "")
 YUKASSA_RETURN_URL = os.getenv("YUKASSA_RETURN_URL", "")  # deeplink for return to app
-YUKASSA_PAYMENT_TIMEOUT_MINUTES = _env_int("YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
+
+
+# --- Бизнес-параметры (вынесены из кода для конфигурируемости) ---
+
+# Реферальный бонус (см. apps/integrations/onec/receipt.py).
+# В loyalty/models.py default=50 оставлен как есть для обратной совместимости миграций.
+REFERRAL_BONUS_AMOUNT = Decimal(os.getenv("REFERRAL_BONUS_AMOUNT", "50"))
+
+# ЮKassa retry (см. apps/integrations/payments/tasks.py).
+YUKASSA_CAPTURE_DELAYS = [
+    int(x) for x in os.getenv("YUKASSA_CAPTURE_DELAYS", "10,20,40,80,160").split(",")
+]
+YUKASSA_CANCEL_DELAYS = [
+    int(x) for x in os.getenv("YUKASSA_CANCEL_DELAYS", "5,15,30,60").split(",")
+]
+YUKASSA_CAPTURE_TTL_MINUTES = int(os.getenv("YUKASSA_CAPTURE_TTL_MINUTES", "30"))
+YUKASSA_PAYMENT_TIMEOUT_MINUTES = int(os.getenv("YUKASSA_PAYMENT_TIMEOUT_MINUTES", "15"))
+YUKASSA_MAX_CELERY_DELAY = int(os.getenv("YUKASSA_MAX_CELERY_DELAY", "300"))
+
+# RFM-сегменты (см. apps/rfm/services.py).
+RFM_RECENCY_THRESHOLDS = [
+    int(x) for x in os.getenv("RFM_RECENCY_THRESHOLDS", "7,30,90,180").split(",")
+]
+RFM_FREQUENCY_THRESHOLDS = [
+    int(x) for x in os.getenv("RFM_FREQUENCY_THRESHOLDS", "2,5,10,20").split(",")
+]
+RFM_MONETARY_THRESHOLDS = [
+    int(x)
+    for x in os.getenv("RFM_MONETARY_THRESHOLDS", "1000,5000,15000,50000").split(",")
+]
 
 
 # --- Lakshmi Photo Studio (OpenAI image processing) ---
