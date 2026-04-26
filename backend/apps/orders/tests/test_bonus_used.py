@@ -152,12 +152,13 @@ class BonusUsedTests(TestCase):
     def test_onec_payload_contains_bonus(self, mock_task):
         """1C payload should include bonus_used and payment_amount in prices."""
         payload = self._base_payload(bonus_used="100.00")
-        self.client.post(
-            "/api/orders/create/",
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self._auth(),
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                "/api/orders/create/",
+                data=json.dumps(payload),
+                content_type="application/json",
+                **self._auth(),
+            )
         order_id = mock_task.call_args[0][0]
 
         onec_payload = self._get_onec_payload(order_id)
@@ -295,12 +296,13 @@ class BonusUsedTests(TestCase):
     def test_zero_bonus_onec_payload_correct(self, mock_task):
         """With bonus_used=0, 1C payload should have payment_amount = total_price."""
         payload = self._base_payload()
-        self.client.post(
-            "/api/orders/create/",
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self._auth(),
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                "/api/orders/create/",
+                data=json.dumps(payload),
+                content_type="application/json",
+                **self._auth(),
+            )
         order_id = mock_task.call_args[0][0]
 
         onec_payload = self._get_onec_payload(order_id)

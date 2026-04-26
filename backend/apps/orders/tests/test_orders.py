@@ -73,12 +73,13 @@ class OrderCreateViewTests(TestCase):
             "delivery_zone_code": "DLV-1",
             "items": [{"product_code": "ORD-1", "quantity": 2}],
         }
-        response = self.client.post(
-            "/api/orders/create/",
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/orders/create/",
+                data=json.dumps(payload),
+                content_type="application/json",
+                HTTP_X_TELEGRAM_USER_ID=str(self.customer.telegram_id),
+            )
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertIn("id", data)

@@ -13,6 +13,7 @@ from apps.orders.models import Order
 _TASKS = "apps.notifications.tasks"
 _ONEC = "apps.integrations.onec.tasks"
 _WEBHOOK = "apps.integrations.payments.webhook"
+_PAY_TASKS = "apps.integrations.payments.tasks"
 
 _WEBHOOK_URL = "/api/payments/webhook/"
 
@@ -111,9 +112,12 @@ class YukassaWebhookTests(TestCase):
         self.assertEqual(self.order.status, "delivery")  # NOT canceled
         self.assertTrue(self.order.manual_check_required)
 
-    def test_unknown_payment_id_returns_200(self):
+    @patch(f"{_PAY_TASKS}.retry_webhook_handler.apply_async")
+    def test_unknown_payment_id_returns_200(self, mock_retry):
         response = self._post_webhook("payment.waiting_for_capture", "nonexistent")
         self.assertEqual(response.status_code, 200)
+        # При неизвестном payment_id планируется retry-таска с countdown=10s.
+        mock_retry.assert_called_once()
 
     def test_invalid_json_returns_400(self):
         response = self.client.post(
