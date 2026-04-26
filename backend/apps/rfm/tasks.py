@@ -18,22 +18,28 @@ def recalculate_all_rfm():
 
     Не трогает CustomerBonusTier и CustomerCampaignAssignment.
     """
+    from apps.common.locks import task_lock
     from .services import calculate_all_customers_rfm
 
-    start = timezone.now()
-    result = calculate_all_customers_rfm()
-    duration = (timezone.now() - start).total_seconds()
+    with task_lock("rfm-recalc", ttl_seconds=3600) as acquired:
+        if not acquired:
+            logger.info("recalculate_all_rfm: lock held, skipping")
+            return None
 
-    logger.info(
-        "rfm.recalculate_all_rfm INFO completed: "
-        "processed=%d created=%d updated=%d skipped=%d duration=%.1fs",
-        result["processed"],
-        result["created"],
-        result["updated"],
-        result["skipped"],
-        duration,
-    )
-    return result
+        start = timezone.now()
+        result = calculate_all_customers_rfm()
+        duration = (timezone.now() - start).total_seconds()
+
+        logger.info(
+            "rfm.recalculate_all_rfm INFO completed: "
+            "processed=%d created=%d updated=%d skipped=%d duration=%.1fs",
+            result["processed"],
+            result["created"],
+            result["updated"],
+            result["skipped"],
+            duration,
+        )
+        return result
 
 
 @shared_task(name="apps.rfm.tasks.fix_monthly_bonus_tiers")

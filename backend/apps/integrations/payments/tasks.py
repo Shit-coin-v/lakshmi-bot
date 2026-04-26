@@ -280,28 +280,34 @@ def cancel_payment_task(self, order_id: int):
 def expire_pending_payments(self):
     """Periodic: cancel orders with pending payments older than timeout."""
     from django.conf import settings as django_settings
+    from apps.common.locks import task_lock
     from apps.orders.models import Order
     from apps.notifications.tasks import send_order_push_task
 
-    timeout_minutes = getattr(django_settings, "YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
-    cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
+    with task_lock("payments-expire", ttl_seconds=600) as acquired:
+        if not acquired:
+            logger.info("expire_pending_payments: lock held, skipping")
+            return
 
-    expired_ids = list(
-        Order.objects.filter(
-            payment_status="pending",
-            payment_method="sbp",
-            created_at__lt=cutoff,
-        ).values_list("id", flat=True)
-    )
+        timeout_minutes = getattr(django_settings, "YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15)
+        cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
 
-    if not expired_ids:
-        return
+        expired_ids = list(
+            Order.objects.filter(
+                payment_status="pending",
+                payment_method="sbp",
+                created_at__lt=cutoff,
+            ).values_list("id", flat=True)
+        )
 
-    Order.objects.filter(id__in=expired_ids).update(
-        payment_status="failed", status="canceled"
-    )
+        if not expired_ids:
+            return
 
-    for oid in expired_ids:
-        send_order_push_task.delay(oid, "new", "canceled")
+        Order.objects.filter(id__in=expired_ids).update(
+            payment_status="failed", status="canceled"
+        )
 
-    logger.info("expire_pending_payments: canceled %d orders", len(expired_ids))
+        for oid in expired_ids:
+            send_order_push_task.delay(oid, "new", "canceled")
+
+        logger.info("expire_pending_payments: canceled %d orders", len(expired_ids))
