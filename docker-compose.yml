@@ -233,6 +233,17 @@ services:
       - backend
     profiles: ["setup"]
 
+  # One-off билд Photo Studio в shared volume photo_studio_dist.
+  # Запуск: docker compose --profile setup run --rm photo_studio_build
+  photo_studio_build:
+    build:
+      context: ./photo-studio
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_BASE_URL:-}
+    volumes:
+      - photo_studio_dist:/out
+    profiles: ["setup"]
+
   redis:
     image: redis:7
     container_name: redis
@@ -276,6 +287,7 @@ services:
       - ./infra/nginx/rate-limit.conf:/etc/nginx/conf.d/00-rate-limit.conf:ro
       - static:/app/backend/collected_static
       - media:/app/backend/media
+      - photo_studio_dist:/usr/share/nginx/photo-studio:ro
     networks:
       - backend
       - monitoring
@@ -397,3 +409,4 @@ volumes:
   prometheusdata:
   metabase-data:
   redis_data:
+  photo_studio_dist:

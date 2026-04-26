@@ -6,7 +6,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 // PWA подключается через vite-plugin-pwa с автоматическим обновлением SW.
 // Runtime caching: каталог через NetworkFirst (свежие данные приоритетнее),
 // дерево категорий через StaleWhileRevalidate, медиа товаров через CacheFirst.
+//
+// На проде приложение раздаётся из nginx по пути /photo-studio/ — поэтому
+// base, manifest.start_url, manifest.scope и иконки используют этот префикс.
 export default defineConfig({
+  base: '/photo-studio/',
   plugins: [
     react(),
     VitePWA({
@@ -20,11 +24,12 @@ export default defineConfig({
         background_color: '#F9F9F9',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: '/photo-studio/',
+        scope: '/photo-studio/',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/photo-studio/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           {
-            src: '/icons/icon-512.png',
+            src: '/photo-studio/icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',
