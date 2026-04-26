@@ -12,21 +12,32 @@ from __future__ import annotations
 
 import logging
 import random
+from asyncio import TimeoutError as asyncio_TimeoutError
 from datetime import timedelta
 
 from celery import shared_task
+from django.conf import settings as django_settings
 from django.utils import timezone
+from requests.exceptions import RequestException
+
+from apps.integrations.payments.yukassa_client import YukassaLogicalError
 
 logger = logging.getLogger(__name__)
 
-# capture TTL: stop retrying after 30 minutes from first attempt
-_CAPTURE_TTL_MINUTES = 30
+# Параметры с дефолтами читаются из settings: позволяют переопределить
+# в проде/тестах через override_settings/env, не трогая код. Дефолты
+# совпадают с историческим хардкодом, чтобы порядок завершения миграции
+# параметров между файлами не имел значения.
 
-# Celery retry delays (base, before jitter)
-_CAPTURE_DELAYS = [10, 20, 40, 80, 160]  # max capped to 300s
-_CANCEL_DELAYS = [5, 15, 30, 60]
+# TTL для capture: после стольких минут от первой попытки прекращаем ретраи.
+_CAPTURE_TTL_MINUTES = getattr(django_settings, "YUKASSA_CAPTURE_TTL_MINUTES", 30)
 
-_MAX_CELERY_DELAY = 300  # 5 minutes
+# Celery retry delays (база, до jitter)
+_CAPTURE_DELAYS = getattr(django_settings, "YUKASSA_CAPTURE_DELAYS", [10, 20, 40, 80, 160])
+_CANCEL_DELAYS = getattr(django_settings, "YUKASSA_CANCEL_DELAYS", [5, 15, 30, 60])
+
+# Максимальная задержка ретрая Celery (5 минут).
+_MAX_CELERY_DELAY = getattr(django_settings, "YUKASSA_MAX_CELERY_DELAY", 300)
 
 
 def _finalize_ttl_expired(order_id: int, Order) -> None:
@@ -75,12 +86,29 @@ def _finalize_ttl_expired(order_id: int, Order) -> None:
             order_id, remote_status,
         )
 
+    except YukassaLogicalError as exc:
+        # Логическая ошибка 4xx от ЮKassa — терминальная, ретраи не помогут.
+        order.manual_check_required = True
+        order.save(update_fields=["manual_check_required"])
+        logger.error(
+            "TTL expired for order %s, ЮKassa logical error checking status: %s — flagged for manual check",
+            order_id, exc,
+        )
+    except (RequestException, OSError, asyncio_TimeoutError) as exc:
+        # Сетевая ошибка — отдельная ветка, чтобы отличать от логических.
+        # Не считаем заказ failed: ставим на ручную проверку.
+        order.manual_check_required = True
+        order.save(update_fields=["manual_check_required"])
+        logger.warning(
+            "TTL expired for order %s, network error checking status: %s — flagged for manual check",
+            order_id, exc,
+        )
     except Exception:
-        # Can't reach ЮKassa — flag for manual review, don't assume failed
+        # Неожиданная ошибка — пишем full traceback и тоже на ручную проверку.
         order.manual_check_required = True
         order.save(update_fields=["manual_check_required"])
         logger.exception(
-            "TTL expired for order %s, failed to check remote status — flagged for manual check",
+            "TTL expired for order %s, unexpected error checking status — flagged for manual check",
             order_id,
         )
 

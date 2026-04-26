@@ -65,11 +65,16 @@ def _try_referral_reward(referee, receipt_guid: str):
     if not referrer or not referrer.card_id:
         return
 
+    # Сумма реферального бонуса берётся из settings: позволяет менять
+    # значение через env, не трогая код. Дефолт совпадает с историческим
+    # хардкодом, чтобы порядок завершения миграции параметров не мешал.
+    bonus_amount = getattr(settings, "REFERRAL_BONUS_AMOUNT", D("50"))
+
     reward, created = ReferralReward.objects.get_or_create(
         referee=referee,
         defaults={
             "referrer": referrer,
-            "bonus_amount": D("50"),
+            "bonus_amount": bonus_amount,
             "receipt_guid": receipt_guid,
             "source": "telegram" if referee.auth_method == "telegram" else "app",
             "status": ReferralReward.Status.PENDING,
@@ -277,6 +282,11 @@ def onec_receipt(request):
     purchased_at_value = dt_in if settings.USE_TZ else dt_naive
 
     try:
+        # Атомарная обработка всех строк чека: либо все Transaction'ы созданы,
+        # либо ни одна. UNIQUE-ограничение (receipt_guid, receipt_line) +
+        # idempotency_key обеспечивают идемпотентность при повторных POST.
+        # При параллельных webhook'ах на тот же receipt_guid конкурирующая
+        # вставка получит IntegrityError → DuplicateReceiptLineError → 409.
         with db_tx.atomic():
             for position in positions:
                 code = position["product_code"]
@@ -430,9 +440,17 @@ def onec_receipt(request):
                     db_tx_hook.on_commit(
                         lambda lid=log.id: send_campaign_reward_to_onec.delay(lid)
                     )
+        except IntegrityError as exc:
+            # Дубль по уникальному ограничению (например, повторный POST
+            # с тем же receipt_guid) — ожидаемая ситуация, не падаем.
+            logger.warning(
+                "campaign_reward: integrity error (likely duplicate) user=%d receipt=%s: %s",
+                user.id, data["receipt_guid"], exc,
+            )
         except Exception:
+            # Fail-open: бонус не начислен, но чек принят.
             logger.exception(
-                "campaign_reward: failed user=%d receipt=%s",
+                "campaign_reward: unexpected failure user=%d receipt=%s",
                 user.id, data["receipt_guid"],
             )
 
@@ -440,9 +458,16 @@ def onec_receipt(request):
     if not is_guest and created_count > 0 and user.referrer_id:
         try:
             _try_referral_reward(user, receipt_guid=data["receipt_guid"])
+        except IntegrityError as exc:
+            # Один reward на referee — UNIQUE constraint, дубль ожидаем.
+            logger.warning(
+                "referral_reward: integrity error (likely duplicate) user=%d receipt=%s: %s",
+                user.id, data["receipt_guid"], exc,
+            )
         except Exception:
+            # Fail-open: реферальный бонус не начислен, чек принят.
             logger.exception(
-                "referral_reward: failed user=%d receipt=%s",
+                "referral_reward: unexpected failure user=%d receipt=%s",
                 user.id, data["receipt_guid"],
             )
 

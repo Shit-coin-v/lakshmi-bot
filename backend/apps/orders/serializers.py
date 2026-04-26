@@ -330,21 +330,62 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             return order
 
         # Фаза 2: внешний HTTP-вызов ЮKassa без БД-транзакции.
-        from apps.integrations.payments.yukassa_client import create_payment
+        # Импортируем поздно, чтобы не тянуть SDK ЮKassa при загрузке Django.
+        from asyncio import TimeoutError as asyncio_TimeoutError
+
+        from requests.exceptions import RequestException
+
+        from apps.integrations.payments.yukassa_client import (
+            YukassaLogicalError,
+            create_payment,
+        )
 
         try:
             result = create_payment(
                 amount=order.total_price,
                 order_id=order.id,
             )
-        except Exception:
-            logger.exception("Failed to create YooKassa payment for order %s", order.id)
+        except YukassaLogicalError as exc:
+            # 4xx — терминально, ретраи не помогут, помечаем заказ как failed/canceled.
+            logger.error(
+                "YooKassa logical error creating payment for order %s: %s",
+                order.id, exc,
+            )
             with transaction.atomic():
                 order.payment_status = "failed"
                 order.status = "canceled"
                 order._skip_signal_notification = True
                 order.save(update_fields=["payment_status", "status"])
-            raise serializers.ValidationError({"payment": "Не удалось создать платёж. Попробуйте позже."})
+            raise serializers.ValidationError(
+                {"payment": "Не удалось создать платёж. Попробуйте позже."}
+            )
+        except (RequestException, OSError, asyncio_TimeoutError) as exc:
+            # Сетевая ошибка — отдельное user-friendly сообщение.
+            logger.warning(
+                "YooKassa network error creating payment for order %s: %s",
+                order.id, exc,
+            )
+            with transaction.atomic():
+                order.payment_status = "failed"
+                order.status = "canceled"
+                order._skip_signal_notification = True
+                order.save(update_fields=["payment_status", "status"])
+            raise serializers.ValidationError(
+                {"payment": "Платёж недоступен, попробуйте позже."}
+            )
+        except Exception:
+            # Неожиданная ошибка — full traceback в Sentry/логи.
+            logger.exception(
+                "Unexpected error creating YooKassa payment for order %s", order.id,
+            )
+            with transaction.atomic():
+                order.payment_status = "failed"
+                order.status = "canceled"
+                order._skip_signal_notification = True
+                order.save(update_fields=["payment_status", "status"])
+            raise serializers.ValidationError(
+                {"payment": "Не удалось создать платёж. Попробуйте позже."}
+            )
 
         # Фаза 3: записать payment_id в отдельной транзакции.
         with transaction.atomic():
