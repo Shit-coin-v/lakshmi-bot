@@ -1,6 +1,5 @@
 """Тесты маскирования токенов и redact-фильтра логирования."""
 import logging
-import re
 
 from django.test import SimpleTestCase
 
