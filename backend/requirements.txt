@@ -53,7 +53,7 @@ vine==5.1.0
 wcwidth==0.2.13
 yarl==1.19.0
 gunicorn==23.0.0
-PyJWT==2.9.0
+PyJWT==2.10.1
 yookassa>=3.0.0
 openai>=1.50.0
 django-cors-headers>=4.4.0
