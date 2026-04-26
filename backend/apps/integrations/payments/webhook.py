@@ -97,7 +97,14 @@ def _handle_authorized(payment_id, Order, notify_pickers_new_order, send_order_t
         try:
             order = Order.objects.select_for_update().get(payment_id=payment_id)
         except Order.DoesNotExist:
-            logger.error("Webhook: order not found for payment_id=%s", payment_id)
+            from .tasks import retry_webhook_handler
+            logger.warning(
+                "Webhook: order not found for payment_id=%s, scheduling retry",
+                payment_id,
+            )
+            retry_webhook_handler.apply_async(
+                args=["payment.waiting_for_capture", payment_id], countdown=10,
+            )
             return
 
         if order.payment_status != "pending":
@@ -124,7 +131,14 @@ def _handle_payment_canceled(payment_id, Order, send_order_push_task):
         try:
             order = Order.objects.select_for_update().get(payment_id=payment_id)
         except Order.DoesNotExist:
-            logger.error("Webhook: order not found for payment_id=%s", payment_id)
+            from .tasks import retry_webhook_handler
+            logger.warning(
+                "Webhook: order not found for payment_id=%s (canceled), scheduling retry",
+                payment_id,
+            )
+            retry_webhook_handler.apply_async(
+                args=["payment.canceled", payment_id], countdown=10,
+            )
             return
 
         if order.payment_status in ("canceled", "failed"):

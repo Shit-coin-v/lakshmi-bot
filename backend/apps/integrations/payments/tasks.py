@@ -276,6 +276,42 @@ def cancel_payment_task(self, order_id: int):
             )
 
 
+# Backoff для retry_webhook_handler: 10s, 20s, 60s, 180s.
+# Покрывает race-окно «webhook пришёл раньше commit'а Order».
+_WEBHOOK_RETRY_BACKOFFS = [10, 20, 60, 180]
+
+
+@shared_task(bind=True, max_retries=len(_WEBHOOK_RETRY_BACKOFFS))
+def retry_webhook_handler(self, event_type: str, payment_id: str):
+    """Повторный разбор YooKassa-webhook, если Order ещё не закоммичен в БД.
+
+    Срабатывает при гонке: webhook от ЮKassa пришёл раньше, чем
+    OrderCreateSerializer успел закоммитить запись с payment_id.
+    """
+    from apps.orders.models import Order
+    from apps.notifications.tasks import notify_pickers_new_order, send_order_push_task
+    from apps.integrations.onec.tasks import send_order_to_onec
+    from .webhook import _handle_authorized, _handle_payment_canceled
+
+    if not Order.objects.filter(payment_id=payment_id).exists():
+        idx = self.request.retries
+        if idx < len(_WEBHOOK_RETRY_BACKOFFS):
+            raise self.retry(countdown=_WEBHOOK_RETRY_BACKOFFS[idx])
+        logger.error(
+            "retry_webhook_handler: order still not found payment_id=%s after %s retries",
+            payment_id, self.request.retries,
+        )
+        return
+
+    if event_type == "payment.waiting_for_capture":
+        _handle_authorized(
+            payment_id, Order, notify_pickers_new_order,
+            send_order_to_onec, send_order_push_task,
+        )
+    elif event_type == "payment.canceled":
+        _handle_payment_canceled(payment_id, Order, send_order_push_task)
+
+
 @shared_task(bind=True, max_retries=0)
 def expire_pending_payments(self):
     """Periodic: cancel orders with pending payments older than timeout."""
