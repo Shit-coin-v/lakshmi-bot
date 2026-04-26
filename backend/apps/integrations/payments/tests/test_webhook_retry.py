@@ -72,9 +72,10 @@ class RetryWebhookHandlerTests(TestCase):
             payment_status="pending",
         )
 
-        retry_webhook_handler(
-            "payment.waiting_for_capture", "pay_late_1",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            retry_webhook_handler(
+                "payment.waiting_for_capture", "pay_late_1",
+            )
 
         order.refresh_from_db()
         self.assertEqual(order.payment_status, "authorized")

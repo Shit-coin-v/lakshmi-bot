@@ -87,7 +87,7 @@ class OrderCreateSBPTests(TestCase):
 
     @patch("apps.integrations.onec.tasks.send_order_to_onec.delay")
     def test_cash_order_sends_to_onec(self, mock_onec):
-        """Non-SBP orders should be sent to 1C immediately."""
+        """Non-SBP orders should be sent to 1C immediately (after commit)."""
         payload = {
             "address": "Test",
             "phone": "+79001112233",
@@ -95,12 +95,13 @@ class OrderCreateSBPTests(TestCase):
             "delivery_zone_code": "DLV-SBP",
             "items": [{"product_code": "SBP-1", "quantity": 1}],
         }
-        self.client.post(
-            "/api/orders/create/",
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self._auth(),
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                "/api/orders/create/",
+                data=json.dumps(payload),
+                content_type="application/json",
+                **self._auth(),
+            )
         mock_onec.assert_called_once()
 
     @patch(f"{_YUKASSA}.create_payment")
