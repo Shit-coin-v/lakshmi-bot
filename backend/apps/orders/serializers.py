@@ -1,6 +1,7 @@
 import logging
 from decimal import Decimal
 
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.common.models import SiteSettings
@@ -297,46 +298,58 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         server_total = validated_data.pop("_server_total_price")
         is_sbp = validated_data.get("payment_method") == "sbp"
 
-        order = Order.objects.create(
-            products_price=server_products,
-            delivery_price=delivery_price,
-            total_price=server_total,
-            bonus_used=bonus_used,
-            payment_status="pending" if is_sbp else "none",
-            **validated_data,
-        )
-
-        for item in items_data:
-            OrderItem.objects.create(
-                order=order,
-                product=item["product"],
-                quantity=int(item["quantity"]),
-                price_at_moment=item["product"].price,
+        # Фаза 1: создание Order + OrderItem в одной БД-транзакции.
+        # Сетевой вызов ЮKassa вынесен наружу, чтобы не держать БД-транзакцию
+        # открытой во время HTTP I/O.
+        with transaction.atomic():
+            order = Order.objects.create(
+                products_price=server_products,
+                delivery_price=delivery_price,
+                total_price=server_total,
+                bonus_used=bonus_used,
+                payment_status="pending" if is_sbp else "none",
+                **validated_data,
             )
 
-        if is_sbp:
-            # Create ЮKassa payment (hold)
-            from apps.integrations.payments.yukassa_client import create_payment
-
-            try:
-                result = create_payment(
-                    amount=order.total_price,
-                    order_id=order.id,
+            for item in items_data:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item["product"],
+                    quantity=int(item["quantity"]),
+                    price_at_moment=item["product"].price,
                 )
-                order.payment_id = result["payment_id"]
-                order.save(update_fields=["payment_id"])
-                # Store confirmation_url for the view to return
-                order._confirmation_url = result["confirmation_url"]
-            except Exception:
-                logger.exception("Failed to create YooKassa payment for order %s", order.id)
+
+            if not is_sbp:
+                # Не-СБП: отправка в 1С после коммита транзакции,
+                # чтобы Celery-task точно увидел заказ в БД.
+                from apps.integrations.onec.tasks import send_order_to_onec
+                oid = order.id
+                transaction.on_commit(lambda: send_order_to_onec.delay(oid))
+
+        if not is_sbp:
+            return order
+
+        # Фаза 2: внешний HTTP-вызов ЮKassa без БД-транзакции.
+        from apps.integrations.payments.yukassa_client import create_payment
+
+        try:
+            result = create_payment(
+                amount=order.total_price,
+                order_id=order.id,
+            )
+        except Exception:
+            logger.exception("Failed to create YooKassa payment for order %s", order.id)
+            with transaction.atomic():
                 order.payment_status = "failed"
                 order.status = "canceled"
                 order._skip_signal_notification = True
                 order.save(update_fields=["payment_status", "status"])
-                raise serializers.ValidationError({"payment": "Не удалось создать платёж. Попробуйте позже."})
-        else:
-            # Non-SBP: send to 1C and notify immediately
-            from apps.integrations.onec.tasks import send_order_to_onec
-            send_order_to_onec.delay(order.id)
+            raise serializers.ValidationError({"payment": "Не удалось создать платёж. Попробуйте позже."})
+
+        # Фаза 3: записать payment_id в отдельной транзакции.
+        with transaction.atomic():
+            order.payment_id = result["payment_id"]
+            order.save(update_fields=["payment_id"])
+        order._confirmation_url = result["confirmation_url"]
 
         return order

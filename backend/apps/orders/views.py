@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from django.db import transaction
 from django.db.models import Count
 
@@ -16,6 +18,7 @@ from apps.main.services.catalog_filters import (
     get_hidden_category_ids,
     request_can_view_hidden,
 )
+from apps.orders.idempotency import get_cached_order_id, set_cached_order_id
 from apps.orders.serializers import (
     CategoryListSerializer,
     OrderCreateSerializer,
@@ -24,6 +27,8 @@ from apps.orders.serializers import (
     ProductListSerializer,
 )
 from apps.orders.models import Order, Product
+
+logger = logging.getLogger(__name__)
 
 
 class CatalogRootView(generics.ListAPIView):
@@ -140,19 +145,35 @@ class OrderCreateView(generics.CreateAPIView):
         serializer.save(customer=self.request.telegram_user)
 
     def create(self, request, *args, **kwargs):
-        import logging
-        _logger = logging.getLogger(__name__)
-        _logger.info("OrderCreate payload: %s", request.data)
+        idem_key = (request.headers.get("Idempotency-Key") or "").strip()
+        customer_id = request.telegram_user.pk
+
+        if idem_key:
+            cached_id = get_cached_order_id(customer_id, idem_key)
+            if cached_id is not None and Order.objects.filter(
+                pk=cached_id, customer_id=customer_id
+            ).exists():
+                return Response(
+                    {"id": cached_id, "idempotent_replay": True},
+                    status=status.HTTP_200_OK,
+                )
+
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            _logger.warning("OrderCreate validation errors: %s", serializer.errors)
-            serializer.is_valid(raise_exception=True)
+        serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         order = serializer.instance
 
+        logger.info(
+            "OrderCreate ok: order_id=%s items=%s total=%s",
+            order.id, order.items.count(), order.total_price,
+        )
+
+        if idem_key:
+            set_cached_order_id(customer_id, idem_key, order.id)
+
         response_data = {"id": order.id}
 
-        # For SBP payments, include confirmation_url
+        # Для СБП-платежей возвращаем confirmation_url для редиректа клиента.
         confirmation_url = getattr(order, "_confirmation_url", None)
         if confirmation_url:
             response_data["confirmation_url"] = confirmation_url
