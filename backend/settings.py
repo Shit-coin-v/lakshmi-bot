@@ -316,7 +316,7 @@ YUKASSA_PAYMENT_TIMEOUT_MINUTES = _env_int("YUKASSA_PAYMENT_TIMEOUT_MINUTES", 15
 # Стилизация фото товаров через OpenAI Image API. Endpoint:
 # POST /api/products/<id>/image/ (см. apps/main/views.py:ProductImageUploadView).
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-PRODUCT_IMAGE_MODEL = os.getenv("PRODUCT_IMAGE_MODEL", "gpt-image-1")
+PRODUCT_IMAGE_MODEL = os.getenv("PRODUCT_IMAGE_MODEL", "gpt-image-2")
 PRODUCT_IMAGE_OUTPUT_SIZE = os.getenv("PRODUCT_IMAGE_OUTPUT_SIZE", "1024x1024")
 PRODUCT_IMAGE_MAX_UPLOAD_SIZE = _env_int(
     "PRODUCT_IMAGE_MAX_UPLOAD_SIZE", 10 * 1024 * 1024
