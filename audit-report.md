@@ -8,14 +8,32 @@
 ---
 
 > **Статус Critical (раздел 1): ✅ закрыты в `dev`**, коммиты `e5e76fd → 6c09a45`.
-> Backend test-suite: **825/831 passed**, 6 ошибок — все 6 pre-existing на baseline `05104ff`, к моим изменениям отношения не имеют.
+> **Статус High (раздел 2): ✅ закрыты в `dev`**, коммиты `ec12d2a → 0f0481b` (5 коммитов).
+> Backend test-suite: **865/871 passed**, 6 ошибок — все 6 pre-existing на baseline `05104ff`, к моим изменениям отношения не имеют.
+
+## Закрытые High-блокеры
+
+| ID | Коммит | Что сделано |
+|----|--------|-------------|
+| H1 | `47c83fe` | PII удалён из `OrderCreate` (вместе с C2) |
+| H2 | `ec12d2a` | FCM-токен через `mask_token()` в `push.py` |
+| H3 | `ec12d2a` | Newsletter-token через `mask_token()` в `customer_bot/run.py` |
+| H4 | `ec12d2a` | `RedactSecretsFilter` в Django LOGGING |
+| H5 | `0f0481b` | Раздельные `except` в `payments/tasks.py`, `serializers.py`, `receipt.py` |
+| H6 | `d68fbf5` + `0f0481b` | Magic numbers в settings: `REFERRAL_BONUS_AMOUNT`, `YUKASSA_*`, `RFM_*` |
+| H7 | `1494150` | RFM resume с `chunks_sent` — не переотправляет уже отправленные |
+| H8 | `d68fbf5` | `ImproperlyConfigured` если `ALLOW_TELEGRAM_HEADER_AUTH=True` в проде |
+| H9 | `0f0481b` | Чек обёрнут в `transaction.atomic` (все строки или ни одной) |
+| H10 | `84cfd8e` | axios `^1.7.9` → `^1.8.4` |
+| H11 | `84cfd8e` | Pin для `bots/courier|picker/requirements.txt` |
+| H12 | `1494150` | `Order.clean()` валидирует state-machine через `ALLOWED_TRANSITIONS` |
 
 ## 0. Резюме
 
 | Severity     | Кол-во | Ключевые блокеры                                                                 |
 |--------------|--------|----------------------------------------------------------------------------------|
 | **Critical** | 5 → **0** ✅ | PyJWT CVE-2024-53861, OrderCreate без atomic+idempotency, гонка webhook ЮKassa, dev-секреты в `.env`, отсутствие locks на Celery beat |
-| **High**     | 12     | Логирование PII в OrderCreate, FCM token в логах, `except Exception` в платежах/чеках, partial RFM sync retry, magic numbers в финансах, X-Telegram-User-Id auth flag |
+| **High**     | 12 → **0** ✅ | Логирование PII в OrderCreate, FCM token в логах, `except Exception` в платежах/чеках, partial RFM sync retry, magic numbers в финансах, X-Telegram-User-Id auth flag |
 | **Medium**   | ~25    | N+1 в сериализаторах, дублирование handlers между ботами, file-uploads без magic-bytes, `bot/*` deps без pin, длинные view-файлы, нет state-machine на Order, axios `^1.7.9` |
 | **Low/Info** | ~15    | Cleanup без logger, deprecated поля, комментированный код, base64 cursor, `canceled→new` переход без документации |
 
