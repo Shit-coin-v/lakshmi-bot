@@ -6,6 +6,9 @@ import os
 from typing import Iterable
 
 from django.core.exceptions import ImproperlyConfigured
+
+from shared.log_redact import mask_token
+
 from .models import Notification as DBNotification
 
 try:  # firebase-admin is optional until configured
@@ -108,7 +111,7 @@ def _send_to_tokens(
         except Exception as exc:  # pragma: no cover - network/config/runtime issues
             failure += 1
             code = getattr(exc, "code", "")  # firebase_admin.exceptions.FirebaseError.code
-            logger.warning("FCM push failed token=%s code=%s exc=%s", token, code, exc)
+            logger.warning("FCM push failed token=%s code=%s exc=%s", mask_token(token), code, exc)
 
             # Clean up stale tokens if Firebase reports token is dead
             if code == "registration-token-not-registered" or code == "invalid-argument":

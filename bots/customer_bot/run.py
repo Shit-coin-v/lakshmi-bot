@@ -18,6 +18,7 @@ import config
 from onec_client import send_customer_to_onec
 from referral import parse_start_payload, resolve_referrer_tg_id
 from shared.bot_utils.chat_cleanup import send_clean, track_message
+from shared.log_redact import mask_token
 from keyboards import get_qr_code_button, get_back_to_menu_button, get_consent_button
 from shared.clients.backend_client import BackendClient
 from qr_code import (
@@ -329,12 +330,12 @@ async def cmd_link(message: Message):
 async def newsletter_open_callback(callback: CallbackQuery):
     data = callback.data or ""
     if len(data) > 64:
-        logger.warning("Received oversized callback payload: %s", data)
+        logger.warning("Received oversized callback payload (len=%d)", len(data))
         return await callback.answer("Некорректный запрос", show_alert=True)
 
     token = data[len(OPEN_CALLBACK_PREFIX) :]
     if not TOKEN_RE.fullmatch(token):
-        logger.warning("Invalid newsletter token: %s", data)
+        logger.warning("Invalid newsletter token: %s", mask_token(token))
         return await callback.answer("Некорректный токен", show_alert=True)
 
     result, newly_opened = await register_newsletter_open(
@@ -346,7 +347,7 @@ async def newsletter_open_callback(callback: CallbackQuery):
     if not result:
         logger.warning(
             "Newsletter delivery not found for token %s (user=%s)",
-            token,
+            mask_token(token),
             callback.from_user.id,
         )
         return await callback.answer("Сообщение не найдено", show_alert=True)

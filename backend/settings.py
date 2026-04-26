@@ -259,6 +259,11 @@ LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "redact_secrets": {
+            "()": "shared.log_redact.RedactSecretsFilter",
+        },
+    },
     "formatters": {
         "standard": {
             "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -268,6 +273,7 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "standard",
+            "filters": ["redact_secrets"],
         },
     },
     "root": {
