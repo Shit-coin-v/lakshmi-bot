@@ -159,6 +159,47 @@ class Order(models.Model):
     def __str__(self):
         return f"Заказ #{self.id} ({self.get_status_display()})"
 
+    def clean(self):
+        """Defense-in-depth: проверка перехода status на уровне модели.
+
+        Использует ALLOWED_TRANSITIONS из apps.orders.services. Срабатывает
+        в Django Admin (form save вызывает full_clean) и в любом коде, где
+        перед save() явно вызывают full_clean(). Не вызывается из save()
+        автоматически, чтобы не сломать существующие callsite'ы, которые
+        уже валидируют переход через update_order_status().
+
+        Lazy-импорт ALLOWED_TRANSITIONS — services импортирует models, поэтому
+        обратный импорт делаем внутри метода во избежание циклов.
+        """
+        super().clean()
+        if self.pk is None:
+            # Новый Order — переход не имеет смысла, статусом по умолчанию
+            # является 'new' через STATUS_CHOICES default.
+            return
+        from apps.orders.services import ALLOWED_TRANSITIONS
+
+        try:
+            previous = (
+                type(self).objects.only("status").get(pk=self.pk).status
+            )
+        except type(self).DoesNotExist:
+            # Объект ещё не сохранён в БД — пропускаем проверку перехода.
+            return
+
+        if previous == self.status:
+            return
+
+        allowed = ALLOWED_TRANSITIONS.get(previous, set())
+        if self.status not in allowed:
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError({
+                "status": (
+                    f"Недопустимый переход статуса заказа: "
+                    f"{previous} → {self.status}"
+                ),
+            })
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')

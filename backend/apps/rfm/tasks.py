@@ -180,6 +180,15 @@ def sync_rfm_segments_to_onec(self, effective_month: str):
         )
         return {"status": "already_sent", "effective_month": effective_month}
 
+    # Resume: если предыдущий запуск частично отправил chunks и упал в retry,
+    # продолжаем с того места, где остановились. Без этого 1С получает дубли
+    # назначений сегментов (см. H7 audit-report.md).
+    is_resume = (
+        sync_log.status == RFMSegmentSyncLog.Status.IN_PROGRESS
+        and sync_log.chunks_sent > 0
+    )
+    start_chunk = sync_log.chunks_sent if is_resume else 0
+
     try:
         # Читаем CustomerBonusTier за месяц, только с card_id
         bonus_tiers = (
@@ -222,21 +231,40 @@ def sync_rfm_segments_to_onec(self, effective_month: str):
         chunk_size = getattr(settings, "ONEC_RFM_SYNC_CHUNK_SIZE", 500)
         total_chunks = math.ceil(total_customers / chunk_size)
 
-        # Обновляем sync_log: IN_PROGRESS
+        # Обновляем sync_log: IN_PROGRESS.
+        # При resume сохраняем накопленные chunks_sent — иначе при повторе
+        # пропустим первые N chunks, но затем перезапишем счётчик до 0.
         sync_log.status = RFMSegmentSyncLog.Status.IN_PROGRESS
-        sync_log.started_at = timezone.now()
         sync_log.total_customers = total_customers
         sync_log.total_chunks = total_chunks
-        sync_log.chunks_sent = 0
-        sync_log.chunks_failed = 0
-        sync_log.last_error = ""
-        sync_log.save(update_fields=[
-            "status", "started_at", "total_customers", "total_chunks",
-            "chunks_sent", "chunks_failed", "last_error",
-        ])
+        if is_resume:
+            # Resume: started_at не трогаем, chunks_sent сохраняем как есть,
+            # chunks_failed обнуляем — текущий retry попробует оставшиеся.
+            sync_log.chunks_failed = 0
+            sync_log.last_error = ""
+            sync_log.save(update_fields=[
+                "status", "total_customers", "total_chunks",
+                "chunks_failed", "last_error",
+            ])
+            logger.info(
+                "sync_rfm_segments_to_onec: resuming from chunk %d/%d for %s",
+                start_chunk + 1, total_chunks, effective_month,
+            )
+        else:
+            sync_log.started_at = timezone.now()
+            sync_log.chunks_sent = 0
+            sync_log.chunks_failed = 0
+            sync_log.last_error = ""
+            sync_log.save(update_fields=[
+                "status", "started_at", "total_customers", "total_chunks",
+                "chunks_sent", "chunks_failed", "last_error",
+            ])
 
-        # Отправляем chunks последовательно
+        # Отправляем chunks последовательно. При resume пропускаем
+        # уже доставленные первые start_chunk пакетов.
         for i in range(total_chunks):
+            if i < start_chunk:
+                continue
             chunk = customers_payload[i * chunk_size : (i + 1) * chunk_size]
             try:
                 send_rfm_chunk_to_onec(chunk)
@@ -252,7 +280,8 @@ def sync_rfm_segments_to_onec(self, effective_month: str):
                     "sync_rfm_segments_to_onec: chunk %d/%d failed: %s",
                     i + 1, total_chunks, chunk_exc,
                 )
-            # Сохраняем прогресс после каждого chunk
+            # Сохраняем прогресс после каждого chunk — при retry сразу
+            # видим, на каком шаге остановились.
             sync_log.save(update_fields=["chunks_sent", "chunks_failed", "last_error"])
 
         # Финальный статус
