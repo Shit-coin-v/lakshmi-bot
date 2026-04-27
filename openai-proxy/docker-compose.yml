@@ -1,0 +1,28 @@
+version: "3.9"
+
+# Standalone compose-файл для деплоя openai-proxy на отдельный VPS.
+# Не использовать в основном docker-compose.yml проекта lakshmi-bot.
+
+services:
+  openai-proxy:
+    build: .
+    image: lakshmi-openai-proxy:latest
+    container_name: openai-proxy
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Порт наружу. Доступ к нему ограничивается firewall'ом VPS:
+      # разрешён только публичный IP основного backend-сервера.
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
