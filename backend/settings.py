@@ -390,6 +390,17 @@ PRODUCT_IMAGE_STYLE_PROMPT = (
     os.getenv("PRODUCT_IMAGE_STYLE_PROMPT") or _DEFAULT_PRODUCT_IMAGE_PROMPT
 )
 
+# --- OpenAI proxy (опционально) ---
+# Если OPENAI_USE_PROXY=True, бэкенд НЕ обращается к OpenAI напрямую,
+# а ходит в внутренний proxy-сервис (см. openai-proxy/) на VPS.
+# Тогда OPENAI_API_KEY на этом сервере не нужен — ключ хранится только в proxy.
+OPENAI_USE_PROXY = _env_bool("OPENAI_USE_PROXY", False)
+OPENAI_PROXY_BASE_URL = os.getenv("OPENAI_PROXY_BASE_URL", "").rstrip("/")
+OPENAI_PROXY_API_KEY = os.getenv("OPENAI_PROXY_API_KEY", "")
+# Таймаут запроса к proxy в секундах. Если не задан — берём общий
+# PRODUCT_IMAGE_PROCESSING_TIMEOUT, чтобы клиент upstream-а не висел дольше.
+OPENAI_PROXY_TIMEOUT = _env_int("OPENAI_PROXY_TIMEOUT", PRODUCT_IMAGE_PROCESSING_TIMEOUT)
+
 
 # --- CORS (для отдельного домена Lakshmi Photo Studio) ---
 # По умолчанию выключен; включается заданием CORS_ALLOWED_ORIGINS в env.
