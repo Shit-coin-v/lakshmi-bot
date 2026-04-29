@@ -35,12 +35,14 @@ class CustomerPromoViewTests(TestCase):
 
     def _create_tier(self, user=None, tier="standard"):
         user = user or self.user
+        # Используем today ± 1 день, чтобы запись всегда покрывала текущую дату.
+        # Раньше фиксировали 1—28 число месяца, что ломало тесты 29—31 числа.
         return CustomerBonusTier.objects.create(
             customer=user,
             tier=tier,
             segment_label_at_fixation=tier,
-            effective_from=self.today.replace(day=1),
-            effective_to=self.today.replace(day=28),
+            effective_from=self.today - timedelta(days=1),
+            effective_to=self.today + timedelta(days=1),
         )
 
     def _create_campaign(self, slug="c1", **kwargs):
