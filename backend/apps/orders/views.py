@@ -18,6 +18,7 @@ from apps.main.services.catalog_filters import (
     get_hidden_category_ids,
     request_can_view_hidden,
 )
+from apps.showcase.services import apply_storefront_ordering
 from apps.orders.idempotency import get_cached_order_id, set_cached_order_id
 from apps.orders.serializers import (
     CategoryListSerializer,
@@ -71,6 +72,7 @@ class CatalogChildrenView(generics.ListAPIView):
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductListSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
     filter_backends = [filters.SearchFilter]
@@ -114,7 +116,8 @@ class ProductListView(generics.ListAPIView):
                 raise ValidationError(
                     {"has_image": "Допустимы значения true/false."}
                 )
-        return qs
+
+        return apply_storefront_ordering(qs, self.request)
 
     @staticmethod
     def _collect_descendant_ids(category_id: int) -> set[int]:
