@@ -329,3 +329,74 @@ def calculate_all_personal_rankings() -> dict:
         "cold_starts": cold_starts,
         "calculated_at": now,
     }
+
+
+def apply_storefront_ordering(queryset, request):
+    """Применяет стандартную сортировку «в наличии + ranking» к queryset товаров.
+
+    Используется в /api/showcase/ и /api/products/.
+    1. _in_stock=1 если stock > 0, иначе 0 — сортирует «в наличии» наверх.
+    2. _ranking_score = Coalesce(personal, global, 0). Personal — только при
+       PERSONAL_RANKING_ENABLED=True и аутентифицированном CustomUser.
+    3. При равенстве — по pk (стабильный tie-breaker).
+    """
+    from django.conf import settings as django_settings
+    from django.db.models import (
+        Case,
+        DecimalField,
+        F,
+        FilteredRelation,
+        FloatField,
+        IntegerField,
+        Q,
+        Value,
+        When,
+    )
+    from django.db.models.functions import Coalesce
+
+    from apps.main.models import CustomUser
+
+    use_personal = (
+        getattr(django_settings, "PERSONAL_RANKING_ENABLED", False)
+        and isinstance(request.user, CustomUser)
+    )
+
+    if use_personal:
+        queryset = queryset.annotate(
+            _personal_ranking=FilteredRelation(
+                "rankings",
+                condition=Q(rankings__customer=request.user),
+            ),
+            _global_ranking=FilteredRelation(
+                "rankings",
+                condition=Q(rankings__customer__isnull=True),
+            ),
+        )
+        ranking_score = Coalesce(
+            F("_personal_ranking__score"),
+            F("_global_ranking__score"),
+            Value(0.0),
+            output_field=FloatField(),
+        )
+    else:
+        queryset = queryset.annotate(
+            _global_ranking=FilteredRelation(
+                "rankings",
+                condition=Q(rankings__customer__isnull=True),
+            ),
+        )
+        ranking_score = Coalesce(
+            F("_global_ranking__score"),
+            Value(0.0),
+            output_field=FloatField(),
+        )
+
+    return queryset.annotate(
+        _stock=Coalesce("stock", Value(0), output_field=DecimalField()),
+        _in_stock=Case(
+            When(_stock__gt=0, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+        _ranking_score=ranking_score,
+    ).order_by("-_in_stock", "-_ranking_score", "pk")
