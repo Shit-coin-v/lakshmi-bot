@@ -8,7 +8,10 @@ import '../../../core/analytics_service.dart';
 import '../providers/products_provider.dart';
 import '../widgets/products_grid_view.dart';
 import '../widgets/cart_total_bar.dart';
+import '../widgets/category_strip.dart';
+import '../widgets/category_breadcrumbs.dart';
 import '../../cart/providers/cart_provider.dart';
+import '../../catalog/models/category_node.dart';
 import '../../notifications/providers/notifications_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -29,13 +32,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final productsAsyncValue = ref.watch(productsProvider);
+    final productsAsyncValue = ref.watch(currentProductsProvider);
 
     final notificationsAsync = ref.watch(notificationsProvider);
     final hasUnread = notificationsAsync.maybeWhen(
       data: (items) => items.any((n) => n.isRead == false),
       orElse: () => false,
     );
+
+    // Аналитика: фиксируем каждый переход на не пустой уровень категории.
+    // Срабатывает на тапы по чипам, тапы по крошкам и сброс через стрелку «←».
+    ref.listen<List<CategoryNode>>(categoryPathProvider, (prev, next) {
+      if (next.isEmpty) return;
+      AnalyticsService().trackCategoryView(
+        categoryId: next.last.id,
+        depth: next.length,
+      );
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -54,6 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           IconButton(
             onPressed: () {
+              AnalyticsService().trackCatalogButtonTap();
               context.push('/home/categories');
             },
             icon: const Icon(Icons.category_outlined, color: Colors.black),
@@ -130,6 +144,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _debounce = Timer(const Duration(milliseconds: 300), () {
                     ref.read(searchQueryProvider.notifier).state = value;
                     if (value.isNotEmpty) {
+                      // Сбрасываем выбранную категорию: поиск глобален.
+                      if (ref.read(categoryPathProvider).isNotEmpty) {
+                        ref.read(categoryPathProvider.notifier).state = [];
+                      }
                       AnalyticsService().trackSearch(value, 0);
                     }
                   });
@@ -137,11 +155,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-
+          const CategoryStrip(),
+          const CategoryBreadcrumbs(),
           Expanded(
             child: ProductsGridView(
               productsAsync: productsAsyncValue,
-              onRetry: () => ref.invalidate(productsProvider),
+              onRetry: () => ref.invalidate(currentProductsProvider),
             ),
           ),
         ],
