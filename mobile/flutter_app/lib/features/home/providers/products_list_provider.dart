@@ -76,8 +76,8 @@ class ProductsListNotifier
 
   @override
   Future<ProductsListState> build(ProductsListKey arg) async {
-    // keepAlive — тот же паттерн, что в legacy categoryProductsProvider:
-    // освобождаем через 5 минут после последнего слушателя.
+    // keepAlive — освобождаем кэш через 5 минут после последнего слушателя,
+    // чтобы возврат с экрана товара не сбрасывал загруженные страницы.
     final link = ref.keepAlive();
     Timer? timer;
     ref.onDispose(() => timer?.cancel());
