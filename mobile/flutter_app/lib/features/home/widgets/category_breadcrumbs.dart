@@ -47,10 +47,14 @@ class CategoryBreadcrumbs extends ConsumerWidget {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: items),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      width: double.infinity,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(mainAxisSize: MainAxisSize.min, children: items),
+        ),
       ),
     );
   }
