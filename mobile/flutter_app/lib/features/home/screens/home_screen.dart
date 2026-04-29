@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics_service.dart';
 import '../providers/products_provider.dart';
+import '../providers/products_list_provider.dart';
 import '../widgets/products_grid_view.dart';
 import '../widgets/cart_total_bar.dart';
 import '../widgets/category_strip.dart';
@@ -32,7 +33,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final productsAsyncValue = ref.watch(currentProductsProvider);
+    final path = ref.watch(categoryPathProvider);
+    final search = ref.watch(searchQueryProvider);
+    final listKey = ProductsListKey(
+      search: search,
+      categoryId: path.isEmpty ? null : path.last.id,
+    );
 
     final notificationsAsync = ref.watch(notificationsProvider);
     final hasUnread = notificationsAsync.maybeWhen(
@@ -158,10 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const CategoryStrip(),
           const CategoryBreadcrumbs(),
           Expanded(
-            child: ProductsGridView(
-              productsAsync: productsAsyncValue,
-              onRetry: () => ref.invalidate(currentProductsProvider),
-            ),
+            child: ProductsGridView(listKey: listKey),
           ),
         ],
       ),

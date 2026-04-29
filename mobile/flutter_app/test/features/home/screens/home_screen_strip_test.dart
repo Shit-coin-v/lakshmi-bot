@@ -9,7 +9,6 @@ import 'package:lakshmi_market/features/home/services/products_service.dart';
 import 'package:lakshmi_market/features/home/providers/products_provider.dart';
 import 'package:lakshmi_market/features/home/widgets/category_strip.dart';
 import 'package:lakshmi_market/features/home/widgets/category_breadcrumbs.dart';
-import 'package:lakshmi_market/features/home/models/product.dart';
 import 'package:lakshmi_market/features/catalog/models/category_node.dart';
 import 'package:lakshmi_market/features/catalog/providers/catalog_provider.dart';
 import 'package:lakshmi_market/features/notifications/providers/notifications_provider.dart';
@@ -53,12 +52,15 @@ void main() {
   setUp(() {
     mockService = _MockProductsService();
     mockNotifApi = _MockNotificationsApiService();
-    when(() => mockService.getShowcase(search: any(named: 'search')))
-        .thenAnswer((_) async => <Product>[]);
+    when(() => mockService.getShowcase(
+          search: any(named: 'search'),
+          page: any(named: 'page'),
+        )).thenAnswer((_) async => const ProductPage(items: [], hasMore: false));
     when(() => mockService.getProducts(
           search: any(named: 'search'),
           categoryId: any(named: 'categoryId'),
-        )).thenAnswer((_) async => <Product>[]);
+          page: any(named: 'page'),
+        )).thenAnswer((_) async => const ProductPage(items: [], hasMore: false));
     // fetchNotifications никогда не вызовется без токена, но fallback на случай
     // если в будущем тест-среда изменится.
     when(() => mockNotifApi.fetchNotifications())

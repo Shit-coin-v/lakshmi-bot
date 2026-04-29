@@ -16,7 +16,7 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
 
   final service = ref.read(productsServiceProvider);
 
-  return service.getShowcase(search: search);
+  return (await service.getShowcase(search: search)).items;
 });
 
 // 3. Products by category provider (cached for 5 minutes).
@@ -35,7 +35,7 @@ final categoryProductsProvider =
   });
 
   final service = ref.read(productsServiceProvider);
-  return service.getProducts(categoryId: categoryId);
+  return (await service.getProducts(categoryId: categoryId)).items;
 });
 
 // 4. Путь по дереву категорий: [] = «Все» (корень), [Молочные] = в Молочные,
@@ -69,10 +69,10 @@ final currentProductsProvider =
   final service = ref.read(productsServiceProvider);
 
   if (search.isNotEmpty) {
-    return service.getShowcase(search: search);
+    return (await service.getShowcase(search: search)).items;
   }
   if (path.isEmpty) {
-    return service.getShowcase();
+    return (await service.getShowcase()).items;
   }
-  return service.getProducts(categoryId: path.last.id);
+  return (await service.getProducts(categoryId: path.last.id)).items;
 });
