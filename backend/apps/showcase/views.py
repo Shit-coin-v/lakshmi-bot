@@ -1,39 +1,27 @@
 from __future__ import annotations
 
-from django.conf import settings as django_settings
-from django.db.models import (
-    Case,
-    DecimalField,
-    F,
-    FilteredRelation,
-    FloatField,
-    IntegerField,
-    Q,
-    Value,
-    When,
-)
-from django.db.models.functions import Coalesce
-
 from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
 
 from apps.common.authentication import JWTAuthentication
-from apps.main.models import CustomUser, Product
+from apps.main.models import Product
 from apps.main.services.catalog_filters import (
     get_hidden_category_ids,
     request_can_view_hidden,
 )
 from apps.orders.serializers import ProductListSerializer
+from apps.showcase.services import apply_storefront_ordering
 
 
 class ShowcaseView(generics.ListAPIView):
     """Предрассчитанная витрина для главной страницы.
 
-    Сортировка:
+    Сортировка делегирована в apply_storefront_ordering — общий хелпер,
+    который используется и в /api/products/ для согласованного UX.
+
     1. Товары в наличии (stock > 0) — вверху.
     2. Внутри групп — по предрассчитанному score DESC.
-    3. Товары без наличия — внизу.
-    4. Fallback при пустом ranking — по pk.
+    3. Tie-breaker — по pk.
 
     Персонализация (при PERSONAL_RANKING_ENABLED=True):
     - Авторизованный клиент получает Coalesce(personal, global, 0.0).
@@ -51,56 +39,11 @@ class ShowcaseView(generics.ListAPIView):
         qs = Product.objects.filter(is_active=True)
 
         # Скрытые категории — товары из них не должны попадать в витрину
-        # и в персональные рекомендации (общий queryset). Staff-bypass
-        # (`?include_hidden=true` + X-Api-Key) для витрины тоже работает.
+        # и в персональные рекомендации. Staff-bypass (`?include_hidden=true`
+        # + X-Api-Key) для витрины тоже работает.
         if not request_can_view_hidden(self.request):
             hidden_ids = get_hidden_category_ids()
             if hidden_ids:
                 qs = qs.exclude(category_id__in=hidden_ids)
 
-        use_personal = (
-            getattr(django_settings, "PERSONAL_RANKING_ENABLED", False)
-            and isinstance(self.request.user, CustomUser)
-        )
-
-        if use_personal:
-            qs = qs.annotate(
-                _personal_ranking=FilteredRelation(
-                    "rankings",
-                    condition=Q(rankings__customer=self.request.user),
-                ),
-                _global_ranking=FilteredRelation(
-                    "rankings",
-                    condition=Q(rankings__customer__isnull=True),
-                ),
-            )
-            ranking_score = Coalesce(
-                F("_personal_ranking__score"),
-                F("_global_ranking__score"),
-                Value(0.0),
-                output_field=FloatField(),
-            )
-        else:
-            qs = qs.annotate(
-                _global_ranking=FilteredRelation(
-                    "rankings",
-                    condition=Q(rankings__customer__isnull=True),
-                ),
-            )
-            ranking_score = Coalesce(
-                F("_global_ranking__score"),
-                Value(0.0),
-                output_field=FloatField(),
-            )
-
-        qs = qs.annotate(
-            _stock=Coalesce("stock", Value(0), output_field=DecimalField()),
-            _in_stock=Case(
-                When(_stock__gt=0, then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            ),
-            _ranking_score=ranking_score,
-        )
-
-        return qs.order_by("-_in_stock", "-_ranking_score", "pk")
+        return apply_storefront_ordering(qs, self.request)
