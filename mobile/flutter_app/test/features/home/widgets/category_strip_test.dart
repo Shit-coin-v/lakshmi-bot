@@ -45,6 +45,8 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           rootCategoriesProvider.overrideWith((ref) async => [_n(1, 'Молочные')]),
+          // После тапа путь становится [Молочные(1)] — виджет загружает детей.
+          childCategoriesProvider(1).overrideWith((ref) async => []),
         ],
         child: Builder(builder: (context) {
           container = ProviderScope.containerOf(context);
@@ -54,7 +56,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Молочные'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       final path = container.read(categoryPathProvider);
       expect(path, hasLength(1));
@@ -90,6 +92,8 @@ void main() {
         overrides: [
           categoryPathProvider.overrideWith((ref) => [_n(1, 'Молочные'), _n(11, 'Молоко')]),
           childCategoriesProvider(11).overrideWith((ref) async => []),
+          // После тапа «←» путь становится [Молочные(1)] — нужны её дети.
+          childCategoriesProvider(1).overrideWith((ref) async => []),
         ],
         child: Builder(builder: (context) {
           container = ProviderScope.containerOf(context);
@@ -99,7 +103,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       final path = container.read(categoryPathProvider);
       expect(path, hasLength(1));
