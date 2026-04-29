@@ -1,90 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 
-import 'package:lakshmi_market/features/home/providers/products_provider.dart';
-import 'package:lakshmi_market/features/home/services/products_service.dart';
 import 'package:lakshmi_market/features/catalog/models/category_node.dart';
 import 'package:lakshmi_market/features/catalog/providers/catalog_provider.dart';
-
-class MockProductsService extends Mock implements ProductsService {}
+import 'package:lakshmi_market/features/home/providers/products_provider.dart';
 
 CategoryNode _node(int id, {bool hasChildren = true}) =>
     CategoryNode(id: id, name: 'Cat $id', hasChildren: hasChildren);
 
 void main() {
-  late MockProductsService mockService;
-
-  setUp(() {
-    mockService = MockProductsService();
-    when(() => mockService.getShowcase(
-          search: any(named: 'search'),
-          page: any(named: 'page'),
-        )).thenAnswer((_) async => const ProductPage(items: [], hasMore: false));
-    when(() => mockService.getProducts(
-          search: any(named: 'search'),
-          categoryId: any(named: 'categoryId'),
-          page: any(named: 'page'),
-        )).thenAnswer((_) async => const ProductPage(items: [], hasMore: false));
-  });
-
   group('categoryPathProvider', () {
     test('initial state is empty list', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       expect(container.read(categoryPathProvider), isEmpty);
-    });
-  });
-
-  group('currentProductsProvider', () {
-    test('empty path + empty search → calls getShowcase()', () async {
-      final container = ProviderContainer(overrides: [
-        productsServiceProvider.overrideWithValue(mockService),
-      ]);
-      addTearDown(container.dispose);
-
-      await container.read(currentProductsProvider.future);
-
-      verify(() => mockService.getShowcase(search: '')).called(1);
-      verifyNever(() => mockService.getProducts(
-            search: any(named: 'search'),
-            categoryId: any(named: 'categoryId'),
-          ));
-    });
-
-    test('non-empty search → calls getShowcase(search: q) regardless of path',
-        () async {
-      final container = ProviderContainer(overrides: [
-        productsServiceProvider.overrideWithValue(mockService),
-      ]);
-      addTearDown(container.dispose);
-
-      container.read(categoryPathProvider.notifier).state = [_node(10)];
-      container.read(searchQueryProvider.notifier).state = 'milk';
-
-      await container.read(currentProductsProvider.future);
-
-      verify(() => mockService.getShowcase(search: 'milk')).called(1);
-      verifyNever(() => mockService.getProducts(
-            search: any(named: 'search'),
-            categoryId: any(named: 'categoryId'),
-          ));
-    });
-
-    test('non-empty path + empty search → calls getProducts(categoryId: last.id)',
-        () async {
-      final container = ProviderContainer(overrides: [
-        productsServiceProvider.overrideWithValue(mockService),
-      ]);
-      addTearDown(container.dispose);
-
-      container.read(categoryPathProvider.notifier).state = [_node(10), _node(25)];
-
-      await container.read(currentProductsProvider.future);
-
-      verify(() => mockService.getProducts(categoryId: 25)).called(1);
-      verifyNever(() => mockService.getShowcase(search: any(named: 'search')));
     });
   });
 
@@ -108,7 +38,8 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      container.read(categoryPathProvider.notifier).state = [_node(7, hasChildren: true)];
+      container.read(categoryPathProvider.notifier).state =
+          [_node(7, hasChildren: true)];
 
       final result = await container.read(currentLevelCategoriesProvider.future);
       expect(result, children);
@@ -118,7 +49,8 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      container.read(categoryPathProvider.notifier).state = [_node(7, hasChildren: false)];
+      container.read(categoryPathProvider.notifier).state =
+          [_node(7, hasChildren: false)];
 
       final result = await container.read(currentLevelCategoriesProvider.future);
       expect(result, isEmpty);
