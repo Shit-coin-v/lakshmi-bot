@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:lakshmi_market/features/home/services/products_service.dart';
-import 'package:lakshmi_market/features/home/models/product.dart';
 
 import '../../../helpers/mocks.dart';
 
@@ -36,13 +35,14 @@ void main() {
             requestOptions: RequestOptions(path: '/api/showcase/'),
           ));
 
-      final products = await service.getShowcase();
+      final result = await service.getShowcase();
 
-      expect(products, isA<List<Product>>());
-      expect(products.length, 1);
-      expect(products[0].id, 'SH-001');
-      expect(products[0].name, 'Топ товар');
-      expect(products[0].price, 199.90);
+      expect(result, isA<ProductPage>());
+      expect(result.items.length, 1);
+      expect(result.items[0].id, 'SH-001');
+      expect(result.items[0].name, 'Топ товар');
+      expect(result.items[0].price, 199.90);
+      expect(result.hasMore, false);
     });
 
     test('passes search parameter when non-empty', () async {
@@ -55,9 +55,9 @@ void main() {
             requestOptions: RequestOptions(path: '/api/showcase/'),
           ));
 
-      final products = await service.getShowcase(search: 'молоко');
+      final result = await service.getShowcase(search: 'молоко');
 
-      expect(products, isEmpty);
+      expect(result.items, isEmpty);
       verify(() => mockDio.get(
             '/api/showcase/',
             queryParameters: {'search': 'молоко'},
@@ -121,10 +121,10 @@ void main() {
             requestOptions: RequestOptions(path: '/api/products/'),
           ));
 
-      final products = await service.getProducts(categoryId: 5);
+      final result = await service.getProducts(categoryId: 5);
 
-      expect(products.length, 1);
-      expect(products[0].id, 'CAT-001');
+      expect(result.items.length, 1);
+      expect(result.items[0].id, 'CAT-001');
       verify(() => mockDio.get(
             '/api/products/',
             queryParameters: {'category_id': 5},
@@ -141,9 +141,9 @@ void main() {
             requestOptions: RequestOptions(path: '/api/products/'),
           ));
 
-      final products = await service.getProducts(search: 'хлеб', categoryId: 3);
+      final result = await service.getProducts(search: 'хлеб', categoryId: 3);
 
-      expect(products, isEmpty);
+      expect(result.items, isEmpty);
       verify(() => mockDio.get(
             '/api/products/',
             queryParameters: {'search': 'хлеб', 'category_id': 3},
