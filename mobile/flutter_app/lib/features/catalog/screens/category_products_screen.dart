@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../home/providers/products_provider.dart';
+import '../../home/providers/products_list_provider.dart';
 import '../../home/widgets/products_grid_view.dart';
 import '../../home/widgets/cart_total_bar.dart';
 
@@ -17,7 +17,7 @@ class CategoryProductsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(categoryProductsProvider(categoryId));
+    final listKey = ProductsListKey(search: '', categoryId: categoryId);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -35,8 +35,7 @@ class CategoryProductsScreen extends ConsumerWidget {
       ),
       bottomSheet: const CartTotalBar(),
       body: ProductsGridView(
-        productsAsync: productsAsync,
-        onRetry: () => ref.invalidate(categoryProductsProvider(categoryId)),
+        listKey: listKey,
         emptyMessage: 'Нет товаров в этой категории',
         emptyIcon: Icons.inventory_2_outlined,
       ),
