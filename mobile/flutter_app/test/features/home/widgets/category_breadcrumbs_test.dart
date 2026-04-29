@@ -111,6 +111,13 @@ void main() {
       // Пытаемся тапнуть — структура текста просто Text, без InkWell.
       final lastTextWidget = tester.widget<Text>(find.text('Молоко'));
       expect(lastTextWidget.style?.fontWeight, FontWeight.bold);
+      expect(
+        find.ancestor(
+          of: find.text('Молоко'),
+          matching: find.byType(InkWell),
+        ),
+        findsNothing,
+      );
       expect(container.read(categoryPathProvider).length, beforeLength);
     });
   });
