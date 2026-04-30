@@ -9,7 +9,7 @@
 
 - ``OPENAI_API_KEY`` — ключ API (обязателен в direct-режиме).
 - ``PRODUCT_IMAGE_STYLE_PROMPT`` — единый prompt стилизации.
-- ``PRODUCT_IMAGE_MODEL`` — модель Image API (по умолчанию ``gpt-image-1``).
+- ``PRODUCT_IMAGE_MODEL`` — модель Image API (по умолчанию ``gpt-image-2``).
 - ``PRODUCT_IMAGE_OUTPUT_SIZE`` — размер итогового файла (например ``1024x1024``).
 - ``PRODUCT_IMAGE_PROCESSING_TIMEOUT`` — таймаут запроса к OpenAI в секундах.
 
@@ -205,7 +205,7 @@ def process_product_image(
         raise ImageProcessingError("PRODUCT_IMAGE_STYLE_PROMPT не настроен")
 
     size = getattr(settings, "PRODUCT_IMAGE_OUTPUT_SIZE", "1024x1024")
-    model = getattr(settings, "PRODUCT_IMAGE_MODEL", "gpt-image-1")
+    model = getattr(settings, "PRODUCT_IMAGE_MODEL", "gpt-image-2")
 
     if getattr(settings, "OPENAI_USE_PROXY", False):
         return _call_via_proxy(
