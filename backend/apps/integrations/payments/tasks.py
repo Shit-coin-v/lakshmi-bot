@@ -202,7 +202,12 @@ def capture_payment_task(self, order_id: int, first_attempt_at: str | None = Non
     except Exception as exc:
         retry_num = self.request.retries
         if retry_num < self.max_retries:
-            base_delay = _CAPTURE_DELAYS[min(retry_num, len(_CAPTURE_DELAYS) - 1)]
+            # _CAPTURE_DELAYS читается из settings — на пустой список (admin-config-bug)
+            # делаем безопасный фолбэк на 60s, чтобы не падать с IndexError.
+            if not _CAPTURE_DELAYS:
+                base_delay = 60.0
+            else:
+                base_delay = _CAPTURE_DELAYS[min(retry_num, len(_CAPTURE_DELAYS) - 1)]
             delay = min(_jitter(base_delay), _MAX_CELERY_DELAY)
             logger.warning(
                 "capture_payment_task retry %d/%d for order %s in %.0fs: %s",
