@@ -11,9 +11,9 @@ import OrdersScreen from './screens/OrdersScreen.jsx';
 import CampaignsScreen from './screens/CampaignsScreen.jsx';
 import BroadcastsScreen from './screens/BroadcastsScreen.jsx';
 import CategoriesScreen from './screens/CategoriesScreen.jsx';
+import CategoryDetailScreen from './screens/CategoryDetailScreen.jsx';
 
 // Временные заглушки — заменяются в Tasks 10-18.
-const TmpCategoryDetail  = () => <Placeholder name="Категория" />;
 const TmpAbcXyz          = () => <Placeholder name="ABC / XYZ" />;
 
 export const SCREEN_TITLES = {
@@ -41,7 +41,7 @@ export const ROUTES = [
   { path: '/broadcasts',        element: <BroadcastsScreen /> },
   { path: '/catalog',           element: <CatalogScreen /> },
   { path: '/categories',        element: <CategoriesScreen /> },
-  { path: '/categories/:slug',  element: <TmpCategoryDetail /> },
+  { path: '/categories/:slug',  element: <CategoryDetailScreen /> },
   { path: '/abc-xyz',           element: <TmpAbcXyz /> },
   { path: '/analytics',         element: <AnalyticsScreen /> },
 ];

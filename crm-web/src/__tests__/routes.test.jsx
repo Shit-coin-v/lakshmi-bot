@@ -88,4 +88,9 @@ describe('CRM routing smoke', () => {
     render(<MemoryRouter initialEntries={['/categories']}><App /></MemoryRouter>);
     expect(screen.getByText(categories[0].name)).toBeInTheDocument();
   });
+
+  it('category detail shows EmptyState for unknown slug', () => {
+    render(<MemoryRouter initialEntries={['/categories/no-such-cat']}><App /></MemoryRouter>);
+    expect(screen.getByText('Категория не найдена')).toBeInTheDocument();
+  });
 });
