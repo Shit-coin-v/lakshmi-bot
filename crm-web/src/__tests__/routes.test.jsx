@@ -54,4 +54,15 @@ describe('CRM routing smoke', () => {
     render(<MemoryRouter initialEntries={['/clients']}><App /></MemoryRouter>);
     expect(screen.getByText(clients[0].name)).toBeInTheDocument();
   });
+
+  it('client detail shows EmptyState for unknown id', () => {
+    render(<MemoryRouter initialEntries={['/clients/no-such-client']}><App /></MemoryRouter>);
+    expect(screen.getByText('Клиент не найден')).toBeInTheDocument();
+  });
+
+  it('client detail shows real client name', () => {
+    const c = clients[0];
+    render(<MemoryRouter initialEntries={[`/clients/${c.id}`]}><App /></MemoryRouter>);
+    expect(screen.getAllByText(c.name).length).toBeGreaterThan(0);
+  });
 });
