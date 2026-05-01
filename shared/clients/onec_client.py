@@ -75,8 +75,15 @@ async def post_to_onec(
                 attempt + 1, _MAX_RETRIES, exc, delay,
             )
             await asyncio.sleep(delay)
-        except Exception:
-            logger.exception("Failed to reach 1C endpoint %s", url)
+        except Exception as exc:
+            # Не сетевая ошибка (Type/Attribute/Value/etc) — это баг в коде или
+            # неожиданное состояние. Не ретраим — обычно после такой ошибки
+            # повтор бесполезен. Тип сохраняется в traceback через logger.exception.
+            last_exc = exc
+            logger.exception(
+                "Unexpected %s while reaching 1C endpoint %s",
+                type(exc).__name__, url,
+            )
             return None
 
     logger.error("1C request failed after %d attempts: %s", _MAX_RETRIES, last_exc)
