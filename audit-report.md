@@ -9,7 +9,8 @@
 
 > **Статус Critical (раздел 1): ✅ закрыты в `dev`**, коммиты `e5e76fd → 6c09a45`.
 > **Статус High (раздел 2): ✅ закрыты в `dev`**, коммиты `ec12d2a → 0f0481b` (5 коммитов).
-> Backend test-suite: **865/871 passed**, 6 ошибок — все 6 pre-existing на baseline `05104ff`, к моим изменениям отношения не имеют.
+> **Статус Medium/Low (разделы 3-4): частично закрыты в `dev`** (M8, M11-M14, M17, L1-L3, L9), пункты M5/M7/L11/L14 — намеренно пропущены или не подтверждены, остальные Medium (M1-M4, M6, M9, M10, M15, M16) и Low (L4, L6-L8, L10, L12-L13) — не вошли в этот раунд.
+> Backend test-suite (после Medium/Low правок): **892 теста, 6 ошибок** — те же pre-existing test-discovery дубликаты (`backend.apps.X` vs `apps.X`), что и в baseline `05104ff`; каждый из 6 проходит при изолированном запуске.
 
 ## Закрытые High-блокеры
 
@@ -34,8 +35,8 @@
 |--------------|--------|----------------------------------------------------------------------------------|
 | **Critical** | 5 → **0** ✅ | PyJWT CVE-2024-53861, OrderCreate без atomic+idempotency, гонка webhook ЮKassa, dev-секреты в `.env`, отсутствие locks на Celery beat |
 | **High**     | 12 → **0** ✅ | Логирование PII в OrderCreate, FCM token в логах, `except Exception` в платежах/чеках, partial RFM sync retry, magic numbers в финансах, X-Telegram-User-Id auth flag |
-| **Medium**   | ~25    | N+1 в сериализаторах, дублирование handlers между ботами, file-uploads без magic-bytes, `bot/*` deps без pin, длинные view-файлы, нет state-machine на Order, axios `^1.7.9` |
-| **Low/Info** | ~15    | Cleanup без logger, deprecated поля, комментированный код, base64 cursor, `canceled→new` переход без документации |
+| **Medium**   | 17 → **8 закрыто, 2 пропущено намеренно, 7 отложено** | Закрыто в раунде 2: M8 (canceled→new doc), M11 (HMAC cursor), M12 (qr_login throttle), M13 (mask email PII), M14 (logger в pre-save), M17 (CORS HTTPS docs); M10/M15 ссылочно ⇒ закрыто. Пропущено: M5 (Content-Type на 1С — не менять контракт), M7 (CheckConstraint bonuses≥0 — бизнес допускает отрицательный баланс). Отложено: M1/M2/M3/M4/M6/M9/M16 (требуют отдельного цикла) |
+| **Low/Info** | 14 → **4 закрыто, 2 false-positive, 1 ⚠️, 7 отложено** | Закрыто: L1 (debug+exc_info), L2 (false-positive, добавлены комментарии), L3 (тип в `logger.exception`), L9 (CAPTURE_DELAYS bounds). False-positive: L5 (параметр используется), L11 (noqa нет в коде). ⚠️ требует решения: L14 (MEMORY.md tracked vs gitignore). Отложено: L4, L6, L7, L8, L10, L12, L13 |
 
 **Общая оценка:** проект в целом следует декларациям из `CLAUDE.md` (auth-зоны разделены, idempotency на чеках есть, retry/atomic в платежах присутствуют). Основные риски — **финансовые гонки в OrderCreate** и **CVE в PyJWT**, оба исправляются в часах.
 
@@ -227,23 +228,25 @@ python-dotenv
 Проверяется размер, расширение и `content_type`, но они задаются клиентом. PNG может оказаться `.exe`.
 **Исправление:** `python-magic` либо `Pillow.Image.open(...).verify()` до сохранения.
 
-### M5. Content-Type не валидируется на 1С-endpoints
+### M5. Content-Type не валидируется на 1С-endpoints — ⚠️ skipped intentionally
 **Файл:** `backend/apps/integrations/onec/receipt.py:94-98` — `request.body` парсится как JSON независимо от Content-Type.
-**Исправление:** `if request.content_type != "application/json": return 415`.
+**Исправление (предлагалось):** `if request.content_type != "application/json": return 415`.
+**Статус:** не внедряется. CLAUDE.md прямо запрещает менять контракты `/onec/*` без согласования. Эти endpoint'ы защищены `@require_onec_auth` (X-Api-Key + IP-whitelist), невалидный JSON в любом случае падает на парсинге → 400. Реальной защиты не добавит, но может сломать клиентов 1С, которые шлют без Content-Type. Если когда-нибудь понадобится — реализовать как **soft warning** (логировать, но всё равно парсить) с переходом в strict через несколько релизов.
 
 ### M6. Нет push-уведомления при `expire_pending_payments`
 **Файл:** `backend/apps/integrations/payments/tasks.py:279-307`
 Платёж тихо отменяется по TTL — клиент не понимает, что произошло.
 **Исправление:** `Notification.create(...)` + FCM-push «оплата истекла, попробуйте снова».
 
-### M7. Negative bonus balance
+### M7. Negative bonus balance — ⚠️ skipped intentionally
 В `backend/apps/loyalty/models.py` нет CHECK-constraint `bonuses >= 0`. F-expression `Coalesce(F("bonuses")) + delta` атомарен, но не защищает от ухода в минус при списании.
-**Исправление:** добавить `CheckConstraint(check=Q(bonuses__gte=0), ...)` в `Meta.constraints`, плюс предварительная проверка перед списанием.
+**Исправление (предлагалось):** добавить `CheckConstraint(check=Q(bonuses__gte=0), ...)` в `Meta.constraints`, плюс предварительная проверка перед списанием.
+**Статус:** не внедряется. Бизнес-логика проекта **допускает** временно отрицательный баланс бонусов (коррекции/реверсы из 1С). Жёсткий DB-constraint сломает существующие сценарии. Если нужна защита от перерасхода — её следует делать на уровне конкретного use-case (мобильное списание, бонус-оплата), а не глобальным constraint.
 
-### M8. `canceled → new` переход без документации
+### M8. `canceled → new` переход без документации ✅ closed
 **Файл:** `backend/apps/orders/services.py:49-58`
 Допускается «реopen» отменённого заказа, но юз-кейс непрозрачен. Может быть случайным side-channel для манипуляции платежом.
-**Исправление:** документировать в `docs/ARCHITECTURE.md` или удалить, если не используется.
+**Закрыто:** документирован в `docs/ARCHITECTURE.md` (раздел «Поток заказа» / «Reopen») и в комментарии над `ALLOWED_TRANSITIONS` в `services.py`. Описано: административный сценарий, авто-рефанд capture'нутого СБП на reopen не реверсится.
 
 ### M9. Picker-notification дубли при retry
 **Файл:** `backend/apps/notifications/tasks.py:189-195`
@@ -253,20 +256,21 @@ python-dotenv
 ### M10. Длинная функция `OrderCreateSerializer.create` с блоком `except Exception`
 **Файл:** `backend/apps/orders/serializers.py:330` (см. H5).
 
-### M11. `loyalty/views.py:30-51` — base64 cursor без HMAC
+### M11. `loyalty/views.py:30-51` — base64 cursor без HMAC ✅ closed
 Не критично (содержимое — публичные данные пользователя), но открыто для ручной правки. Если в будущем туда положат `customer_id`/lookback — будет IDOR.
-**Исправление:** оборачивать base64 в HMAC-подпись `SECRET_KEY`.
+**Закрыто:** курсор подписывается HMAC-SHA256(`SECRET_KEY`), формат `<payload_b64>.<sig16>`. Подмена → `signature mismatch` → 400. Существующие тесты `test_bonus_history` (21 шт) — зелёные.
 
-### M12. QR-логин без throttling
+### M12. QR-логин без throttling ✅ closed
 **Файл:** `backend/apps/accounts/views.py:107-137`
-Подбор QR-кода (`qr_code` строка) не ограничен `throttle_classes`.
-**Исправление:** `throttle_classes = [ScopedRateThrottle]; throttle_scope = "qr_login"`, `5/min`.
+Подбор QR-кода (`qr_code` строка) был ограничен `AnonAuthThrottle` (10/min) — слишком мягко для подбора.
+**Закрыто:** добавлен `QrLoginThrottle` (scope `qr_login`, 5/min) в `apps/common/throttling.py`, прописан в `settings.py` и `settings_test.py`, применён к `LoginQrView`.
 
-### M13. Email PII в exception-логах
+### M13. Email PII в exception-логах ✅ closed
 **Файлы:** `backend/apps/accounts/views.py:65, 257, 323` — `logger.exception("Failed to send … email to %s", email)`.
 В нормальных условиях OK, но email — PII по 152-ФЗ. Минимизируйте: `email[:3]+"***"+email[-5:]`.
+**Закрыто:** добавлены `mask_email` и `mask_phone` в `shared/log_redact.py` (рядом с существующим `mask_token`). Применены в `accounts/views.py` (3 места) и `accounts/email_service.py` (2 места). Формат: `a***a@example.com` — домен сохраняется для дебага.
 
-### M14. Pre-save signals — silent exception
+### M14. Pre-save signals — silent exception ✅ closed
 **Файл:** `backend/apps/orders/signals.py:62, 86`
 ```python
 try: ...
@@ -274,36 +278,38 @@ except Exception:
     instance._was_approved = False
 ```
 Без `logger.exception`. Если БД-проблема — никто не узнает.
+**Закрыто:** добавлен `logger.exception(...)` в обоих местах (`_track_courier_approved`, `_track_picker_approved`). Поведение _was_approved=False сохранено (graceful degradation при недоступной БД), но теперь видно в логах.
 
 ### M15. `bonus_amount` `D("50")` рассинхронизирован между receipt.py и model default — см. H6.
 
 ### M16. Bot-handlers async не имеют timeout-обёртки на FSM-операциях
 В `bots/courier_bot/handlers/orders.py` нет видимых таймаутов FSM-state. При зависшем backend пользователь застревает.
 
-### M17. CORS — есть, но `CORS_ALLOWED_ORIGINS` не валидирует трафик photo-studio под HTTPS в проде
+### M17. CORS — есть, но `CORS_ALLOWED_ORIGINS` не валидирует трафик photo-studio под HTTPS в проде ✅ closed (docs)
 **Файл:** `backend/settings.py:353-381` + `.env:108`
 Сейчас в dev — `http://localhost:5173,http://192.168.1.218:5173`. Документировать, что в prod должно быть `https://`.
+**Закрыто (docs):** комментарий в `settings.py` рядом с `CORS_ALLOWED_ORIGINS = _env_list(...)` — явно прописано: prod — только `https://`, dev — допустимы `http://localhost`/IP-loopback. Hard-assert на `DEBUG=False && http://` — не добавлен (не хочу ломать существующие dev-overrides без необходимости).
 
 ---
 
 ## 4. LOW / INFO
 
-| ID  | Файл                                                       | Описание                                                                                     |
-|-----|------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| L1  | `shared/bot_utils/notifications.py:32`                     | `except Exception:` без логгирования (cleanup-код)                                           |
-| L2  | `shared/bot_utils/retry.py:69-74`                          | nested `except Exception` маскирует оригинал                                                 |
-| L3  | `shared/clients/onec_client.py:78`                         | `except Exception:` теряет тип ошибки                                                        |
-| L4  | `backend/apps/integrations/onec/receipt.py:300-303`        | `Product.get_or_create` в цикле — потенциальные дубли при race                               |
-| L5  | `backend/apps/orders/services.py:32`                       | неиспользуемый параметр `Order` в `_finalize_ttl_expired`                                    |
-| L6  | `backend/apps/campaigns/services.py:298`                   | использование deprecated `rule.product_id`                                                   |
-| L7  | `backend/apps/rfm/tasks.py:69-100`                         | `fix_monthly_bonus_tiers` создаёт дубли при двойном запуске в день                           |
-| L8  | `backend/apps/integrations/onec/receipt.py:219-234`        | расчёт распределения бонусов без `_quantize` после каждой операции — копеечная погрешность   |
-| L9  | `backend/apps/integrations/payments/tasks.py:175-177`      | `_CAPTURE_DELAYS[min(...)]` без явной проверки длины                                         |
-| L10 | `backend/apps/orders/serializers.py:106-122`               | mutable cache на инстансе сериализатора                                                      |
-| L11 | `backend/apps/rfm/tests/test_segment_sync.py`              | импорты `# noqa: F401` без пояснения                                                         |
-| L12 | `backend/apps/main/views.py:146-148`                       | имя файла генерируется через `slugify`, нет тестов на коллизии                               |
-| L13 | `backend/apps/notifications/push.py`                       | Firebase init на каждый таск (не singleton) — посмотреть по факту                            |
-| L14 | `MEMORY.md`                                                | присутствует в репо, но это OpenClaw artifact — добавлен в .gitignore? проверить, не нужен ли он в трекинге |
+| ID  | Файл                                                       | Описание                                                                                     | Статус |
+|-----|------------------------------------------------------------|----------------------------------------------------------------------------------------------|--------|
+| L1  | `shared/bot_utils/notifications.py:32`                     | `except Exception:` без логгирования (cleanup-код)                                           | ✅ закрыт: `logger.debug(..., exc_info=True)` + комментарий о причинах |
+| L2  | `shared/bot_utils/retry.py:69-74`                          | nested `except Exception` маскирует оригинал                                                 | ✅ false-positive (оба логируются через `logger.exception`); добавлены поясняющие комментарии |
+| L3  | `shared/clients/onec_client.py:78`                         | `except Exception:` теряет тип ошибки                                                        | ✅ закрыт: тип в `logger.exception` через `type(exc).__name__` + комментарий |
+| L4  | `backend/apps/integrations/onec/receipt.py:300-303`        | `Product.get_or_create` в цикле — потенциальные дубли при race                               | ⏸ отложено |
+| L5  | `backend/apps/orders/services.py:32`                       | неиспользуемый параметр `Order` в `_finalize_ttl_expired`                                    | ❌ false-positive: параметр используется на строке 54 (DI для тестов) |
+| L6  | `backend/apps/campaigns/services.py:298`                   | использование deprecated `rule.product_id`                                                   | ⏸ отложено |
+| L7  | `backend/apps/rfm/tasks.py:69-100`                         | `fix_monthly_bonus_tiers` создаёт дубли при двойном запуске в день                           | ⏸ отложено |
+| L8  | `backend/apps/integrations/onec/receipt.py:219-234`        | расчёт распределения бонусов без `_quantize` после каждой операции — копеечная погрешность   | ⏸ отложено |
+| L9  | `backend/apps/integrations/payments/tasks.py:175-177`      | `_CAPTURE_DELAYS[min(...)]` без явной проверки длины                                         | ✅ закрыт: фолбэк на 60s при пустом списке + комментарий |
+| L10 | `backend/apps/orders/serializers.py:106-122`               | mutable cache на инстансе сериализатора                                                      | ⏸ отложено |
+| L11 | `backend/apps/rfm/tests/test_segment_sync.py`              | импорты `# noqa: F401` без пояснения                                                         | ❌ moot: в текущем коде `noqa` отсутствует |
+| L12 | `backend/apps/main/views.py:146-148`                       | имя файла генерируется через `slugify`, нет тестов на коллизии                               | ⏸ отложено |
+| L13 | `backend/apps/notifications/push.py`                       | Firebase init на каждый таск (не singleton) — посмотреть по факту                            | ⏸ отложено |
+| L14 | `MEMORY.md`                                                | присутствует в репо, но это OpenClaw artifact                                                 | ⚠️ требует решения пользователя: файл tracked в git (1559 байт от 2026-02-17), но соседние OpenClaw-файлы в `.gitignore`. Содержит «Owner: Василий…» — личные предпочтения. Кандидат на `git rm --cached MEMORY.md` + добавить в `.gitignore` |
 
 ---
 
@@ -373,18 +379,38 @@ except Exception:
 9. ~~**H5**~~ ✅ `0f0481b` — раздельные except.
 10. ~~**H6**~~ ✅ `d68fbf5` + `0f0481b` — magic numbers в settings.
 
-### Следующие 2 недели — High закрыты, Medium ниже
+### Следующие 2 недели — High закрыты, Medium частично
 11. ~~**H7**~~ ✅ `1494150` — RFM resume с `chunks_sent`.
 12. ~~**H8**~~ ✅ `d68fbf5` — assert auth-flag.
 13. ~~**H9, H12**~~ ✅ `0f0481b` (H9) + `1494150` (H12).
 14. **M1, M2, M3** — N+1 fix, вынос дублей в shared, разбиение длинных view-файлов. *(не сделано)*
-15. **M4–M9** — magic-bytes upload, Content-Type 1С, push при expire, balance≥0, `canceled→new` док, pickers per-picker lock. *(не сделано)*
+15. **M4, M6, M9, M16** — magic-bytes upload, push при expire, pickers per-picker lock, FSM-таймауты. *(не сделано)*
+15a. ~~**M8** (`canceled→new` док)~~ ✅ — закрыт в этом раунде, см. раздел 3.
+15b. ~~**M11** (HMAC cursor)~~ ✅ — закрыт в этом раунде.
+15c. ~~**M12** (qr_login throttle)~~ ✅ — закрыт.
+15d. ~~**M13** (mask email PII)~~ ✅ — закрыт.
+15e. ~~**M14** (logger.exception в signals)~~ ✅ — закрыт.
+15f. ~~**M17** (CORS HTTPS docs)~~ ✅ — закрыт (комментарий в settings).
+15g. **M5** (Content-Type на 1С) — пропущен сознательно (не менять контракт `/onec/*`).
+15h. **M7** (CHECK constraint bonuses≥0) — пропущен сознательно (бизнес-логика допускает отрицательный баланс).
+15i. **M10** = ссылается на H5 — закрыт ранее.
+15j. **M15** = ссылается на H6 — закрыт ранее.
 
 ### В фоне
 16. ~~Установить **gitleaks**/**detect-secrets** в pre-commit~~ ✅ `4e7ec5d`. CI — todo.
 17. Включить **pip-audit** / **safety** в CI (`.github/workflows/ci.yml`). *(не сделано)*
 18. **npm audit** в CI для photo-studio. *(не сделано)*
 19. ~~Добавить тесты на гонки (двойной POST OrderCreate, webhook до save, Celery overlap)~~ ✅ — добавлено в коммитах C2/C3/C4.
+
+### Low (раздел 4) — закрыты в этом раунде
+20. ~~**L1** (logger в bot cleanup)~~ ✅ — `logger.debug(..., exc_info=True)`.
+21. ~~**L2** (retry nested except)~~ ✅ — false-positive, поясняющие комментарии.
+22. ~~**L3** (onec_client typed except)~~ ✅ — `type(exc).__name__` в логе + комментарий.
+23. ~~**L9** (CAPTURE_DELAYS bounds)~~ ✅ — фолбэк на 60s при пустом списке.
+24. **L5** ❌ false-positive: `Order` параметр используется (DI).
+25. **L11** ❌ moot: `noqa: F401` в коде нет.
+26. **L14** ⚠️ требует решения пользователя — `MEMORY.md` tracked, добавить ли в gitignore.
+27. **L4, L6, L7, L8, L10, L12, L13** — отложены (точечные риски, требуют отдельного контекста).
 
 ---
 
