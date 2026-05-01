@@ -5,6 +5,7 @@ import App from '../App.jsx';
 import { SCREEN_TITLES } from '../routes.jsx';
 import dashboard from '../fixtures/dashboard.js';
 import clients from '../fixtures/clients.js';
+import orders from '../fixtures/orders.js';
 
 const URLS_TO_CHECK = [
   '/dashboard',
@@ -64,5 +65,10 @@ describe('CRM routing smoke', () => {
     const c = clients[0];
     render(<MemoryRouter initialEntries={[`/clients/${c.id}`]}><App /></MemoryRouter>);
     expect(screen.getAllByText(c.name).length).toBeGreaterThan(0);
+  });
+
+  it('orders screen shows first order id', () => {
+    render(<MemoryRouter initialEntries={['/orders']}><App /></MemoryRouter>);
+    expect(screen.getByText(orders[0].id)).toBeInTheDocument();
   });
 });
