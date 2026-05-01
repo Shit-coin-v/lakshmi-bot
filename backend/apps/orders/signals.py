@@ -60,6 +60,8 @@ def _track_courier_approved(sender, instance, **kwargs):
                 pk=instance.pk,
             ).values_list("is_approved", flat=True).first()
         except Exception:
+            # Не глотаем тихо — без лога БД-проблема в pre_save проходит незамеченной.
+            logger.exception("Failed to read previous CourierProfile.is_approved for pk=%s", instance.pk)
             instance._was_approved = False
     else:
         instance._was_approved = False
@@ -83,6 +85,8 @@ def _track_picker_approved(sender, instance, **kwargs):
                 pk=instance.pk,
             ).values_list("is_approved", flat=True).first()
         except Exception:
+            # См. комментарий в _track_courier_approved.
+            logger.exception("Failed to read previous PickerProfile.is_approved for pk=%s", instance.pk)
             instance._was_approved = False
     else:
         instance._was_approved = False
