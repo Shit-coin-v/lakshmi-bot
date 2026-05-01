@@ -77,4 +77,9 @@ describe('CRM routing smoke', () => {
     render(<MemoryRouter initialEntries={['/campaigns']}><App /></MemoryRouter>);
     expect(screen.getByText(campaigns[0].name)).toBeInTheDocument();
   });
+
+  it('broadcasts screen shows form', () => {
+    render(<MemoryRouter initialEntries={['/broadcasts']}><App /></MemoryRouter>);
+    expect(screen.getByText('Сегмент')).toBeInTheDocument();
+  });
 });
