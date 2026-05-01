@@ -46,6 +46,14 @@ def get_delivery_zones() -> list[dict]:
 
 logger = logging.getLogger(__name__)
 
+# Допустимые переходы статусов заказа.
+# `canceled → new` (reopen) — намеренное исключение: используется операционно
+# в случаях, когда заказ был ошибочно отменён (например, оператор/курьер
+# отменил по неверным признакам), и его нужно вернуть к обработке без
+# создания нового заказа. Рефанд платежа (если был capture) на этот переход
+# не реверсится автоматически — это внутренний административный сценарий,
+# а не клиентский. Документировано в docs/ARCHITECTURE.md (см. раздел
+# «Поток заказа» / «Reopen»).
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "new": {"accepted", "canceled"},
     "accepted": {"assembly", "canceled", "new"},
@@ -54,7 +62,7 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "delivery": {"arrived", "canceled"},
     "arrived": {"completed", "canceled"},
     "completed": set(),
-    "canceled": {"new"},  # reopen
+    "canceled": {"new"},  # reopen — административный сценарий, см. ARCHITECTURE.md
 }
 
 VALID_STATUSES = frozenset(ALLOWED_TRANSITIONS.keys())
