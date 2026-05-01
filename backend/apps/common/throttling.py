@@ -40,6 +40,25 @@ class VerifyCodeThrottle(SimpleRateThrottle):
         }
 
 
+class QrLoginThrottle(SimpleRateThrottle):
+    """Жёсткий лимит на QR-логин (защита от подбора qr_code).
+
+    Сам по себе AnonAuthThrottle (10/min) слишком мягкий для этого
+    endpoint'а: qr_code — это короткая строка, и с 10 попытками в минуту
+    атакующий перебирает заметное пространство. Отдельный scope
+    (5/min) ужесточает порог только на QR-логин, не трогая остальные
+    auth-endpoint'ы.
+    """
+
+    scope = "qr_login"
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
+
+
 class ProductImageUploadThrottle(SimpleRateThrottle):
     """Лимит загрузки фото товара через X-Api-Key.
 

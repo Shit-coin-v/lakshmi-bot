@@ -251,6 +251,7 @@ REST_FRAMEWORK = {
         "anon": "60/min",
         "anon_auth": "10/min",
         "verify_code": "5/min",
+        "qr_login": "5/min",
         "telegram_user": "120/min",
         "product_image_upload": "30/min",
     },

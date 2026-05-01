@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from apps.common.authentication import JWTAuthentication, decode_token, generate_tokens
 from apps.common.permissions import ApiKeyPermission, CustomerPermission
-from apps.common.throttling import AnonAuthThrottle, VerifyCodeThrottle
+from apps.common.throttling import AnonAuthThrottle, QrLoginThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser
 
 from . import email_service
@@ -108,7 +108,7 @@ class LoginQrView(APIView):
     """POST /api/auth/login-qr/ — QR code login (mobile app)."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [AnonAuthThrottle]
+    throttle_classes = [QrLoginThrottle]
 
     def post(self, request):
         ser = LoginQrSerializer(data=request.data)
