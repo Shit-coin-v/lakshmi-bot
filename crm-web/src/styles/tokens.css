@@ -1,0 +1,52 @@
+:root {
+  /* Поверхности (от тёмного к светлому) */
+  --surface-sidebar: #0A0F1E;
+  --surface-page: #0F172A;
+  --surface-panel: #111827;
+  --surface-panel-elevated: #1E293B;
+  --surface-input: #1E293B;
+  --surface-sidebar-hover: #1E293B;
+
+  /* Границы */
+  --border: #1F2937;
+  --border-strong: #334155;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Текст */
+  --fg-primary: #F1F5F9;
+  --fg-secondary: #CBD5E1;
+  --fg-muted: #94A3B8;
+  --fg-on-dark: #E2E8F0;
+  --fg-on-dark-muted: #94A3B8;
+
+  /* Акцент и состояния */
+  --accent-600: #3B82F6;
+  --accent-700: #2563EB;
+  --accent-soft: rgba(59, 130, 246, 0.14);
+  --success: #34D399;
+  --warning: #FBBF24;
+  --danger: #F87171;
+
+  /* ABC / XYZ */
+  --abc-a: #34D399;
+  --abc-b: #FBBF24;
+  --abc-c: #94A3B8;
+  --xyz-x: #60A5FA;
+  --xyz-y: #A78BFA;
+  --xyz-z: #F87171;
+
+  /* Layout */
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 64px;
+  --topbar-h: 56px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Анимация */
+  --dur-standard: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Шрифт */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
