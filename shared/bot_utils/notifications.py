@@ -30,7 +30,14 @@ async def cleanup_notifications(
         try:
             await bot.delete_message(chat_id, n["telegram_message_id"])
         except Exception:
-            logger.debug("Could not delete notification msg %s", n.get("telegram_message_id"))
+            # Cleanup: ожидаемые причины — сообщение уже удалено пользователем
+            # или старше 48 часов (Telegram API ограничение). При включённом
+            # DEBUG-уровне видим traceback, иначе в логах только сам факт.
+            logger.debug(
+                "Could not delete notification msg %s",
+                n.get("telegram_message_id"),
+                exc_info=True,
+            )
 
     ids = [n["id"] for n in notifications]
     if role == "courier":
