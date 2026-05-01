@@ -93,4 +93,11 @@ describe('CRM routing smoke', () => {
     render(<MemoryRouter initialEntries={['/categories/no-such-cat']}><App /></MemoryRouter>);
     expect(screen.getByText('Категория не найдена')).toBeInTheDocument();
   });
+
+  it('abc/xyz screen shows matrix labels', () => {
+    render(<MemoryRouter initialEntries={['/abc-xyz']}><App /></MemoryRouter>);
+    // Матрица содержит коды ячеек AX, AY, AZ, BX, BY, BZ, CX, CY, CZ.
+    expect(screen.getByText('AX')).toBeInTheDocument();
+    expect(screen.getByText('CZ')).toBeInTheDocument();
+  });
 });

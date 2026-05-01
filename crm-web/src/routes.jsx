@@ -1,5 +1,4 @@
 import { Navigate } from 'react-router-dom';
-import { Placeholder } from './components/Placeholder.jsx';
 import RfmScreen from './screens/RfmScreen.jsx';
 import CatalogScreen from './screens/CatalogScreen.jsx';
 import AnalyticsScreen from './screens/AnalyticsScreen.jsx';
@@ -12,9 +11,7 @@ import CampaignsScreen from './screens/CampaignsScreen.jsx';
 import BroadcastsScreen from './screens/BroadcastsScreen.jsx';
 import CategoriesScreen from './screens/CategoriesScreen.jsx';
 import CategoryDetailScreen from './screens/CategoryDetailScreen.jsx';
-
-// Временные заглушки — заменяются в Tasks 10-18.
-const TmpAbcXyz          = () => <Placeholder name="ABC / XYZ" />;
+import AbcXyzScreen from './screens/AbcXyzScreen.jsx';
 
 export const SCREEN_TITLES = {
   '/dashboard':   { title: 'Дашборд',                     breadcrumbs: ['Lakshmi CRM'] },
@@ -42,7 +39,7 @@ export const ROUTES = [
   { path: '/catalog',           element: <CatalogScreen /> },
   { path: '/categories',        element: <CategoriesScreen /> },
   { path: '/categories/:slug',  element: <CategoryDetailScreen /> },
-  { path: '/abc-xyz',           element: <TmpAbcXyz /> },
+  { path: '/abc-xyz',           element: <AbcXyzScreen /> },
   { path: '/analytics',         element: <AnalyticsScreen /> },
 ];
 
