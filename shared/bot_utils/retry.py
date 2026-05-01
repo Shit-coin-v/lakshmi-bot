@@ -67,10 +67,14 @@ async def retry_status_update(
         logger.info("Retry cancelled for order %d->%s", order_id, new_status)
 
     except Exception:
+        # Главная ошибка цикла retry — логируем сразу с traceback, чтобы не
+        # потерять её, если cleanup ниже тоже упадёт.
         logger.exception("Unexpected error in retry for order %d->%s", order_id, new_status)
         try:
             await on_failure(bot, chat_id, message_id, order_id, new_status)
         except Exception:
+            # Вторая ошибка — тоже с traceback, отдельной строкой; оригинал
+            # выше уже залогирован, никакого «маскирования» нет.
             logger.exception("on_failure itself failed for order %d->%s", order_id, new_status)
 
     finally:
