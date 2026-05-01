@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
 from datetime import datetime, timezone
 from decimal import Decimal as D
@@ -26,23 +28,45 @@ from apps.loyalty.serializers import BonusHistorySerializer, PurchaseSerializer
 
 PAGE_SIZE = 20
 
+# Подпись курсора пагинации HMAC-ом, чтобы клиент не мог его подменить:
+# содержимое внутри (sort_date, receipt_guid) формируется сервером и
+# подписывается SECRET_KEY. Если в будущем в payload попадут чувствительные
+# поля (например customer_id или lookback_window), это защитит от IDOR.
+_CURSOR_SIG_LEN = 16  # первые 16 hex-символов SHA-256 — достаточно от tampering
+
+
+def _cursor_signature(payload_b64: str) -> str:
+    key = settings.SECRET_KEY.encode("utf-8")
+    digest = hmac.new(key, payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+    return digest[:_CURSOR_SIG_LEN]
+
 
 def _encode_cursor(sort_date, receipt_guid: str) -> str:
-    """Encode (sort_date, receipt_guid) pair into an opaque cursor string."""
+    """Encode (sort_date, receipt_guid) pair into a signed cursor string."""
     payload = {
         "d": sort_date.isoformat() if sort_date else "",
         "g": receipt_guid,
     }
-    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    return f"{payload_b64}.{_cursor_signature(payload_b64)}"
 
 
 def _decode_cursor(cursor: str) -> tuple[datetime, str]:
     """Decode cursor string back into (sort_date, receipt_guid).
 
-    Raises ValueError on any decoding problem.
+    Raises ValueError on any decoding/signature problem.
     """
     try:
-        raw = base64.urlsafe_b64decode(cursor.encode())
+        payload_b64, signature = cursor.rsplit(".", 1)
+    except ValueError as exc:
+        raise ValueError("Invalid cursor: missing signature") from exc
+
+    expected = _cursor_signature(payload_b64)
+    if not hmac.compare_digest(expected, signature):
+        raise ValueError("Invalid cursor: signature mismatch")
+
+    try:
+        raw = base64.urlsafe_b64decode(payload_b64.encode())
         payload = json.loads(raw)
         sort_date = datetime.fromisoformat(payload["d"])
         receipt_guid = payload["g"]
