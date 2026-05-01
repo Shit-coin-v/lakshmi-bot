@@ -7,6 +7,7 @@ import dashboard from '../fixtures/dashboard.js';
 import clients from '../fixtures/clients.js';
 import orders from '../fixtures/orders.js';
 import campaigns from '../fixtures/campaigns.js';
+import categories from '../fixtures/categories.js';
 
 const URLS_TO_CHECK = [
   '/dashboard',
@@ -81,5 +82,10 @@ describe('CRM routing smoke', () => {
   it('broadcasts screen shows form', () => {
     render(<MemoryRouter initialEntries={['/broadcasts']}><App /></MemoryRouter>);
     expect(screen.getByText('Сегмент')).toBeInTheDocument();
+  });
+
+  it('categories screen shows first category name', () => {
+    render(<MemoryRouter initialEntries={['/categories']}><App /></MemoryRouter>);
+    expect(screen.getByText(categories[0].name)).toBeInTheDocument();
   });
 });
