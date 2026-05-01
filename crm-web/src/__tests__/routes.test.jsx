@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
 import { SCREEN_TITLES } from '../routes.jsx';
+import dashboard from '../fixtures/dashboard.js';
 
 const URLS_TO_CHECK = [
   '/dashboard',
@@ -41,5 +42,10 @@ describe('CRM routing smoke', () => {
   it('renders 404 on unknown URL', () => {
     render(<MemoryRouter initialEntries={['/no-such-thing']}><App /></MemoryRouter>);
     expect(screen.getByText('404')).toBeInTheDocument();
+  });
+
+  it('dashboard shows first KPI label', () => {
+    render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
+    expect(screen.getByText(dashboard.kpis[0].label)).toBeInTheDocument();
   });
 });

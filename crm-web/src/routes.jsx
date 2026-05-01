@@ -4,9 +4,9 @@ import RfmScreen from './screens/RfmScreen.jsx';
 import CatalogScreen from './screens/CatalogScreen.jsx';
 import AnalyticsScreen from './screens/AnalyticsScreen.jsx';
 import NotFoundScreen from './screens/NotFoundScreen.jsx';
+import DashboardScreen from './screens/DashboardScreen.jsx';
 
 // Временные заглушки — заменяются в Tasks 10-18.
-const TmpDashboard       = () => <Placeholder name="Дашборд" />;
 const TmpClients         = () => <Placeholder name="Клиенты" />;
 const TmpClientDetail    = () => <Placeholder name="Карточка клиента" />;
 const TmpOrders          = () => <Placeholder name="Заказы" />;
@@ -32,7 +32,7 @@ export const SCREEN_TITLES = {
 };
 
 export const ROUTES = [
-  { path: '/dashboard',         element: <TmpDashboard /> },
+  { path: '/dashboard',         element: <DashboardScreen /> },
   { path: '/clients',           element: <TmpClients /> },
   { path: '/clients/:id',       element: <TmpClientDetail /> },
   { path: '/orders',            element: <TmpOrders /> },
