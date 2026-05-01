@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
 import { SCREEN_TITLES } from '../routes.jsx';
 import dashboard from '../fixtures/dashboard.js';
+import clients from '../fixtures/clients.js';
 
 const URLS_TO_CHECK = [
   '/dashboard',
@@ -47,5 +48,10 @@ describe('CRM routing smoke', () => {
   it('dashboard shows first KPI label', () => {
     render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
     expect(screen.getByText(dashboard.kpis[0].label)).toBeInTheDocument();
+  });
+
+  it('clients screen shows first client name', () => {
+    render(<MemoryRouter initialEntries={['/clients']}><App /></MemoryRouter>);
+    expect(screen.getByText(clients[0].name)).toBeInTheDocument();
   });
 });
