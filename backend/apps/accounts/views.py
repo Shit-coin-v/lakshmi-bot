@@ -11,6 +11,7 @@ from apps.common.authentication import JWTAuthentication, decode_token, generate
 from apps.common.permissions import ApiKeyPermission, CustomerPermission
 from apps.common.throttling import AnonAuthThrottle, QrLoginThrottle, VerifyCodeThrottle
 from apps.main.models import CustomUser
+from shared.log_redact import mask_email
 
 from . import email_service
 from .serializers import (
@@ -62,7 +63,7 @@ class RegisterView(APIView):
         try:
             email_service.send_verification_code(email)
         except Exception:
-            logger.exception("Failed to send verification email to %s", email)
+            logger.exception("Failed to send verification email to %s", mask_email(email))
 
         return Response({"detail": "Код подтверждения отправлен", "email": email})
 
@@ -254,7 +255,7 @@ class ResetPasswordView(APIView):
         try:
             email_service.send_reset_code(email)
         except Exception:
-            logger.exception("Failed to send reset email to %s", email)
+            logger.exception("Failed to send reset email to %s", mask_email(email))
 
         return Response({"detail": "Если аккаунт существует, код отправлен на email"})
 
@@ -320,7 +321,7 @@ class LinkEmailView(APIView):
         try:
             email_service.send_verification_code(email)
         except Exception:
-            logger.exception("Failed to send verification email to %s", email)
+            logger.exception("Failed to send verification email to %s", mask_email(email))
 
         return Response({"detail": "Email привязан. Код подтверждения отправлен."})
 

@@ -38,6 +38,41 @@ def mask_token(value: str | None, *, prefix: int = 6, suffix: int = 4) -> str:
     return f"{value[:prefix]}…{value[-suffix:]}#{digest}"
 
 
+def mask_email(value: str | None) -> str:
+    """Замаскировать email для логов: ``a***a@example.com``.
+
+    Сохраняет домен (нужен для дебага «не работает почта на gmail.com»),
+    но скрывает локальную часть. Если строка не похожа на email —
+    возвращаем ``<masked>``.
+    """
+    if not value:
+        return "<empty>"
+    if "@" not in value:
+        return "<masked>"
+    local, _, domain = value.rpartition("@")
+    if not local:
+        return f"<empty>@{domain}"
+    if len(local) <= 2:
+        masked_local = local[0] + "***"
+    else:
+        masked_local = f"{local[0]}***{local[-1]}"
+    return f"{masked_local}@{domain}"
+
+
+def mask_phone(value: str | None) -> str:
+    """Замаскировать телефон, оставив только последние 4 цифры: ``+7******1234``.
+
+    Не парсит формат E.164 — просто маскирует все цифры кроме хвоста.
+    """
+    if not value:
+        return "<empty>"
+    digits = [c for c in value if c.isdigit()]
+    if len(digits) <= 4:
+        return "<short>"
+    tail = "".join(digits[-4:])
+    return f"***{tail}"
+
+
 class RedactSecretsFilter(logging.Filter):
     """logging.Filter, заменяющий значения secret-like ключей на ``***``.
 

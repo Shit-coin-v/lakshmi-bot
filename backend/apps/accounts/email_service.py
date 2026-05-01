@@ -9,6 +9,8 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 from django.conf import settings
 
+from shared.log_redact import mask_email
+
 logger = logging.getLogger(__name__)
 
 CODE_LENGTH = 6
@@ -34,7 +36,7 @@ def send_verification_code(email: str) -> str:
         recipient_list=[email],
         fail_silently=False,
     )
-    logger.info("Verification code sent to %s", email)
+    logger.info("Verification code sent to %s", mask_email(email))
     return code
 
 
@@ -59,7 +61,7 @@ def send_reset_code(email: str) -> str:
         recipient_list=[email],
         fail_silently=False,
     )
-    logger.info("Password reset code sent to %s", email)
+    logger.info("Password reset code sent to %s", mask_email(email))
     return code
 
 
