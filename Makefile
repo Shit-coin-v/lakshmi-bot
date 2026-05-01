@@ -1,4 +1,4 @@
-.PHONY: build up down logs shell migrate collectstatic setup test test-backend test-bot test-courier test-shared test-frontend backup help init
+.PHONY: build up down logs shell migrate collectstatic setup test test-backend test-bot test-courier test-shared test-frontend backup help init crm-dev crm-build crm-test crm-lint crm-preview
 
 # Default target
 help:
@@ -71,3 +71,19 @@ init:
 
 backup:
 	docker compose exec db pg_dump -U lakshmi lakshmi | gzip > backup_$$(date +%Y%m%d_%H%M%S).sql.gz
+
+# CRM web prototype (Vite + React, без backend) — см. crm-web/README.md
+crm-dev:
+	npm --prefix crm-web run dev
+
+crm-build:
+	npm --prefix crm-web run build
+
+crm-test:
+	npm --prefix crm-web run test
+
+crm-lint:
+	npm --prefix crm-web run lint
+
+crm-preview:
+	npm --prefix crm-web run preview
