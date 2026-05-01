@@ -408,6 +408,11 @@ OPENAI_PROXY_TIMEOUT = _env_int("OPENAI_PROXY_TIMEOUT", PRODUCT_IMAGE_PROCESSING
 # Используется django-cors-headers, добавлен в INSTALLED_APPS/MIDDLEWARE
 # только если список не пуст, чтобы не менять поведение существующих
 # endpoints без явной настройки.
+#
+# В production: значения должны быть строго `https://`, без http/IP. В dev
+# допустимы `http://localhost:5173`, `http://192.168.x.x:5173` (и подобные
+# IP-loopback'и). Список приходит из env-переменной CORS_ALLOWED_ORIGINS
+# через запятую — следить, что в prod-`.env` нет http-схем.
 CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
 if CORS_ALLOWED_ORIGINS:
     if "corsheaders" not in INSTALLED_APPS:
