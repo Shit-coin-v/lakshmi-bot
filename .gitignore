@@ -100,3 +100,8 @@ TOOLS.md
 USER.md
 HEARTBEAT.md
 BOOTSTRAP.md
+
+# CRM Web prototype
+crm-web/node_modules
+crm-web/dist
+crm-web/.reference
