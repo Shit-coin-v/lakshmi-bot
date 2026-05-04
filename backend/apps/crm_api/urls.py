@@ -3,6 +3,7 @@ from django.urls import path
 
 from apps.crm_api.views.auth import LoginView, LogoutView, MeView
 from apps.crm_api.views.broadcasts import BroadcastHistoryView
+from apps.crm_api.views.categories import CategoryListView, CategoryDetailView
 from apps.crm_api.views.clients import ClientListView, ClientDetailView
 from apps.crm_api.views.dashboard import DashboardView
 from apps.crm_api.views.campaigns import CampaignListView
@@ -20,5 +21,6 @@ urlpatterns = [
     path("orders/",      OrderListView.as_view(), name="orders-list"),
     path("campaigns/",   CampaignListView.as_view(), name="campaigns-list"),
     path("broadcasts/history/", BroadcastHistoryView.as_view(), name="broadcasts-history"),
-    # Data (Tasks 12-13): добавляются по мере имплементации
+    path("categories/", CategoryListView.as_view(), name="categories-list"),
+    path("categories/<slug:slug>/", CategoryDetailView.as_view(), name="categories-detail"),
 ]

@@ -18,6 +18,8 @@ CRM_GET_ENDPOINTS = [
     ("crm_api:orders-list", {}),                           # Task 9
     ("crm_api:campaigns-list", {}),                        # Task 10
     ("crm_api:broadcasts-history", {}),                    # Task 11
+    ("crm_api:categories-list", {}),                        # Task 12
+    ("crm_api:categories-detail", {"slug": "cat-1"}),       # Task 12
     # ...
 ]
 
