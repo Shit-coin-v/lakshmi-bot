@@ -2,7 +2,6 @@ import { Routes, Route, useLocation, matchPath } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar.jsx';
 import { TopBar } from './components/TopBar.jsx';
 import { ROUTES, ROOT_REDIRECT, NOT_FOUND_ELEMENT, SCREEN_TITLES } from './routes.jsx';
-import dashboard from './fixtures/dashboard.js';  // временно — заменится в Tasks 19+
 import { LoginScreen } from './auth/LoginScreen.jsx';
 import { ProtectedRoute } from './auth/ProtectedRoute.jsx';
 
@@ -16,7 +15,7 @@ function findMeta(pathname) {
 function ProtectedShell() {
   const location = useLocation();
   const meta = findMeta(location.pathname);
-  const badges = { newOrders: dashboard.newOrdersBadge ?? 0 };
+  const badges = { newOrders: 0 };
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar badges={badges} />
