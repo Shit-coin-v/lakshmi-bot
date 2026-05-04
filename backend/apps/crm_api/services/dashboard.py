@@ -7,6 +7,8 @@ from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
+from apps.rfm.constants import SEGMENT_LABEL_RU
+
 CACHE_KEY = "crm:dashboard:v1"
 CACHE_TTL = 5 * 60  # 5 минут
 
@@ -73,7 +75,11 @@ def _compute_dashboard_uncached() -> dict:
         {
             "id": f"CMP-{c.id}",
             "name": c.name,
-            "hint": (c.rfm_segment or (c.segment.name if c.segment_id else "Все")),
+            "hint": (
+                SEGMENT_LABEL_RU.get(c.rfm_segment, c.rfm_segment)
+                if c.rfm_segment
+                else (c.segment.name if c.segment_id else "Все")
+            ),
         }
         for c in active_campaigns
     ]
@@ -138,7 +144,7 @@ def _compute_rfm_segments() -> list[dict]:
         return []
     return [
         {
-            "name": r["segment_label"] or "—",
+            "name": SEGMENT_LABEL_RU.get(r["segment_label"], r["segment_label"]) or "—",
             "count": r["count"],
             "share": round(r["count"] * 100.0 / total, 1),
         }

@@ -9,6 +9,8 @@ from django.utils import timezone
 
 import requests
 
+from apps.rfm.constants import SEGMENT_LABEL_RU
+
 logger = logging.getLogger(__name__)
 
 
@@ -199,20 +201,10 @@ def sync_rfm_segments_to_onec(self, effective_month: str):
             .exclude(customer__card_id="")
         )
 
-        segment_ru = {
-            "champions": "Чемпионы",
-            "loyal": "Лояльные",
-            "potential_loyalists": "Потенциально лояльные",
-            "new_customers": "Новые клиенты",
-            "at_risk": "Под угрозой",
-            "hibernating": "Спящие",
-            "lost": "Потерянные",
-        }
-
         customers_payload = [
             {
                 "card_id": bt.customer.card_id,
-                "segment": segment_ru.get(bt.segment_label_at_fixation, bt.segment_label_at_fixation),
+                "segment": SEGMENT_LABEL_RU.get(bt.segment_label_at_fixation, bt.segment_label_at_fixation),
             }
             for bt in bonus_tiers
         ]

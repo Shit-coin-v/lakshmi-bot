@@ -2,6 +2,7 @@
 from rest_framework import serializers
 
 from apps.campaigns.models import Campaign
+from apps.rfm.constants import SEGMENT_LABEL_RU
 
 
 class CampaignListSerializer(serializers.ModelSerializer):
@@ -35,12 +36,12 @@ class CampaignListSerializer(serializers.ModelSerializer):
 
     def get_segment(self, obj) -> str:
         if obj.rfm_segment:
-            return obj.rfm_segment
+            return SEGMENT_LABEL_RU.get(obj.rfm_segment, obj.rfm_segment)
         return obj.segment.name if obj.segment_id else ""
 
     def get_audience(self, obj) -> str:
         if obj.rfm_segment:
-            return f"RFM: {obj.rfm_segment}"
+            return f"RFM: {SEGMENT_LABEL_RU.get(obj.rfm_segment, obj.rfm_segment)}"
         if obj.segment_id:
             return f"Сегмент: {obj.segment.name}"
         return "Все клиенты"

@@ -1,11 +1,20 @@
 from rest_framework import serializers
 
 from apps.main.models import CustomUser
+from apps.rfm.constants import SEGMENT_LABEL_RU
 
 
 def _segment_label(user) -> str:
     profile = getattr(user, "rfm_profile", None)
     return (profile.segment_label if profile else "") or "—"
+
+
+def _segment_label_ru(user) -> str:
+    """Русское отображение RFM-сегмента. Если профиля нет → '—'."""
+    code = _segment_label(user)
+    if code == "—":
+        return "—"
+    return SEGMENT_LABEL_RU.get(code, code)
 
 
 def _last_order_iso(user) -> str | None:
@@ -43,7 +52,7 @@ class ClientListSerializer(serializers.ModelSerializer):
         ]
 
     def get_rfmSegment(self, obj) -> str:
-        return _segment_label(obj)
+        return _segment_label_ru(obj)
 
     def get_bonus(self, obj) -> int:
         return int(obj.bonuses or 0)

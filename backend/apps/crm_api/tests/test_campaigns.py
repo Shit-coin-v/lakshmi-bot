@@ -79,4 +79,4 @@ class CampaignListTests(TestCase):
     def test_audience_field(self):
         response = self.client.get(self.url, {"status": "active"})
         c = response.data[0]
-        self.assertEqual(c["audience"], "RFM: champions")
+        self.assertEqual(c["audience"], "RFM: Чемпионы")

@@ -21,3 +21,17 @@ RFM_SEGMENT_CHOICES = [
     (HIBERNATING, "Hibernating"),
     (LOST, "Lost"),
 ]
+
+# Перевод RFM-сегментов на русский для отображения в UI и
+# для отправки в 1С. Контракт зафиксирован тестом
+# apps/rfm/tests/test_constants.py — изменение значений требует
+# согласования (1С потребляет именно эти строки).
+SEGMENT_LABEL_RU = {
+    CHAMPIONS: "Чемпионы",
+    LOYAL: "Лояльные",
+    POTENTIAL_LOYALISTS: "Потенциально лояльные",
+    NEW_CUSTOMERS: "Новые клиенты",
+    AT_RISK: "Под угрозой",
+    HIBERNATING: "Спящие",
+    LOST: "Потерянные",
+}
