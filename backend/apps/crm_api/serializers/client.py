@@ -56,3 +56,62 @@ class ClientListSerializer(serializers.ModelSerializer):
 
     def get_tags(self, obj) -> list[str]:
         return _tags(obj)
+
+
+class _OrderInClientSerializer(serializers.Serializer):
+    id = serializers.SerializerMethodField()
+    date = serializers.DateTimeField(source="created_at")
+    amount = serializers.SerializerMethodField()
+    status = serializers.CharField()
+
+    def get_id(self, obj) -> str:
+        return f"ORD-{obj.id}"
+
+    def get_amount(self, obj) -> int:
+        return int(obj.total_price or 0)
+
+
+class _CampaignInClientSerializer(serializers.Serializer):
+    id = serializers.SerializerMethodField()
+    name = serializers.CharField()
+    rules = serializers.SerializerMethodField()
+
+    def get_id(self, obj) -> str:
+        return f"CMP-{obj.id}"
+
+    def get_rules(self, obj) -> str:
+        first = obj.rules.first() if hasattr(obj, "rules") else None
+        if not first:
+            return ""
+        return f"{first.reward_type}: {first.reward_value or first.reward_percent or ''}".strip()
+
+
+class ClientDetailSerializer(ClientListSerializer):
+    telegramId = serializers.IntegerField(source="telegram_id", default=None)
+    preferences = serializers.SerializerMethodField()
+    orders = serializers.SerializerMethodField()
+    activeCampaigns = serializers.SerializerMethodField()
+
+    class Meta(ClientListSerializer.Meta):
+        fields = ClientListSerializer.Meta.fields + ["telegramId", "preferences", "orders", "activeCampaigns"]
+
+    def get_preferences(self, obj) -> dict:
+        return {
+            "push": bool(obj.general_enabled),
+            "telegram": bool(obj.telegram_id),
+            "email": bool(obj.promo_enabled),
+            "sms": False,
+        }
+
+    def get_orders(self, obj) -> list[dict]:
+        orders = obj.orders.order_by("-created_at")[:20]
+        return _OrderInClientSerializer(orders, many=True).data
+
+    def get_activeCampaigns(self, obj) -> list[dict]:
+        """Активные кампании, чей RFM-сегмент совпадает с сегментом клиента."""
+        from apps.campaigns.models import Campaign
+        segment = _segment_label(obj)
+        if segment == "—":
+            return []
+        qs = Campaign.objects.filter(is_active=True, rfm_segment=segment).prefetch_related("rules")[:10]
+        return _CampaignInClientSerializer(qs, many=True).data

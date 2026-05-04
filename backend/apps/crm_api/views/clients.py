@@ -1,8 +1,10 @@
 from django.db.models import Q
-from rest_framework.generics import ListAPIView
+from django.http import Http404
+from rest_framework.exceptions import NotFound
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 
 from apps.crm_api.pagination import CRMHeaderPagination
-from apps.crm_api.serializers.client import ClientListSerializer
+from apps.crm_api.serializers.client import ClientDetailSerializer, ClientListSerializer
 from apps.crm_api.views._base import CRMAPIView
 from apps.main.models import CustomUser
 
@@ -36,3 +38,24 @@ class ClientListView(ListAPIView, CRMAPIView):
         if segment and segment != "Все":
             qs = qs.filter(rfm_profile__segment_label=segment)
         return qs
+
+
+class ClientDetailView(RetrieveAPIView, CRMAPIView):
+    """GET /api/crm/clients/<card_id>/ — карточка клиента CRM."""
+
+    serializer_class = ClientDetailSerializer
+    lookup_field = "card_id"
+    lookup_url_kwarg = "card_id"
+
+    def get_queryset(self):
+        return (
+            CustomUser.objects
+            .select_related("rfm_profile")
+            .prefetch_related("orders")
+        )
+
+    def get_object(self):
+        try:
+            return super().get_object()
+        except Http404:
+            raise NotFound("Клиент не найден")

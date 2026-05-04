@@ -92,3 +92,40 @@ class ClientListTests(TestCase):
         self.assertIn("rfmSegment", first)
         self.assertIn("purchaseCount", first)
         self.assertIn("lastOrder", first)
+
+
+class ClientDetailTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.alice = CustomUser.objects.create(
+            full_name="Алиса Иванова", phone="+7 914 111-22-33",
+            telegram_id=199001,
+            card_id="LC-099001", bonuses=Decimal("500"),
+        )
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_login(create_staff())
+
+    def test_detail_returns_full_data(self):
+        url = reverse("crm_api:clients-detail", kwargs={"card_id": "LC-099001"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], "LC-099001")
+        self.assertEqual(response.data["name"], "Алиса Иванова")
+        self.assertEqual(response.data["bonus"], 500)
+        self.assertIn("preferences", response.data)
+        self.assertIn("orders", response.data)
+        self.assertIn("activeCampaigns", response.data)
+
+    def test_detail_unknown_returns_404(self):
+        url = reverse("crm_api:clients-detail", kwargs={"card_id": "LC-NO-SUCH"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data["detail"], "Клиент не найден")
+
+    def test_detail_n_plus_one_safe(self):
+        url = reverse("crm_api:clients-detail", kwargs={"card_id": "LC-099001"})
+        with self.assertNumQueries(5):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
