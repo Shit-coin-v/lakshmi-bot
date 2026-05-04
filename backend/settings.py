@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'apps.campaigns.apps.CampaignsConfig',
     'apps.rfm.apps.RfmConfig',
     'apps.showcase.apps.ShowcaseConfig',
+    'apps.crm_api.apps.CrmApiConfig',
 ]
 
 MIDDLEWARE = [
