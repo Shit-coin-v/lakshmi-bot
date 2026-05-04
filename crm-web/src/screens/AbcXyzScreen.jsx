@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { AbcXyzMatrix } from '../components/primitives/AbcXyzMatrix.jsx';
-import abcXyz from '../fixtures/abcXyz.js';
 import { fmtRubShort } from '../utils/format.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useAbcXyz } from '../hooks/useAbcXyz.js';
 
 export default function AbcXyzScreen() {
   const [unit, setUnit] = useState('sku'); // 'sku' | 'revenue'
+
+  const { data: abcXyz, isLoading, error, refetch } = useAbcXyz();
+  if (isLoading) return <ScreenSkeleton variant="dashboard" />;
+  if (error)     return <ErrorBanner title="Не удалось загрузить матрицу" error={error} onRetry={refetch} />;
+
   const matrix = unit === 'sku' ? abcXyz.matrixSku : abcXyz.matrixRevenue;
   const formatter = unit === 'sku' ? null : fmtRubShort;
 
