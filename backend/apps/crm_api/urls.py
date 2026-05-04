@@ -1,6 +1,7 @@
 """URL-маршруты CRM-API."""
 from django.urls import path
 
+from apps.crm_api.views.abc_xyz import AbcXyzView
 from apps.crm_api.views.auth import LoginView, LogoutView, MeView
 from apps.crm_api.views.broadcasts import BroadcastHistoryView
 from apps.crm_api.views.categories import CategoryListView, CategoryDetailView
@@ -23,4 +24,5 @@ urlpatterns = [
     path("broadcasts/history/", BroadcastHistoryView.as_view(), name="broadcasts-history"),
     path("categories/", CategoryListView.as_view(), name="categories-list"),
     path("categories/<slug:slug>/", CategoryDetailView.as_view(), name="categories-detail"),
+    path("abc-xyz/", AbcXyzView.as_view(), name="abc-xyz"),
 ]
