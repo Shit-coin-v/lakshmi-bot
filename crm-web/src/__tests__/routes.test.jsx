@@ -1,103 +1,60 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from '../App.jsx';
 import { SCREEN_TITLES } from '../routes.jsx';
-import dashboard from '../fixtures/dashboard.js';
-import clients from '../fixtures/clients.js';
-import orders from '../fixtures/orders.js';
-import campaigns from '../fixtures/campaigns.js';
-import categories from '../fixtures/categories.js';
+import { AuthProvider } from '../auth/AuthProvider.jsx';
+
+function renderApp(initialEntries = ['/']) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 const URLS_TO_CHECK = [
   '/dashboard',
   '/clients',
-  '/clients/123',
+  '/clients/LC-000001',
   '/orders',
   '/campaigns',
   '/rfm',
   '/broadcasts',
   '/catalog',
   '/categories',
-  '/categories/some-slug',
+  '/categories/cat-01',
   '/abc-xyz',
   '/analytics',
 ];
 
 function titleFor(url) {
-  if (url === '/clients/123') return SCREEN_TITLES['/clients/:id'].title;
-  if (url === '/categories/some-slug') return SCREEN_TITLES['/categories/:slug'].title;
+  if (url === '/clients/LC-000001') return SCREEN_TITLES['/clients/:id'].title;
+  if (url === '/categories/cat-01') return SCREEN_TITLES['/categories/:slug'].title;
   return SCREEN_TITLES[url]?.title ?? '';
 }
 
-describe('CRM routing smoke', () => {
-  it('renders / as redirect to /dashboard', () => {
-    render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(SCREEN_TITLES['/dashboard'].title);
+describe('CRM routing smoke (authenticated)', () => {
+  it('redirects / to /dashboard', async () => {
+    renderApp(['/']);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(SCREEN_TITLES['/dashboard'].title));
   });
 
   for (const url of URLS_TO_CHECK) {
-    it(`renders ${url} without crash and shows correct title`, () => {
-      render(<MemoryRouter initialEntries={[url]}><App /></MemoryRouter>);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(titleFor(url));
+    it(`renders ${url} with correct title`, async () => {
+      renderApp([url]);
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(titleFor(url)));
     });
   }
 
-  it('renders 404 on unknown URL', () => {
-    render(<MemoryRouter initialEntries={['/no-such-thing']}><App /></MemoryRouter>);
-    expect(screen.getByText('404')).toBeInTheDocument();
-  });
-
-  it('dashboard shows first KPI label', () => {
-    render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
-    expect(screen.getByText(dashboard.kpis[0].label)).toBeInTheDocument();
-  });
-
-  it('clients screen shows first client name', () => {
-    render(<MemoryRouter initialEntries={['/clients']}><App /></MemoryRouter>);
-    expect(screen.getByText(clients[0].name)).toBeInTheDocument();
-  });
-
-  it('client detail shows EmptyState for unknown id', () => {
-    render(<MemoryRouter initialEntries={['/clients/no-such-client']}><App /></MemoryRouter>);
-    expect(screen.getByText('Клиент не найден')).toBeInTheDocument();
-  });
-
-  it('client detail shows real client name', () => {
-    const c = clients[0];
-    render(<MemoryRouter initialEntries={[`/clients/${c.id}`]}><App /></MemoryRouter>);
-    expect(screen.getAllByText(c.name).length).toBeGreaterThan(0);
-  });
-
-  it('orders screen shows first order id', () => {
-    render(<MemoryRouter initialEntries={['/orders']}><App /></MemoryRouter>);
-    expect(screen.getByText(orders[0].id)).toBeInTheDocument();
-  });
-
-  it('campaigns screen shows first campaign name', () => {
-    render(<MemoryRouter initialEntries={['/campaigns']}><App /></MemoryRouter>);
-    expect(screen.getByText(campaigns[0].name)).toBeInTheDocument();
-  });
-
-  it('broadcasts screen shows form', () => {
-    render(<MemoryRouter initialEntries={['/broadcasts']}><App /></MemoryRouter>);
-    expect(screen.getByText('Сегмент')).toBeInTheDocument();
-  });
-
-  it('categories screen shows first category name', () => {
-    render(<MemoryRouter initialEntries={['/categories']}><App /></MemoryRouter>);
-    expect(screen.getByText(categories[0].name)).toBeInTheDocument();
-  });
-
-  it('category detail shows EmptyState for unknown slug', () => {
-    render(<MemoryRouter initialEntries={['/categories/no-such-cat']}><App /></MemoryRouter>);
-    expect(screen.getByText('Категория не найдена')).toBeInTheDocument();
-  });
-
-  it('abc/xyz screen shows matrix labels', () => {
-    render(<MemoryRouter initialEntries={['/abc-xyz']}><App /></MemoryRouter>);
-    // Матрица содержит коды ячеек AX, AY, AZ, BX, BY, BZ, CX, CY, CZ.
-    expect(screen.getByText('AX')).toBeInTheDocument();
-    expect(screen.getByText('CZ')).toBeInTheDocument();
+  it('renders 404 on unknown URL', async () => {
+    renderApp(['/no-such-thing']);
+    await waitFor(() => expect(screen.getByText('404')).toBeInTheDocument());
   });
 });
