@@ -17,7 +17,7 @@ class LoginTests(TestCase):
         self.url = reverse("crm_api:auth-login")
 
     def test_login_success_sets_session_cookie(self):
-        user = create_staff(email="manager@lakshmi.ru", password="secret123")
+        create_staff(email="manager@lakshmi.ru", password="secret123")
         response = self.client.post(self.url, {"email": "manager@lakshmi.ru", "password": "secret123"}, format="json")
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.data["user"]["email"], "manager@lakshmi.ru")

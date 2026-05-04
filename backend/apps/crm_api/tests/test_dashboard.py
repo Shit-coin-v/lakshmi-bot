@@ -1,18 +1,13 @@
-from datetime import timedelta
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.crm_api.tests._factories import create_staff
 from apps.main.models import CustomUser
 from apps.orders.models import Order
-
-User = get_user_model()
 
 
 class DashboardTests(TestCase):
@@ -31,7 +26,6 @@ class DashboardTests(TestCase):
             full_name="B", phone="+7 2", bonuses=Decimal("250"), telegram_id=100002
         )
         # Заказы за неделю
-        now = timezone.now()
         Order.objects.create(
             customer=c1, status="completed", address="x", phone="+7 1",
             total_price=Decimal("1500"), products_price=Decimal("1500"),
