@@ -13,7 +13,7 @@ from apps.crm_api.tests._factories import create_staff, create_regular_user
 CRM_GET_ENDPOINTS = [
     ("crm_api:auth-me", {}),
     ("crm_api:dashboard", {}),       # Task 6
-    # ("crm_api:clients-list", {}),    # Task 7
+    ("crm_api:clients-list", {}),    # Task 7
     # ("crm_api:clients-detail", {"card_id": "LC-000001"}),  # Task 8
     # ...
 ]
