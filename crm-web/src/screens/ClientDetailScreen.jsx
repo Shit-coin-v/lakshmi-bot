@@ -4,29 +4,30 @@ import { KV } from '../components/primitives/KV.jsx';
 import { Toggle } from '../components/primitives/Toggle.jsx';
 import { ActiveCampaign } from '../components/primitives/ActiveCampaign.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
-import clients from '../fixtures/clients.js';
-import orders from '../fixtures/orders.js';
-import campaigns from '../fixtures/campaigns.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useClient } from '../hooks/useClients.js';
+import { NotFoundError } from '../api/client.js';
 import { fmtRub, fmtDate } from '../utils/format.js';
 
 export default function ClientDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const client = clients.find((c) => c.id === id);
+  const { data: client, isLoading, error, refetch } = useClient(id);
 
-  if (!client) {
+  if (isLoading) return <ScreenSkeleton variant="card" />;
+  if (error instanceof NotFoundError) {
     return (
       <EmptyState
         title="Клиент не найден"
-        hint={`ID ${id} отсутствует в фикстурах`}
+        hint={`ID ${id} отсутствует в системе`}
         onBack={() => navigate('/clients')}
         backLabel="← К списку клиентов"
       />
     );
   }
-
-  const myOrders = orders.filter((o) => o.clientId === client.id);
-  const activeForClient = campaigns.filter((c) => c.status === 'active' && c.segment === client.rfmSegment);
+  if (error) return <ErrorBanner title="Не удалось загрузить клиента" error={error} onRetry={refetch} />;
+  if (!client) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -36,7 +37,7 @@ export default function ClientDetailScreen() {
           width: 56, height: 56, borderRadius: 999,
           background: 'var(--accent-soft)', color: 'var(--accent-600)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 600,
-        }}>{client.name.split(' ').map((s) => s[0]).join('').slice(0, 2)}</div>
+        }}>{(client.name || '').split(' ').map((s) => s[0]).join('').slice(0, 2)}</div>
         <div>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--fg-primary)' }}>{client.name}</div>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{client.id} · {client.rfmSegment}</div>
@@ -45,8 +46,8 @@ export default function ClientDetailScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Stat label="LTV" value={fmtRub(client.ltv)} />
         <Stat label="Бонусы" value={fmtRub(client.bonus)} />
-        <Stat label="Заказов всего" value={client.purchaseCount ?? myOrders.length} />
-        <Stat label="Последний заказ" value={fmtDate(client.lastOrder)} />
+        <Stat label="Заказов всего" value={client.purchaseCount ?? (client.orders?.length || 0)} />
+        <Stat label="Последний заказ" value={client.lastOrder ? fmtDate(client.lastOrder) : '—'} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ background: 'var(--surface-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 16 }}>
@@ -64,17 +65,17 @@ export default function ClientDetailScreen() {
           <Toggle label="SMS" on={!!client.preferences?.sms} />
         </div>
       </div>
-      {activeForClient.length > 0 && (
+      {(client.activeCampaigns || []).length > 0 && (
         <div style={{ background: 'var(--surface-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-secondary)', marginBottom: 8 }}>Активные кампании</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {activeForClient.map((c) => <ActiveCampaign key={c.id} name={c.name} hint={c.rules} />)}
+            {client.activeCampaigns.map((c) => <ActiveCampaign key={c.id} name={c.name} hint={c.rules} />)}
           </div>
         </div>
       )}
       <div style={{ background: 'var(--surface-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-secondary)', marginBottom: 8 }}>История заказов</div>
-        {myOrders.length === 0 ? (
+        {(client.orders || []).length === 0 ? (
           <div style={{ color: 'var(--fg-muted)', fontSize: 13 }}>Нет заказов</div>
         ) : (
           <table style={{ width: '100%', fontSize: 13 }}>
@@ -87,7 +88,7 @@ export default function ClientDetailScreen() {
               </tr>
             </thead>
             <tbody>
-              {myOrders.map((o) => (
+              {client.orders.map((o) => (
                 <tr key={o.id} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 0', color: 'var(--fg-primary)' }}>{o.id}</td>
                   <td style={{ padding: '8px 0', color: 'var(--fg-secondary)' }}>{fmtDate(o.date)}</td>

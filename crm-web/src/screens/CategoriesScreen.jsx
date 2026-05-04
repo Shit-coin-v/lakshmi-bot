@@ -2,11 +2,18 @@ import { useNavigate } from 'react-router-dom';
 import { Stat } from '../components/primitives/Stat.jsx';
 import { AbcBadge } from '../components/primitives/AbcBadge.jsx';
 import { XyzBadge } from '../components/primitives/XyzBadge.jsx';
-import categories from '../fixtures/categories.js';
 import { fmtRubShort, fmtPct } from '../utils/format.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useCategories } from '../hooks/useCategories.js';
 
 export default function CategoriesScreen() {
   const navigate = useNavigate();
+
+  const { data, isLoading, error, refetch } = useCategories();
+  if (isLoading) return <ScreenSkeleton variant="table" />;
+  if (error)     return <ErrorBanner title="Не удалось загрузить категории" error={error} onRetry={refetch} />;
+  const categories = data;
 
   const totals = categories.reduce(
     (a, c) => ({

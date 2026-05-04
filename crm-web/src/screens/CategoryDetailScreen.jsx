@@ -6,27 +6,25 @@ import { Sparkline } from '../components/primitives/Sparkline.jsx';
 import { StockBar } from '../components/primitives/StockBar.jsx';
 import { SuggestedOrder } from '../components/primitives/SuggestedOrder.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
-import categories from '../fixtures/categories.js';
-import skus from '../fixtures/skus.js';
 import { fmtRubShort, fmtPct } from '../utils/format.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useCategory } from '../hooks/useCategories.js';
+import { NotFoundError } from '../api/client.js';
 
 export default function CategoryDetailScreen() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const cat = categories.find((c) => c.slug === slug);
 
-  if (!cat) {
-    return (
-      <EmptyState
-        title="Категория не найдена"
-        hint={`slug «${slug}» отсутствует в фикстурах`}
-        onBack={() => navigate('/categories')}
-        backLabel="← К списку категорий"
-      />
-    );
+  const { data: cat, isLoading, error, refetch } = useCategory(slug);
+  if (isLoading) return <ScreenSkeleton variant="card" />;
+  if (error instanceof NotFoundError) {
+    return <EmptyState title="Категория не найдена" hint={`slug «${slug}» отсутствует`} onBack={() => navigate('/categories')} backLabel="← К списку категорий" />;
   }
+  if (error) return <ErrorBanner title="Не удалось загрузить категорию" error={error} onRetry={refetch} />;
+  if (!cat) return null;
 
-  const catSkus = skus.filter((s) => s.categorySlug === cat.slug);
+  const catSkus = cat.skuList || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -73,7 +71,7 @@ export default function CategoryDetailScreen() {
           </thead>
           <tbody>
             {catSkus.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)' }}>В этой категории пока нет SKU в фикстуре.</td></tr>
+              <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)' }}>В этой категории пока нет SKU.</td></tr>
             )}
             {catSkus.map((s) => (
               <tr key={s.id} style={{ borderTop: '1px solid var(--border)' }}>

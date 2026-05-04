@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
-import orders from '../fixtures/orders.js';
+import { useState } from 'react';
 import { fmtRub, fmtDate } from '../utils/format.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useOrders } from '../hooks/useOrders.js';
 
 const STATUSES = ['Все', 'new', 'accepted', 'assembly', 'ready', 'delivery', 'arrived', 'completed', 'canceled'];
 const PURCHASE_TYPES = ['Все', 'delivery', 'pickup', 'in_store'];
@@ -31,11 +33,13 @@ export default function OrdersScreen() {
   const [status, setStatus] = useState('Все');
   const [pType, setPType] = useState('Все');
 
-  const list = useMemo(() => orders.filter((o) => {
-    if (status !== 'Все' && o.status !== status) return false;
-    if (pType !== 'Все' && o.purchaseType !== pType) return false;
-    return true;
-  }), [status, pType]);
+  const { data, isLoading, error, refetch } = useOrders({
+    status: status !== 'Все' ? status : undefined,
+    purchaseType: pType !== 'Все' ? pType : undefined,
+  });
+  if (isLoading) return <ScreenSkeleton variant="table" />;
+  if (error)     return <ErrorBanner title="Не удалось загрузить заказы" error={error} onRetry={refetch} />;
+  const list = data.results;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

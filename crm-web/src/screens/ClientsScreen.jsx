@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
-import clients from '../fixtures/clients.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useClients } from '../hooks/useClients.js';
 import { fmtRub, fmtDate } from '../utils/format.js';
 
 const SEGMENTS = ['Все', 'Чемпионы', 'Лояльные', 'Новички', 'Спящие', 'Рискуют уйти', 'Потерянные'];
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export default function ClientsScreen() {
   const navigate = useNavigate();
@@ -13,21 +15,18 @@ export default function ClientsScreen() {
   const [seg, setSeg] = useState('Все');
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    const ql = q.trim().toLowerCase();
-    return clients.filter((c) => {
-      if (seg !== 'Все' && c.rfmSegment !== seg) return false;
-      if (!ql) return true;
-      return (
-        c.name.toLowerCase().includes(ql) ||
-        c.phone.includes(ql) ||
-        (c.email || '').toLowerCase().includes(ql)
-      );
-    });
-  }, [q, seg]);
+  const { data, isLoading, error, refetch } = useClients({
+    q: q.trim() || undefined,
+    segment: seg !== 'Все' ? seg : undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  if (isLoading) return <ScreenSkeleton variant="table" />;
+  if (error)     return <ErrorBanner title="Не удалось загрузить клиентов" error={error} onRetry={refetch} />;
+
+  const rows = data.results;
+  const pages = data.pagination.totalPages;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -61,21 +60,17 @@ export default function ClientsScreen() {
         <table style={{ width: '100%', fontSize: 13 }}>
           <thead style={{ background: 'var(--surface-panel-elevated)', color: 'var(--fg-muted)' }}>
             <tr>
-              <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 500 }}>Клиент</th>
-              <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 500 }}>Сегмент</th>
+              <th style={{ textAlign: 'left',  padding: '10px 12px', fontWeight: 500 }}>Клиент</th>
+              <th style={{ textAlign: 'left',  padding: '10px 12px', fontWeight: 500 }}>Сегмент</th>
               <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 500 }}>Бонусы</th>
               <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 500 }}>LTV</th>
-              <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 500 }}>Последний заказ</th>
-              <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 500 }}>Теги</th>
+              <th style={{ textAlign: 'left',  padding: '10px 12px', fontWeight: 500 }}>Последний заказ</th>
+              <th style={{ textAlign: 'left',  padding: '10px 12px', fontWeight: 500 }}>Теги</th>
             </tr>
           </thead>
           <tbody>
-            {pageItems.map((c) => (
-              <tr
-                key={c.id}
-                onClick={() => navigate(`/clients/${c.id}`)}
-                style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}
-              >
+            {rows.map((c) => (
+              <tr key={c.id} onClick={() => navigate(`/clients/${c.id}`)} style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}>
                 <td style={{ padding: '10px 12px' }}>
                   <div style={{ fontWeight: 500, color: 'var(--fg-primary)' }}>{c.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{c.phone}</div>
@@ -83,7 +78,7 @@ export default function ClientsScreen() {
                 <td style={{ padding: '10px 12px', color: 'var(--fg-secondary)' }}>{c.rfmSegment}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--fg-primary)' }}>{fmtRub(c.bonus)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--fg-primary)' }}>{fmtRub(c.ltv)}</td>
-                <td style={{ padding: '10px 12px', color: 'var(--fg-secondary)' }}>{fmtDate(c.lastOrder)}</td>
+                <td style={{ padding: '10px 12px', color: 'var(--fg-secondary)' }}>{c.lastOrder ? fmtDate(c.lastOrder) : '—'}</td>
                 <td style={{ padding: '10px 12px', color: 'var(--fg-muted)' }}>{(c.tags || []).join(', ')}</td>
               </tr>
             ))}

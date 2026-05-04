@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
-import campaigns from '../fixtures/campaigns.js';
+import { useState } from 'react';
 import { fmtDate } from '../utils/format.js';
+import { ScreenSkeleton } from '../components/ScreenSkeleton.jsx';
+import { ErrorBanner } from '../components/ErrorBanner.jsx';
+import { useCampaigns } from '../hooks/useCampaigns.js';
 
 const TABS = [
   { id: 'all',      label: 'Все' },
@@ -24,10 +26,11 @@ const STATUS_COLOR = {
 export default function CampaignsScreen() {
   const [tab, setTab] = useState('all');
 
-  const list = useMemo(
-    () => campaigns.filter((c) => tab === 'all' || c.status === tab),
-    [tab]
-  );
+  const apiStatus = tab === 'all' ? undefined : tab;
+  const { data, isLoading, error, refetch } = useCampaigns({ status: apiStatus });
+  if (isLoading) return <ScreenSkeleton variant="table" />;
+  if (error)     return <ErrorBanner title="Не удалось загрузить кампании" error={error} onRetry={refetch} />;
+  const list = data.results;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

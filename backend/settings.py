@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'apps.campaigns.apps.CampaignsConfig',
     'apps.rfm.apps.RfmConfig',
     'apps.showcase.apps.ShowcaseConfig',
+    'apps.crm_api.apps.CrmApiConfig',
 ]
 
 MIDDLEWARE = [
@@ -211,7 +212,12 @@ SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", not DEBUG)
 SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
+# CSRF-токен должен быть читаем из JS: SPA (crm-web) читает его из
+# document.cookie и шлёт в заголовке X-CSRFToken. Это стандартный паттерн
+# Django + SessionAuthentication для SPA. Безопасность не страдает —
+# CSRF-токен не секрет, его задача доказать same-origin, а не скрыть
+# значение. SESSION_COOKIE_HTTPONLY=True остаётся (sessionid недоступен JS).
+CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
 SECURE_CONTENT_TYPE_NOSNIFF = True
