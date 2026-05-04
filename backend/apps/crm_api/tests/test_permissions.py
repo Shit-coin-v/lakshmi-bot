@@ -15,6 +15,7 @@ CRM_GET_ENDPOINTS = [
     ("crm_api:dashboard", {}),       # Task 6
     ("crm_api:clients-list", {}),    # Task 7
     ("crm_api:clients-detail", {"card_id": "LC-000001"}),  # Task 8
+    ("crm_api:orders-list", {}),                           # Task 9
     # ...
 ]
 
