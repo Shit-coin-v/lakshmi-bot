@@ -2,6 +2,7 @@
 from django.urls import path
 
 from apps.crm_api.views.auth import LoginView, LogoutView, MeView
+from apps.crm_api.views.broadcasts import BroadcastHistoryView
 from apps.crm_api.views.clients import ClientListView, ClientDetailView
 from apps.crm_api.views.dashboard import DashboardView
 from apps.crm_api.views.campaigns import CampaignListView
@@ -18,5 +19,6 @@ urlpatterns = [
     path("clients/<str:card_id>/", ClientDetailView.as_view(), name="clients-detail"),
     path("orders/",      OrderListView.as_view(), name="orders-list"),
     path("campaigns/",   CampaignListView.as_view(), name="campaigns-list"),
-    # Data (Tasks 11-13): добавляются по мере имплементации
+    path("broadcasts/history/", BroadcastHistoryView.as_view(), name="broadcasts-history"),
+    # Data (Tasks 12-13): добавляются по мере имплементации
 ]
