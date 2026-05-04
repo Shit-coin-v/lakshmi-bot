@@ -1,8 +1,13 @@
-"""URL-маршруты CRM-API. Эндпоинты добавляются по мере появления views."""
+"""URL-маршруты CRM-API."""
 from django.urls import path
 
+from apps.crm_api.views.auth import LoginView, LogoutView, MeView
+
+app_name = "crm_api"
+
 urlpatterns = [
-    # Auth (Task 3): /api/crm/auth/login/, /logout/, /me/
-    # Data (Tasks 6-13): dashboard, clients, orders, campaigns,
-    # broadcasts/history, categories, abc-xyz
+    path("auth/login/",  LoginView.as_view(),  name="auth-login"),
+    path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
+    path("auth/me/",     MeView.as_view(),     name="auth-me"),
+    # Data (Tasks 6-13): добавляются по мере имплементации
 ]

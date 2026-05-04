@@ -9,7 +9,14 @@ class CRMAPIView(APIView):
 
     Авторизация: только session-cookie (никаких JWT/X-Api-Key — это другие
     зоны API). Доступ: только staff-пользователи (is_staff=True).
+
+    authenticate_header возвращает 'Session', чтобы DRF возвращал 401 (а не
+    403) для анонимных запросов. По умолчанию SessionAuthentication не
+    переопределяет authenticate_header → DRF понижал NotAuthenticated до 403.
     """
 
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsCRMStaff]
+
+    def get_authenticate_header(self, request):
+        return "Session"
